@@ -83,30 +83,4 @@ Tomcat started on port 8080 (http) with context path '/'
 
 Open the app in a web browser and check the health endpoint to verify it's running
  - Go to `http://localhost:8080/health` in a web browser
- - If you see "I'm here!" then the application is running locally. 
-
-# FAQ
-- What is gradle?
-  - A tool that lets you determine how your app is built (manage dependencies, build the app, etc...)
-- What is groovy?
-  - The language that gradle uses.
-- What is flyaway
-  - A tool for DB migrations
-- What is lombok
-  - A library of annotations to reduce boiler plate code (like getters and setters)
-
-# Troubleshooting
- - "Failed to configure a DataSource: 'url' attribute is not specified and no embedded datasource could be configured."
-   - Your database is not configured. 
-     - Make sure to add the following dependency in the `build.gradle` file
-       - `implementation 'org.postgresql:postgresql'`
-     - Make sure teh following are set in `application.properties` file
-       - `spring.datasource.username=` 
-       - `spring.datasource.password=`
- - psql login issues?
-   - a bunch of solutions: https://stackoverflow.com/questions/15301826/psql-fatal-role-postgres-does-not-exist
- - I see a login page
-   - This means spring security was enabled. 
-   - Comment out the `spring-boot-starter-security` in `build.gradle`
-   - rebuild the application `./gradlew clean build`
-   - run the application again `./gradlew bootRun`
+ - If you see "I'm here!" then the application is running locally.
