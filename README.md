@@ -69,6 +69,9 @@ postgres=# CREATE USER harmony_app;
 
 // create db for harmony
 postgres=# CREATE DATABASE harmony OWNER harmony_app;
+
+// exit psql
+exit
 ```
 
 run the application
@@ -84,3 +87,7 @@ Tomcat started on port 8080 (http) with context path '/'
 Open the app in a web browser and check the health endpoint to verify it's running
  - Go to `http://localhost:8080/health` in a web browser
  - If you see "I'm here!" then the application is running locally.
+
+
+QOL
+ - TODO: Figure out how to add hot reload/rebuild

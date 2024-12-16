@@ -1,5 +1,7 @@
-package iterative.harmony.backend
+package iterative.harmony.backend.config
 
+import iterative.harmony.backend.model.User
+import iterative.harmony.backend.repository.UserRepository
 import org.slf4j.LoggerFactory
 import org.springframework.boot.CommandLineRunner
 import org.springframework.context.annotation.Bean

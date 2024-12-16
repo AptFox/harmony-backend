@@ -1,4 +1,4 @@
-package iterative.harmony.backend
+package iterative.harmony.backend.model
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
@@ -23,14 +23,14 @@ class User(displayName: String? = null, timeZoneId: String? = null) {
     var displayName: String? = displayName
 
     @Getter @Setter @Column(name = "discord_id")//, nullable = false)
-    val discordId: Int? = null
+    var discordId: Int? = null
 
     @Getter @Setter @Column(name = "timezone_id")//, nullable = false)
     var timeZoneId: String? = timeZoneId
 
-    @Getter @Setter @Column(name = "player_id")//, nullable = false)
-    val playerId: Int? = null
+    @Getter @Setter @Column(name = "player_id")
+    var playerId: Int? = null
 
     @Getter @Setter @Column(name = "role_id")
-    val roleId: Int? = null
+    var roleId: Int? = null
 }
