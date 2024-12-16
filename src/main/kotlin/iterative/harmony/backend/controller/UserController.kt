@@ -1,15 +1,19 @@
 package iterative.harmony.backend.controller
 
+import iterative.harmony.backend.exception.UserNotFoundException
 import iterative.harmony.backend.repository.UserRepository
 import iterative.harmony.backend.model.User
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.web.bind.annotation.*
+import java.util.*
 
 @RestController
 class UserController @Autowired constructor(private val userRepository: UserRepository) {
 
     private val log = LoggerFactory.getLogger(UserController::class.java)
+
+//    TODO: Add /api/ to all endpoints
 
 //    TODO: move the health and root endpoints elsewhere
     @RequestMapping("/health")
@@ -34,5 +38,18 @@ class UserController @Autowired constructor(private val userRepository: UserRepo
         return userRepository.save(newUser)
     }
 
+    @PutMapping("/users/{userId}")
+    fun updateUser(@RequestBody request: User, @PathVariable userId: UUID): User {
+        log.info("updating user: $userId")
+        val userFromDb = userRepository.findById(userId)
 
+        if (userFromDb.isPresent) {
+            val userToUpdate = userFromDb.get()
+            userToUpdate.displayName = request.displayName
+            userToUpdate.timeZoneId = request.timeZoneId
+            return userRepository.save(userToUpdate)
+        } else {
+            throw UserNotFoundException(userId)
+        }
+    }
 }
