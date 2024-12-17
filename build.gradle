@@ -13,7 +13,7 @@ ktfmt {
 }
 
 group = 'iterative.harmony'
-version = '0.1.0' // Semantic versioning: MAJOR.MINOR.PATCH
+version = '0.1' // Semantic versioning: MAJOR.MINOR
 
 java {
 	toolchain {
