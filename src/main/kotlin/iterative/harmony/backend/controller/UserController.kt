@@ -49,8 +49,14 @@ class UserController @Autowired constructor(private val userRepository: UserRepo
                 timeZoneId = request.timeZoneId
             }
             return userRepository.save(userToUpdate)
-        } else {
-            throw UserNotFoundException(userId)
         }
+
+        throw UserNotFoundException(userId)
+    }
+
+    @DeleteMapping("/users/{userId}")
+    fun deleteUser(@PathVariable userId: UUID) {
+        log.info("deleting user: $userId")
+        userRepository.deleteById(userId)
     }
 }
