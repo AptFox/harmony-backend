@@ -99,7 +99,7 @@ docker build -t harmony-backend:latest .
 
 
 // run the image
-docker run --name harmony-backend -p 8080:8080 harmony-backend:latest
+docker run --name harmony-backend -p 8080:8080 --env-file .env harmony-backend:latest
 ```
 
 Open the app in a web browser and check the health endpoint to verify it's running
