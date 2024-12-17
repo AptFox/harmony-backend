@@ -28,6 +28,6 @@ jobs:
         run: docker push registry.heroku.com/${{ secrets.HEROKU_APP_NAME }}/web
 
       # Step 5: Release the Heroku app
-      - name: Release the Heroku app
+      - name: Deploy the app on Heroku
         run: heroku container:release web --app ${{ secrets.HEROKU_APP_NAME }}
           echo "Application successfully deployed to Heroku."
