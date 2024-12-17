@@ -44,9 +44,10 @@ class UserController @Autowired constructor(private val userRepository: UserRepo
         val userFromDb = userRepository.findById(userId)
 
         if (userFromDb.isPresent) {
-            val userToUpdate = userFromDb.get()
-            userToUpdate.displayName = request.displayName
-            userToUpdate.timeZoneId = request.timeZoneId
+            val userToUpdate = userFromDb.get().apply {
+                displayName = request.displayName
+                timeZoneId = request.timeZoneId
+            }
             return userRepository.save(userToUpdate)
         } else {
             throw UserNotFoundException(userId)
