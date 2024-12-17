@@ -1,34 +1,33 @@
 package iterative.harmony.backend.controller
 
 import iterative.harmony.backend.exception.UserNotFoundException
-import iterative.harmony.backend.repository.UserRepository
 import iterative.harmony.backend.model.User
+import iterative.harmony.backend.repository.UserRepository
+import java.util.*
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.web.bind.annotation.*
-import java.util.*
 
 @RestController
 class UserController @Autowired constructor(private val userRepository: UserRepository) {
-
     private val log = LoggerFactory.getLogger(UserController::class.java)
 
-//    TODO: Add /api/ to all endpoints
+    //    TODO: Add /api/ to all endpoints
 
-//    TODO: move the health and root endpoints elsewhere
+    //    TODO: move the health and root endpoints elsewhere
     @RequestMapping("/health")
     fun health(): String {
-        return "I'm here!";
+        return "I'm here!"
     }
 
     @RequestMapping("/")
     fun home(): String {
-        return "Hello World!";
+        return "Hello World!"
     }
 
     @GetMapping("/users")
-    fun getAllUsers(): List<User>{
-        return userRepository.findAll();
+    fun getAllUsers(): List<User> {
+        return userRepository.findAll()
     }
 
     // TODO: Add validation to requests with @Valid
@@ -44,10 +43,11 @@ class UserController @Autowired constructor(private val userRepository: UserRepo
         val userFromDb = userRepository.findById(userId)
 
         if (userFromDb.isPresent) {
-            val userToUpdate = userFromDb.get().apply {
-                displayName = request.displayName
-                timeZoneId = request.timeZoneId
-            }
+            val userToUpdate =
+                userFromDb.get().apply {
+                    displayName = request.displayName
+                    timeZoneId = request.timeZoneId
+                }
             return userRepository.save(userToUpdate)
         }
 

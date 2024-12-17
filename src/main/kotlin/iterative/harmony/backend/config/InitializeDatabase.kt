@@ -9,7 +9,6 @@ import org.springframework.context.annotation.Configuration
 
 @Configuration
 class InitializeDatabase {
-
     private val log = LoggerFactory.getLogger(InitializeDatabase::class.java)
 
     @Bean
@@ -19,8 +18,8 @@ class InitializeDatabase {
             val user1 = User("some_name", "some_tz")
             val user2 = User("some_name", "some_tz")
 
-            log.info("Preloading database: "+ userRepo.save(user1))
-            log.info("Preloading database: "+ userRepo.save(user2))
+            log.info("Preloading database: " + userRepo.save(user1))
+            log.info("Preloading database: " + userRepo.save(user2))
         }
     }
 }
