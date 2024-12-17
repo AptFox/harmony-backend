@@ -74,6 +74,14 @@ postgres=# CREATE DATABASE harmony OWNER harmony_app;
 exit
 ```
 
+set environment variables
+ - open the repository and create a `.env` file containing the following:
+```
+DB_URL=jdbc:postgresql://host.docker.internal:5432/harmony;
+DB_USER=harmony_app
+DB_PASSWORD=
+```
+
 run the application
 ```
 ./gradlew bootRun
@@ -82,6 +90,16 @@ run the application
 Look for a message like this in the terminal
 ```
 Tomcat started on port 8080 (http) with context path '/'
+```
+
+docker
+```
+// build the docker image
+docker build -t harmony-backend:latest .
+
+
+// run the image
+docker run --name harmony-backend -p 8080:8080 harmony-backend:latest
 ```
 
 Open the app in a web browser and check the health endpoint to verify it's running
