@@ -89,5 +89,11 @@ Open the app in a web browser and check the health endpoint to verify it's runni
  - If you see "I'm here!" then the application is running locally.
 
 
-QOL
+# Development
+ - Make changes
+ - write meaningful commit messages
+ - run the linter from the terminal: `./gradlew ktlintFormat`
+   - To just check, run `./gradlew ktlintCheck`
+
+# QOL
  - TODO: Figure out how to add hot reload/rebuild
