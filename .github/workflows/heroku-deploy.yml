@@ -1,0 +1,33 @@
+name: Heroku Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Step 2: Log in to Heroku Container Registry
+      - name: Log in to Heroku Container Registry
+        run: |
+          echo "${{ secrets.HEROKU_AUTH_TOKEN }}" | docker login --username=_ --password-stdin registry.heroku.com
+
+      # Step 3: Build the Docker image
+      - name: Build Docker image
+        run: docker build -t registry.heroku.com/${{ secrets.HEROKU_APP_NAME }}/web .
+
+      # Step 4: Push the Docker image to Heroku
+      - name: Push Docker image to Heroku
+        run: docker push registry.heroku.com/${{ secrets.HEROKU_APP_NAME }}/web
+
+      # Step 5: Release the Heroku app
+      - name: Deploy the app on Heroku
+        run: heroku container:release web --app ${{ secrets.HEROKU_APP_NAME }}
+          echo "Application successfully deployed to Heroku."
