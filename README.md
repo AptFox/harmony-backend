@@ -1,11 +1,21 @@
 
 # Version info
-Framework: Spring boot 3.3.5
-Language: Kotlin 1.9.24
-DB: postgresql 16
-JDK: 21
-Gradle: 8.10.2
-Apache Ant: 1.10.14
+ - Framework: Spring boot 3.3.5
+ - Language: Kotlin 1.9.24
+ - DB: postgresql 16
+ - JDK: 21
+ - Gradle: 8.10.2
+ - Apache Ant: 1.10.14
+
+# Development process
+ - Make changes
+ - Write meaningful commit messages
+ - Run the linter from the terminal: `./gradlew ktfmtFormat`
+   - To just check, run `./gradlew ktfmtCheck`
+   - You can also add ktfmt to your IDE as a plugin
+
+# QOL
+- TODO: Figure out how to add hot reload/rebuild
 
 # MacOS install instructions:
 
@@ -14,17 +24,17 @@ Apache Ant: 1.10.14
 - Docker
 
 ## Install process
-install jdk:
+### Install jdk:
 ```
 brew install openjdk@21
 ```
 
-link jdk
+### link jdk
  ```
  sudo ln -sfn /opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk /Library/Java/JavaVirtualMachines/openjdk-21.jdk
  ```
- 
-set jdk on path
+
+### set jdk on path
 ```
 nvim ~/.zshrc
 
@@ -37,12 +47,12 @@ export JAVA_HOME=$(/usr/libexec/java_home)
 source ~/.zshrc
 ```
 
-install gradle
+### install gradle
 ```
 brew install gradle
 ```
 
-install postgres ( I don't think you have to do this cause Docker will create one for you)
+### install postgres locally
 ```
 brew install postgres@16
 
@@ -74,7 +84,7 @@ postgres=# CREATE DATABASE harmony OWNER harmony_app;
 exit
 ```
 
-set environment variables
+### set environment variables
  - open the repository and create a `.env` file containing the following:
 ```
 DATABASE_URL=jdbc:postgresql://host.docker.internal:5432/harmony;
@@ -82,7 +92,7 @@ DATABASE_USER=harmony_app
 DATABASE_PASSWORD=
 ```
 
-run the application
+### run the application
 ```
 // build the docker image
 docker build -t harmony-backend:latest .
@@ -94,22 +104,12 @@ docker run --name harmony-backend -p 8080:8080 --env-file .env harmony-backend:l
 ./gradlew bootRun
 ```
 
-Look for a message like this in the terminal
+#### Look for a message like this in the terminal
 ```
 Tomcat started on port 8080 (http) with context path '/'
 ```
 
-Open the app in a web browser and check the health endpoint to verify it's running
+#### Open the app in a web browser and check the health endpoint to verify it's running
  - Go to `http://localhost:8080/health` in a web browser
  - If you see "I'm here!" then the application is running locally.
 
-
-# Development
- - Make changes
- - write meaningful commit messages
- - run the linter from the terminal: `./gradlew ktfmtFormat`
-   - To just check, run `./gradlew ktfmtCheck`
-   - You can also add ktfmt to your IDE as a plugin
-
-# QOL
- - TODO: Figure out how to add hot reload/rebuild
