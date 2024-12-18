@@ -12,8 +12,9 @@
  - Create (checkout) a named feature branch from dev
    - `git checkout -b desc-of-feature`
  - Make changes
-   - Run tests
-   - Write meaningful commit messages
+   - Write tests for changes
+   - Run all tests
+   - Write meaningful commit message
  - Run the linter from the terminal: `./gradlew ktfmtFormat`
    - To just check, run `./gradlew ktfmtCheck`
    - You can also add ktfmt to your IDE as a plugin
