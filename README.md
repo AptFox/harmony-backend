@@ -103,13 +103,10 @@ DATABASE_PASSWORD=
 
 ### run the application
 ```
-// build the docker image
-docker build -t harmony-backend:latest .
+// build and run the docker image locally
+./gradlew runDockerContainer
 
-// run the image
-docker run --name harmony-backend -p 8080:8080 --env-file .env harmony-backend:latest
-
-// OPTIONAL - use gradle directly if you'd like to run the app w/o docker (DATABASE_URL needs to be localhost)
+// OPTIONAL - use gradle to run the appdirectly if you'd like to run the app w/o docker(DATABASE_URL needs to be localhost)
 ./gradlew bootRun
 ```
 

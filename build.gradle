@@ -70,3 +70,20 @@ tasks.named('test') {
 	useJUnitPlatform()
 }
 
+tasks.register('buildDockerImage', Exec) {
+	dependsOn bootJar
+	commandLine 'docker', 'build', '-t', 'harmony-backend:latest', '.'
+}
+
+tasks.register('runDockerContainer', Exec) {
+	dependsOn buildDockerImage
+	doFirst {
+		// Remove any existing container
+		exec {
+			ignoreExitValue = true
+			commandLine 'docker', 'rm', '-f', 'harmony-backend:latest'
+		}
+	}
+	commandLine 'docker', 'run', '--name', 'harmony-backend', '-p', '8080:8080', '--env-file', '.env', 'harmony-backend:latest'
+}
+

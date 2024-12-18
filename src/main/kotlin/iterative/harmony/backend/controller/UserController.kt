@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.web.bind.annotation.*
 
 @RestController
+@RequestMapping("/api")
 class UserController @Autowired constructor(private val userRepository: UserRepository) {
     private val log = LoggerFactory.getLogger(UserController::class.java)
 
