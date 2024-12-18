@@ -8,11 +8,19 @@
  - Apache Ant: 1.10.14
 
 # Development process
+ - Pull the most recent version of dev
+ - Create (checkout) a named feature branch from dev
+   - `git checkout -b desc-of-feature`
  - Make changes
- - Write meaningful commit messages
+   - Run tests
+   - Write meaningful commit messages
  - Run the linter from the terminal: `./gradlew ktfmtFormat`
    - To just check, run `./gradlew ktfmtCheck`
    - You can also add ktfmt to your IDE as a plugin
+ - Commit linted changes
+ - Open PR against dev branch
+ - Request to have dev merged to main for deployment of new feature
+   - PR's merged to main trigger CI/CD
 
 # QOL
 - TODO: Figure out how to add hot reload/rebuild
