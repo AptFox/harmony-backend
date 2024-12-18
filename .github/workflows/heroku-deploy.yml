@@ -25,9 +25,13 @@ jobs:
 
       # Step 4: Push the Docker image to Heroku
       - name: Push Docker image to Heroku
-        run: docker push registry.heroku.com/${{ secrets.HEROKU_APP_NAME }}/web
+        run: docker push registry.heroku.com/${{ secrets.HEROKU_APP_NAME }}/
 
-      # Step 5: Release the Heroku app
+      # Step 5: Set ENV vars in Heroku
+      - name: Set ENV Vars
+        run: heroku config:set HIBERNATE_BEHAVIOR=${{ secrets.HIBERNATE_BEHAVIOR }} --app harmony-app
+
+      # Step 6: Trigger Heroku deploy
       - name: Deploy the app on Heroku
         run: heroku container:release web --app ${{ secrets.HEROKU_APP_NAME }}
           echo "Application successfully deployed to Heroku."
