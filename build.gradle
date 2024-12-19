@@ -15,9 +15,9 @@ ktfmt {
 }
 
 flyway {
-	url = env.DATABASE_URL.value
-	user = env.DATABASE_USER.value
-	password = env.DATABASE_PASS.value
+	url = env.fetch('DATABASE_URL')
+	user = env.fetch('DATABASE_USER')
+	password = env.fetch('DATABASE_PASS')
 }
 
 group = 'iterative.harmony'
