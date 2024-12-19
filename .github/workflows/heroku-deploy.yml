@@ -29,7 +29,10 @@ jobs:
 
       # Step 5: Set ENV vars in Heroku
 #      - name: Set ENV Vars
-#        run: heroku config:set VAR_HERE=${{ secrets.VAR_HERE }} --app harmony-app
+#        run: heroku config:set DATABASE_USER=${{ secrets.DATABASE_USER }} --app ${{ secrets.HEROKU_APP_NAME }}
+#        run: heroku config:set DATABASE_PASS=${{ secrets.DATABASE_PASS }} --app ${{ secrets.HEROKU_APP_NAME }}
+#        run: heroku config:set DISCORD_CLIENT_ID=${{ secrets.DISCORD_CLIENT_ID }} --app ${{ secrets.HEROKU_APP_NAME }}
+#        run: heroku config:set DISCORD_CLIENT_SECRET=${{ secrets.DISCORD_CLIENT_SECRET }} --app ${{ secrets.HEROKU_APP_NAME }}
 
       # Step 6: Trigger Heroku deploy
       - name: Deploy the app on Heroku
