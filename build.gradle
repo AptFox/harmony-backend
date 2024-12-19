@@ -5,11 +5,19 @@ plugins {
 	id 'io.spring.dependency-management' version '1.1.6'
 	id 'org.jetbrains.kotlin.plugin.jpa' version '1.9.25'
 	id 'com.ncorti.ktfmt.gradle' version '0.21.0'
+	id 'org.flywaydb.flyway' version '11.1.0'
+	id 'co.uzzu.dotenv.gradle' version '4.0.0'
 }
 
-
+// plugin config
 ktfmt {
 	kotlinLangStyle()
+}
+
+flyway {
+	url = env.fetch('DATABASE_URL', '')
+	user = env.fetch('DATABASE_USER', '')
+	password = env.fetch('DATABASE_PASS', '')
 }
 
 group = 'iterative.harmony'
@@ -70,3 +78,20 @@ tasks.named('test') {
 	useJUnitPlatform()
 }
 
+// docker tasks
+tasks.register('buildDockerImage', Exec) {
+	dependsOn bootJar
+	commandLine 'docker', 'build', '-t', 'harmony-backend:latest', '.'
+}
+
+tasks.register('runDockerContainer', Exec) {
+	dependsOn buildDockerImage
+	doFirst {
+		// Remove any existing container
+		exec {
+			ignoreExitValue = true
+			commandLine 'docker', 'rm', '-f', 'harmony-backend'
+		}
+	}
+	commandLine 'docker', 'run', '--name', 'harmony-backend', '-p', '8080:8080', '--env-file', '.env', 'harmony-backend:latest'
+}
