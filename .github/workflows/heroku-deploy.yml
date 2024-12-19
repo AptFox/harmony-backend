@@ -29,7 +29,7 @@ jobs:
 
       # Step 5: Set ENV vars in Heroku
 #      - name: Set ENV Vars
-#        run: heroku config:set VAR_HERE=${{ secrets.HIBERNATE_BEHAVIOR }} --app harmony-app
+#        run: heroku config:set VAR_HERE=${{ secrets.VAR_HERE }} --app harmony-app
 
       # Step 6: Trigger Heroku deploy
       - name: Deploy the app on Heroku
