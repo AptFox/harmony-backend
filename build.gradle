@@ -47,6 +47,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-mail'
 	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
 //	implementation 'org.springframework.boot:spring-boot-starter-security'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'com.fasterxml.jackson.module:jackson-module-kotlin'
 	implementation 'org.flywaydb:flyway-core'
@@ -94,4 +95,21 @@ tasks.register('runDockerContainer', Exec) {
 		}
 	}
 	commandLine 'docker', 'run', '--name', 'harmony-backend', '-p', '8080:8080', '--env-file', '.env', 'harmony-backend:latest'
+}
+
+tasks.register('newMigration') {
+	doLast {
+		def migrationsDir = file('src/main/resources/db/migration')
+		def version = new Date().format('yyyyMMddHHmmss') // Timestamp for versioning
+		def description = project.hasProperty('desc') ? project.desc : 'new_migration'
+		def fileName = "V${version}__${description.replaceAll('\\s+', '_')}.sql"
+		def migrationFile = new File(migrationsDir, fileName)
+
+		if (!migrationsDir.exists()) {
+			migrationsDir.mkdirs()
+		}
+
+		migrationFile.text = "-- Write your migration SQL here\n"
+		println "Created migration file: $migrationFile"
+	}
 }
