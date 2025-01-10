@@ -13,19 +13,6 @@ import org.springframework.web.bind.annotation.*
 class UserController @Autowired constructor(private val userRepository: UserRepository) {
     private val log = LoggerFactory.getLogger(UserController::class.java)
 
-    //    TODO: Add /api/ to all endpoints
-
-    //    TODO: move the health and root endpoints elsewhere
-    @RequestMapping("/health")
-    fun health(): String {
-        return "I'm here!"
-    }
-
-    @RequestMapping("/")
-    fun home(): String {
-        return "Hello World!"
-    }
-
     @GetMapping("/users")
     fun getAllUsers(): List<User> {
         return userRepository.findAll()
