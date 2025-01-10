@@ -19,7 +19,10 @@ class SecurityConfig {
                     .authenticated() // Protect all other endpoints
             }
             .oauth2Login { oauth2 ->
-                oauth2.defaultSuccessUrl("/api/dashboard", true) // Redirect to dashboard after login
+                oauth2.defaultSuccessUrl(
+                    "/api/dashboard",
+                    true,
+                ) // Redirect to dashboard after login
             }
 
         return http.build()
