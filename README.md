@@ -28,7 +28,7 @@
    - These can be found in `src/main/resources/db/migration`
    - These are raw SQL that should mirror changes in `src/main/kotlin/iterative/harmony/backend/model`
    - To create a new migration, run the following in the terminal:
-     - `./gradlew createMigration -Pdesc="TABLE_NAME__description_of_the_migration_here"`
+     - `./gradlew newMigration -Pdesc="TABLE_NAME__description_of_the_migration_here"`
      - Add your SQL to the migration file
      - Run the migration locally: `./gradlew flywayMigrate`
      - Verify that the intended behavior is present in the application
