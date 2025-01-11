@@ -1,50 +1,51 @@
 package iterative.harmony.backend.controller
 
-import iterative.harmony.backend.exception.UserNotFoundException
-import iterative.harmony.backend.model.User
-import iterative.harmony.backend.repository.UserRepository
+import iterative.harmony.backend.controller.dto.CreateUserRequest
+import iterative.harmony.backend.controller.dto.UpdateUserRequest
+import iterative.harmony.backend.controller.dto.UserResponse
+import iterative.harmony.backend.service.UserService
+import iterative.harmony.backend.util.getLogger
+import jakarta.validation.Valid
 import java.util.*
-import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/api")
-class UserController @Autowired constructor(private val userRepository: UserRepository) {
-    private val log = LoggerFactory.getLogger(UserController::class.java)
+class UserController @Autowired constructor(private val userService: UserService) {
+    private val log = getLogger()
+
+    @GetMapping("/user/{uuid}")
+    fun getUser(@PathVariable uuid: UUID): UserResponse {
+        log.info("getting user: $uuid")
+        return userService.getUser(uuid)
+    }
 
     @GetMapping("/users")
-    fun getAllUsers(): List<User> {
-        return userRepository.findAll()
+    fun getAllUsers(): List<UserResponse> {
+        log.info("getting all users")
+        return userService.getAllUsers()
     }
 
-    // TODO: Add validation to requests with @Valid
     @PostMapping("/users")
-    fun createNewUser(@RequestBody newUser: User): User {
-        log.info("creating new user from: $newUser")
-        return userRepository.save(newUser)
+    fun createNewUser(@Valid @RequestBody request: CreateUserRequest): UserResponse {
+        log.info("creating new user from: $request")
+        return userService.createUser(request)
     }
 
-    @PutMapping("/users/{userId}")
-    fun updateUser(@RequestBody request: User, @PathVariable userId: UUID): User {
-        log.info("updating user: $userId")
-        val userFromDb = userRepository.findById(userId)
-
-        if (userFromDb.isPresent) {
-            val userToUpdate =
-                userFromDb.get().apply {
-                    displayName = request.displayName
-                    timeZoneId = request.timeZoneId
-                }
-            return userRepository.save(userToUpdate)
-        }
-
-        throw UserNotFoundException(userId)
+    @PutMapping("/user/{uuid}")
+    fun updateUser(
+        @Valid @RequestBody request: UpdateUserRequest,
+        @PathVariable uuid: UUID,
+    ): UserResponse {
+        log.info("updating user: $uuid")
+        return userService.updateUser(request, uuid)
     }
 
-    @DeleteMapping("/users/{userId}")
-    fun deleteUser(@PathVariable userId: UUID) {
-        log.info("deleting user: $userId")
-        userRepository.deleteById(userId)
+    @DeleteMapping("/user/{uuid}")
+    fun deleteUser(@PathVariable uuid: UUID): String {
+        log.info("deleting user: $uuid")
+        userService.deleteUser(uuid)
+        return "User $uuid successfully deleted"
     }
 }
