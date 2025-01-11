@@ -34,7 +34,7 @@ class UserController @Autowired constructor(private val userService: UserService
     }
 
     @PutMapping("/user/{uuid}")
-    fun updateUser(@RequestBody request: UpdateUserRequest, @PathVariable uuid: UUID): UserResponse {
+    fun updateUser(@Valid @RequestBody request: UpdateUserRequest, @PathVariable uuid: UUID): UserResponse {
         log.info("updating user: $uuid")
         return userService.updateUser(request, uuid)
     }
