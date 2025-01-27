@@ -130,6 +130,6 @@ Started BackendApplicationKt in 1.931 seconds
 ```
 
 #### Open the app in a web browser and check the health endpoint to verify it's running
- - Go to `http://localhost:8080/health` in a web browser
- - If you see "I'm here!" then the application is running locally.
+ - Go to `http://localhost:8080/` in a web browser
+ - If you see "Hello World" then the application is running locally.
 
