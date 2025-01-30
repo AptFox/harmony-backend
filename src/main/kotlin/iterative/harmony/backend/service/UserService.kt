@@ -5,35 +5,38 @@ import iterative.harmony.backend.controller.dto.UpdateUserRequest
 import iterative.harmony.backend.controller.dto.UserResponse
 import iterative.harmony.backend.exception.UserNotFoundException
 import iterative.harmony.backend.model.User
+import iterative.harmony.backend.repository.RoleRepository
 import iterative.harmony.backend.repository.UserRepository
+import iterative.harmony.backend.util.RoleConstants
 import java.util.*
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.stereotype.Service
-import iterative.harmony.backend.repository.RoleRepository
-import iterative.harmony.backend.util.RoleConstants
 import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.stereotype.Service
 
 @Service
-class UserService @Autowired constructor(
+class UserService
+@Autowired
+constructor(
     private val userRepository: UserRepository,
-    private val roleRepository: RoleRepository
+    private val roleRepository: RoleRepository,
 ) {
 
     fun getOrCreateUser(discordUser: DiscordOAuthUser): User {
-       val user = userRepository.findByDiscordId(discordUser.id)
-       if (!user.isPresent) {
-           val userRole = roleRepository.findByName(RoleConstants.USER_ROLE).get()
-           val newUser = User(
-               username = discordUser.username,
-               displayName = discordUser.username,
-               discordId = discordUser.id,
-               timeZoneId = 0,
-               roles = setOf(userRole),
-           )
-           return userRepository.save(newUser)
-       }
-       return user.get()
-   }
+        val user = userRepository.findByDiscordId(discordUser.id)
+        if (!user.isPresent) {
+            val userRole = roleRepository.findByName(RoleConstants.USER_ROLE).get()
+            val newUser =
+                User(
+                    username = discordUser.username,
+                    displayName = discordUser.username,
+                    discordId = discordUser.id,
+                    timeZoneId = 0,
+                    roles = setOf(userRole),
+                )
+            return userRepository.save(newUser)
+        }
+        return user.get()
+    }
 
     fun getUserRoles(userId: UUID): List<String> {
         return userRepository.findById(userId).get().roles.map { it.name }

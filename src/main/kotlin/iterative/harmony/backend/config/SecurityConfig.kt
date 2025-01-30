@@ -11,20 +11,25 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 @EnableWebSecurity
-class SecurityConfig (
+class SecurityConfig(
     private val customOAuth2UserService: CustomOAuth2UserService,
-    private val jwtTokenService: JwtTokenService
+    private val jwtTokenService: JwtTokenService,
 ) {
 
     @Bean
-    fun securityFilterChain(http: HttpSecurity, jwtAuthenticationFilter: JwtAuthenticationFilter): SecurityFilterChain {
+    fun securityFilterChain(
+        http: HttpSecurity,
+        jwtAuthenticationFilter: JwtAuthenticationFilter,
+    ): SecurityFilterChain {
         http
-            .sessionManagement{ session ->
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS) // Disables sessions (JSESSIONID)
+            .sessionManagement { session ->
+                session.sessionCreationPolicy(
+                    SessionCreationPolicy.STATELESS
+                ) // Disables sessions (JSESSIONID)
             }
             .authorizeHttpRequests { auth ->
                 auth
-                    .requestMatchers("/", "/login","/login/oauth2/**", "/error")
+                    .requestMatchers("/", "/login", "/login/oauth2/**", "/error")
                     .permitAll() // Allow public access to certain endpoints
                     .anyRequest()
                     .authenticated() // Protect all other endpoints
@@ -36,7 +41,10 @@ class SecurityConfig (
                 oauth2.successHandler(OAuth2LoginSuccessHandler(jwtTokenService))
             }
             .csrf { csrf -> csrf.disable() }
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
+            .addFilterBefore(
+                jwtAuthenticationFilter,
+                UsernamePasswordAuthenticationFilter::class.java,
+            )
 
         return http.build()
     }

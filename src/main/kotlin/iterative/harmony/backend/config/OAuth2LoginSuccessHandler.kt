@@ -4,18 +4,17 @@ import iterative.harmony.backend.service.JwtTokenService
 import jakarta.servlet.http.Cookie
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import java.util.UUID
 import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler
-import java.util.UUID
 
-class OAuth2LoginSuccessHandler(
-    private val jwtTokenService: JwtTokenService
-): AuthenticationSuccessHandler {
+class OAuth2LoginSuccessHandler(private val jwtTokenService: JwtTokenService) :
+    AuthenticationSuccessHandler {
     override fun onAuthenticationSuccess(
         request: HttpServletRequest,
         response: HttpServletResponse,
-        authentication: Authentication
+        authentication: Authentication,
     ) {
         val principal = authentication.principal as DefaultOAuth2User
         val userId = principal.attributes["user_id"] as UUID

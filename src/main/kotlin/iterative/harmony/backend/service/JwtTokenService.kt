@@ -6,18 +6,16 @@ import io.jsonwebtoken.Jwts
 import io.jsonwebtoken.SignatureAlgorithm
 import io.jsonwebtoken.security.Keys
 import iterative.harmony.backend.util.getLogger
+import java.security.Key
+import java.util.*
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.stereotype.Service
-import java.security.Key
-import java.util.*
 
 @Service
-class JwtTokenService (
-    @Value("\${jwt.secret}") private val secretKey: String,
-) {
+class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
 
     private val key: Key = Keys.hmacShaKeyFor(secretKey.toByteArray())
     private val tokenParser = Jwts.parserBuilder().setSigningKey(key).build()
@@ -41,7 +39,7 @@ class JwtTokenService (
         try {
             tokenParser.parseClaimsJws(token)
             return true
-        } catch(ex: JwtException) {
+        } catch (ex: JwtException) {
             log.info("Invalid JWT token: ${ex.message}")
             return false
         }
@@ -54,7 +52,7 @@ class JwtTokenService (
 
         val authorities = roles.map { role -> SimpleGrantedAuthority(role) }
         val auth = UsernamePasswordAuthenticationToken(userId, null, authorities)
-        auth.details = mapOf("userId" to userId )
+        auth.details = mapOf("userId" to userId)
         return auth
     }
 

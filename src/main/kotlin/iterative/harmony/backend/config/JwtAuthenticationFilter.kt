@@ -9,10 +9,14 @@ import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
 
 @Component
-class JwtAuthenticationFilter(private val tokenService: JwtTokenService): OncePerRequestFilter(){
-    override fun doFilterInternal(request: HttpServletRequest, response: HttpServletResponse, filterChain: FilterChain) {
+class JwtAuthenticationFilter(private val tokenService: JwtTokenService) : OncePerRequestFilter() {
+    override fun doFilterInternal(
+        request: HttpServletRequest,
+        response: HttpServletResponse,
+        filterChain: FilterChain,
+    ) {
         val token = getTokenFromRequest(request)
-        if (token != null && tokenService.validateToken(token)){
+        if (token != null && tokenService.validateToken(token)) {
             val auth = tokenService.getAuthentication(token)
             SecurityContextHolder.getContext().authentication = auth
         }
