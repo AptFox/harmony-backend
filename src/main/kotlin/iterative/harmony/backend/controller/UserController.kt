@@ -24,6 +24,7 @@ class UserController @Autowired constructor(private val userService: UserService
         return userService.getCurrentUser()
     }
 
+    @PreAuthorize("hasRole('${RoleConstants.USER_ROLE}')")
     @PutMapping("/user/@me")
     fun updateUser(
         @Valid @RequestBody request: UpdateUserRequest,
