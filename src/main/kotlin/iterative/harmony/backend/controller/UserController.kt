@@ -9,6 +9,7 @@ import jakarta.validation.Valid
 import java.security.Principal
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.security.access.prepost.PreAuthorize
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.bind.annotation.*
 
 @RestController
@@ -21,7 +22,7 @@ class UserController @Autowired constructor(private val userService: UserService
     fun getUser(principal: Principal): UserResponse {
         log.info("getting user: ${principal.name}")
 
-        return userService.getCurrentUser()
+        return userService.getCurrentUser(SecurityContextHolder.getContext())
     }
 
     @PreAuthorize("hasRole('${RoleConstants.USER_ROLE}')")

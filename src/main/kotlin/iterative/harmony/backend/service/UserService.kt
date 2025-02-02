@@ -10,7 +10,7 @@ import iterative.harmony.backend.repository.UserRepository
 import iterative.harmony.backend.util.RoleConstants
 import java.util.*
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.security.core.context.SecurityContext
 import org.springframework.stereotype.Service
 
 @Service
@@ -38,12 +38,8 @@ constructor(
         return user.get()
     }
 
-    fun getUserRoles(userId: UUID): List<String> {
-        return userRepository.findById(userId).get().roles.map { it.name }
-    }
-
-    fun getCurrentUser(): UserResponse {
-        val details = SecurityContextHolder.getContext().authentication.details as Map<*, *>
+    fun getCurrentUser(securityContext: SecurityContext): UserResponse {
+        val details = securityContext.authentication.details as Map<*, *>
         val userId = UUID.fromString(details["userId"].toString())
         val user = userRepository.findById(userId).get()
         return mapToUserResponse(user)

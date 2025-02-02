@@ -21,11 +21,10 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      # Step 3: Run tests
-#      - name: Run Tests
-#        run: ./gradlew test
-
-      # Step 4: Run linter (ktfmt)
+      # Step 3: Run linter (ktfmt)
       - name: Run ktfmt
         run: ./gradlew ktfmtCheck
 
+      # Step 4: Run tests
+      - name: Run Tests
+        run: ./gradlew test
