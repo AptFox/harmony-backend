@@ -32,9 +32,7 @@ class SecurityConfig(
                     userInfo.userService(customOAuth2UserService)
                 }
                 oauth2.successHandler(OAuth2LoginSuccessHandler(jwtTokenService))
-                oauth2.failureHandler { _, response, _ ->
-                    response.sendError(401, "Unauthorized")
-                }
+                oauth2.failureHandler { _, response, _ -> response.sendError(401, "Unauthorized") }
             }
             .exceptionHandling { exception ->
                 exception.authenticationEntryPoint { _, response, _ ->

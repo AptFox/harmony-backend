@@ -3,7 +3,9 @@ package iterative.harmony.backend.config
 import iterative.harmony.backend.controller.dto.UserResponse
 import iterative.harmony.backend.service.UserService
 import iterative.harmony.backend.util.RoleConstants.USER_ROLE
+import java.util.*
 import org.junit.jupiter.api.Test
+import org.mockito.Mockito.`when` as whenever
 import org.mockito.kotlin.any
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
@@ -14,8 +16,6 @@ import org.springframework.security.test.context.support.WithMockUser
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers
-import java.util.*
-import org.mockito.Mockito.`when` as whenever
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -28,14 +28,16 @@ class SecurityConfigTest {
     @Test
     @WithAnonymousUser
     fun `anonymous user can access public endpoints`() {
-        mockMvc.perform(MockMvcRequestBuilders.get("/"))
+        mockMvc
+            .perform(MockMvcRequestBuilders.get("/"))
             .andExpect(MockMvcResultMatchers.status().isOk)
     }
 
     @Test
     @WithAnonymousUser
     fun `anonymous user cannot access protected endpoints`() {
-        mockMvc.perform(MockMvcRequestBuilders.get("/api/user/@me"))
+        mockMvc
+            .perform(MockMvcRequestBuilders.get("/api/user/@me"))
             .andExpect(MockMvcResultMatchers.status().isUnauthorized)
     }
 
@@ -47,9 +49,8 @@ class SecurityConfigTest {
 
         whenever(userService.getCurrentUser(any())).thenReturn(expectedUser)
 
-        mockMvc.perform(MockMvcRequestBuilders.get("/api/user/@me")).andExpect(
-            MockMvcResultMatchers.status().isOk
-        )
+        mockMvc
+            .perform(MockMvcRequestBuilders.get("/api/user/@me"))
+            .andExpect(MockMvcResultMatchers.status().isOk)
     }
-
 }
