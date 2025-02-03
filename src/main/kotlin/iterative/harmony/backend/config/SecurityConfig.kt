@@ -47,6 +47,7 @@ class SecurityConfig(
                     .authenticated() // Protect all other endpoints
             }
             .csrf { csrf -> csrf.disable() }
+            .cors { cors -> cors.disable() }
             .addFilterBefore(
                 jwtAuthenticationFilter,
                 UsernamePasswordAuthenticationFilter::class.java,
