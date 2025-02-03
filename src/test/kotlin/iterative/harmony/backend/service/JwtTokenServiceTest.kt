@@ -1,11 +1,9 @@
 package iterative.harmony.backend.service
 
 import iterative.harmony.backend.util.RoleConstants
+import org.junit.jupiter.api.*
 import java.util.*
 import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.DisplayName
-import org.junit.jupiter.api.Nested
-import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.mockito.InjectMocks
 import org.mockito.junit.jupiter.MockitoExtension
@@ -15,8 +13,8 @@ class JwtTokenServiceTest {
 
     private val secretKey = "some_really_really_long_secret_key"
     private val uuid = UUID.fromString("f52b5cb8-a692-455a-8db2-ba416db5429b")
-    private val token =
-        "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJmNTJiNWNiOC1hNjkyLTQ1NWEtOGRiMi1iYTQxNmRiNTQyOWIiLCJyb2xlcyI6WyJVU0VSIl0sImlhdCI6MTczODU1OTY0NCwiZXhwIjoxNzM4NTYzMjQ0fQ.sQTGRk4uXrUxnK-usHUbi8Fhz3SIJZHPSD6ayXdC8Ho"
+    private var token =
+        "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJmNTJiNWNiOC1hNjkyLTQ1NWEtOGRiMi1iYTQxNmRiNTQyOWIiLCJyb2xlcyI6WyJVU0VSIl19.38HNklVyRsd9Nxddv4pByz8CYQkdB3lN6okKJvIueTA"
 
     @InjectMocks private var jwtTokenService: JwtTokenService = JwtTokenService(secretKey)
 
