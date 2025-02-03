@@ -27,18 +27,26 @@ class SecurityConfig(
                     SessionCreationPolicy.STATELESS
                 ) // Disables sessions (JSESSIONID)
             }
+            .oauth2Login { oauth2 ->
+                oauth2.userInfoEndpoint { userInfo ->
+                    userInfo.userService(customOAuth2UserService)
+                }
+                oauth2.successHandler(OAuth2LoginSuccessHandler(jwtTokenService))
+                oauth2.failureHandler { _, response, _ ->
+                    response.sendError(401, "Unauthorized")
+                }
+            }
+            .exceptionHandling { exception ->
+                exception.authenticationEntryPoint { _, response, _ ->
+                    response.sendError(401, "Unauthorized")
+                }
+            }
             .authorizeHttpRequests { auth ->
                 auth
                     .requestMatchers("/", "/login", "/login/oauth2/**", "/error")
                     .permitAll() // Allow public access to certain endpoints
                     .anyRequest()
                     .authenticated() // Protect all other endpoints
-            }
-            .oauth2Login { oauth2 ->
-                oauth2.userInfoEndpoint { userInfo ->
-                    userInfo.userService(customOAuth2UserService)
-                }
-                oauth2.successHandler(OAuth2LoginSuccessHandler(jwtTokenService))
             }
             .csrf { csrf -> csrf.disable() }
             .addFilterBefore(

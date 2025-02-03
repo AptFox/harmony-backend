@@ -99,7 +99,6 @@ class UserServiceTest {
             whenever(securityContext.authentication).thenReturn(mockAuth)
 
             whenever(userRepository.findById(uuid)).thenReturn(Optional.of(expectedUser))
-            // assert that the expected userResponse is returned
 
             val actualUserResponse = userService.getCurrentUser(securityContext)
             val expectedUserResponse =
