@@ -29,16 +29,7 @@ jobs:
       - name: Run Tests
         run: ./gradlew clean test --continue -Dspring.profiles.active=test
 
-      # Step 5: Display test results in github
-      - name: Display Test Results in GitHub UI
-        uses: dorny/test-reporter@v1
-        if: always()
-        with:
-          name: JUnit Test Results
-          path: build/test-results/**/*.xml
-          reporter: java-junit
-
-      #Step 6: Upload gradle test report
+      #Step 5: Upload gradle test report
       - name: Upload Gradle Test Reports
         uses: actions/upload-artifact@v4
         if: always()
