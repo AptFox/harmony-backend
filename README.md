@@ -18,6 +18,7 @@
  - Run the linter from the terminal: `./gradlew ktfmtFormat`
    - To just check, run `./gradlew ktfmtCheck`
    - You can also add ktfmt to your IDE as a plugin
+   - Note: You can setup a pre-commit hook for this (Check the QOL section)
  - Commit linted changes
  - Open PR against dev branch
  - Request to have dev merged to main for deployment of new feature
@@ -39,6 +40,15 @@
 - Hot reload:
   - For local dev, SpringDevTools will automatically reload the application ~5 seconds after saving changes to a file.
   - This makes local dev much faster as you don't need to restart the application to see changes.
+- Linting
+  - You can setup a pre-commit hook that runs ktfmt on each commit via gradle by creating a `.git/hooks/pre-commit` file with the following contents:
+     ```bash
+     #! /bin/sh
+     ./gradlew ktfmtFormat
+     git add .
+     ```
+    Then run `chmod +x .git/hooks/pre-commit`
+    - You can skip this hook during a commit by adding "--no-verify" to it
 
 # MacOS install instructions:
 
