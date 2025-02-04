@@ -66,6 +66,7 @@ dependencies {
 	testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
 	testImplementation 'org.mockito.kotlin:mockito-kotlin:5.3.1'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	testRuntimeOnly 'com.h2database:h2'
 }
 
 kotlin {
