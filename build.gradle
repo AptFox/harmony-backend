@@ -84,6 +84,12 @@ allOpen {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+tasks.withType(Test) {
+	reports {
+		junitXml.required = true  // Ensure XML reports are generated
+		html.required = true      // Enable HTML reports
+	}
+}
 
 // docker tasks
 tasks.register('buildDockerImage', Exec) {

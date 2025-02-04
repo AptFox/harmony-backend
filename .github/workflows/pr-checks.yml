@@ -6,7 +6,7 @@ on:
       - dev
 
 jobs:
-  checks:
+  pr-checks:
     runs-on: ubuntu-latest
 
     steps:
@@ -27,4 +27,13 @@ jobs:
 
       # Step 4: Run tests
       - name: Run Tests
-        run: ./gradlew test -Dspring.profiles.active=test
+        run: ./gradlew clean test --continue -Dspring.profiles.active=test
+
+      #Step 5: Upload gradle test report
+      - name: Upload Gradle Test Reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gradle-test-reports
+          path: build/reports/tests/test/
+          retention-days: 3

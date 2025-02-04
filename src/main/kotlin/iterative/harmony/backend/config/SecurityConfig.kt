@@ -1,7 +1,6 @@
 package iterative.harmony.backend.config
 
 import iterative.harmony.backend.service.JwtTokenService
-import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
@@ -12,15 +11,15 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 @EnableWebSecurity
-class SecurityConfig(
-    @Autowired private val customOAuth2UserService: CustomOAuth2UserService,
-    @Autowired private val jwtTokenService: JwtTokenService,
-) {
+class SecurityConfig() {
 
     @Bean
     fun securityFilterChain(
         http: HttpSecurity,
         jwtAuthenticationFilter: JwtAuthenticationFilter,
+        customOAuth2UserService: CustomOAuth2UserService,
+        jwtTokenService: JwtTokenService,
+        corsConfig: CorsConfig,
     ): SecurityFilterChain {
         http
             .sessionManagement { session ->
@@ -48,7 +47,7 @@ class SecurityConfig(
                     .authenticated() // Protect all other endpoints
             }
             .csrf { csrf -> csrf.disable() }
-            .cors { cors -> cors.disable() }
+            .cors { cors -> cors.configurationSource(corsConfig.corsConfigurationSource()) }
             .addFilterBefore(
                 jwtAuthenticationFilter,
                 UsernamePasswordAuthenticationFilter::class.java,

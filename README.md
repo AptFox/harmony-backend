@@ -130,6 +130,7 @@ openssl rand -base64 32
 ### set environment variables
  - open the repository and create a `.env` file containing the following:
 ```
+FRONT_END_BASE_URL=http://localhost:3000
 JWT_SECRET=[THE_JWT_SECRET_KEY_YOU_GENERATED]
 DATABASE_URL=jdbc:postgresql://host.docker.internal:5432/harmony;
 #DATABASE_URL=jdbc:postgresql://localhost:5432/harmony

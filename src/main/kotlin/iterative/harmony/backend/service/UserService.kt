@@ -45,8 +45,8 @@ constructor(
         return mapToUserResponse(user)
     }
 
-    fun updateUser(updateUserRequest: UpdateUserRequest, username: String): UserResponse {
-        val userFromDB = userRepository.findByUsername(username)
+    fun updateUser(updateUserRequest: UpdateUserRequest, userId: String): UserResponse {
+        val userFromDB = userRepository.findById(UUID.fromString(userId))
 
         if (userFromDB.isPresent) {
             val userToUpdate =
@@ -57,7 +57,7 @@ constructor(
             return mapToUserResponse(userRepository.save(userToUpdate))
         }
 
-        throw UserNotFoundException(username)
+        throw UserNotFoundException(userId)
     }
 
     private fun mapToUserResponse(user: User): UserResponse {
