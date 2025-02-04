@@ -1,7 +1,5 @@
 package iterative.harmony.backend.config
 
-// import iterative.harmony.backend.repository.RoleRepository
-// import iterative.harmony.backend.repository.UserRepository
 import iterative.harmony.backend.controller.dto.UserResponse
 import iterative.harmony.backend.service.UserService
 import iterative.harmony.backend.util.RoleConstants.USER_ROLE
@@ -19,16 +17,11 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers
 
-@SpringBootTest(
-    //    classes = [SecurityConfig::class],
-    properties = ["logging.level.org.springframework=DEBUG"]
-)
+@SpringBootTest
 @AutoConfigureMockMvc
 class SecurityConfigTest {
 
     @Autowired private lateinit var mockMvc: MockMvc
-    //    @MockBean private lateinit var userRepository: UserRepository
-    //    @MockBean private lateinit var roleRepository: RoleRepository
     @MockBean private lateinit var userService: UserService
 
     @Test
@@ -59,8 +52,4 @@ class SecurityConfigTest {
             .perform(MockMvcRequestBuilders.get("/api/user/@me"))
             .andExpect(MockMvcResultMatchers.status().isOk)
     }
-
-    // TODO: figure out why these tests fail on Github
-    //    maybe it's because environment variables are not set?
-    //    Maybe some annotations are missing?
 }
