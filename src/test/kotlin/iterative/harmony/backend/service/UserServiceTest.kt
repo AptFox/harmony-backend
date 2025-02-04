@@ -125,11 +125,12 @@ class UserServiceTest {
                         timeZoneId = updateUserRequest.timeZoneId.toInt()
                     }
 
-                whenever(userRepository.findByUsername(expectedUser.username))
+                whenever(userRepository.findById(expectedUser.userId))
                     .thenReturn(Optional.of(expectedUser))
                 whenever(userRepository.save(updatedUser)).thenReturn(updatedUser)
 
-                val actual = userService.updateUser(updateUserRequest, expectedUser.username)
+                val actual =
+                    userService.updateUser(updateUserRequest, expectedUser.userId.toString())
 
                 assertEquals(updateUserRequest.displayName, actual.displayName)
                 assertEquals(updateUserRequest.timeZoneId.toInt(), actual.timeZoneId)
@@ -141,11 +142,10 @@ class UserServiceTest {
         inner class NonExistingUser() {
             @Test
             fun `should throw UserNotFoundException`() {
-                whenever(userRepository.findByUsername(expectedUser.username))
-                    .thenReturn(Optional.empty())
+                whenever(userRepository.findById(expectedUser.userId)).thenReturn(Optional.empty())
 
                 assertThrows(UserNotFoundException::class.java) {
-                    userService.updateUser(updateUserRequest, expectedUser.username)
+                    userService.updateUser(updateUserRequest, expectedUser.userId.toString())
                 }
             }
         }

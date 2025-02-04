@@ -5,6 +5,7 @@ import jakarta.servlet.http.Cookie
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import java.util.UUID
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler
@@ -12,7 +13,7 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 class OAuth2LoginSuccessHandler(private val jwtTokenService: JwtTokenService) :
     AuthenticationSuccessHandler {
 
-    private val frontendRedirectUrl = "http://localhost:3000/auth/callback" // TODO: Update this
+    @Value("\${frontEndBaseUrl}") private var frontEndBaseUrl: String = "http://localhost:3000"
 
     override fun onAuthenticationSuccess(
         request: HttpServletRequest,
@@ -30,8 +31,6 @@ class OAuth2LoginSuccessHandler(private val jwtTokenService: JwtTokenService) :
         harmonyCookie.maxAge = 60 * 60 * 24
         response.addCookie(harmonyCookie)
 
-        response.sendRedirect(
-            frontendRedirectUrl
-        ) // TODO: redirect to front-end here (/user/@me maybe?)
+        response.sendRedirect("${frontEndBaseUrl}/auth/callback")
     }
 }
