@@ -27,7 +27,7 @@ jobs:
 
       # Step 4: Run tests
       - name: Run Tests
-        run: ./gradlew test -Dspring.profiles.active=test -continue
+        run: ./gradlew test -Dspring.profiles.active=test --continue
 
       #Step 5: Upload test reports
       - name: Upload Gradle Test Reports
