@@ -1,11 +1,16 @@
 
-# Version info
- - Framework: Spring boot 3.3.5
- - Language: Kotlin 1.9.24
- - DB: postgresql 16
- - JDK: 21
- - Gradle: 8.10.2
- - Apache Ant: 1.10.14
+### FAQ
+- What is gradle?
+    - A tool that lets you determine how your app is built (manage dependencies, build the app, etc...)
+- What is groovy?
+    - The language that gradle uses.
+- What is flyaway
+    - A tool for DB migrations
+- What is lombok
+    - A library of annotations to reduce boilerplate code (like getters and setters)
+        - annotations - code shortcuts that facilitate framework "magic"
+- Linter?
+    - ktfmt - https://github.com/cortinico/ktfmt-gradle/tree/main
 
 # Development process
  - Pull the most recent version of dev
@@ -145,3 +150,53 @@ Started BackendApplicationKt in 1.931 seconds
  - Go to `http://localhost:8080/` in a web browser
  - If you see "Hello World" then the application is running locally.
 
+# Troubleshooting
+- "Failed to configure a DataSource: 'url' attribute is not specified and no embedded datasource could be configured."
+    - Your database is not configured.
+        - Make sure to add the following dependency in the `build.gradle` file
+            - `implementation 'org.postgresql:postgresql'`
+        - Make sure teh following are set in `application.properties` file
+            - `spring.datasource.username=`
+            - `spring.datasource.password=`
+- psql login issues?
+    - a bunch of solutions: https://stackoverflow.com/questions/15301826/psql-fatal-role-postgres-does-not-exist
+- I see a login page
+    - This means spring security was enabled.
+    - Comment out the `spring-boot-starter-security` in `build.gradle`
+    - rebuild the application `./gradlew clean build`
+    - run the application again `./gradlew bootRun`
+- "Error response from daemon: Conflict. The container name "/harmony-backend" is already in use by container"
+    - You're trying to rebuild your container and one with the same name already exists
+    - Stop & remove the old container before building a fresh one
+        - ```
+        docker stop harmony-backend
+        docker rm harmony-backend
+      ```
+- "Task :buildDockerImage FAILED"
+    - If you see an error like the following:
+      ```
+          > Task :buildDockerImage FAILED
+  
+          FAILURE: Build failed with an exception.
+  
+          * What went wrong:
+          Execution failed for task ':buildDockerImage'.
+          > A problem occurred starting process 'command 'docker''
+      ```
+    - The Docker daemon is misbehaving, you may need to restart your machine
+    - You can try building the image manually
+        - `docker build -t harmony-backend:latest .`
+    - You can also try running `./gradlew bootRun` to run the application on localhost
+        - You'll need to update your DATABASE_URL from `host.docker.internal` to `localhost` in `.env`
+- Dependencies not resolving in IntelliJ?
+    - Open the `build.gradle` file in IntelliJ
+    - Click on the little elephant refresh button in the top right of the window.
+    - You can also relaunch your IDE
+
+# Version info
+- Framework: Spring boot 3.3.5
+- Language: Kotlin 1.9.24
+- DB: postgresql 16
+- JDK: 21
+- Gradle: 8.10.2
+- Apache Ant: 1.10.14
