@@ -27,12 +27,35 @@ jobs:
       - name: Push Docker image to Heroku
         run: docker push registry.heroku.com/${{ secrets.HEROKU_APP_NAME }}/
 
+#      # Step 5: set up the database
+#      - name: Create harmony database user if absent
+#        run: |
+#            DATABASE_NAME=${{ secrets.HEROKU_DB_NAME }}
+#            DATABASE_USER=${{ secrets.DATABASE_USER }}
+#            DATABASE_PASS=${{ secrets.DATABASE_PASS }}
+#            heroku pg:psql -a ${{ secrets.HEROKU_APP_NAME }} <<EOF
+#            DO $$
+#            BEGIN
+#              IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '$DATABASE_USER') THEN
+#                CREATE USER $DATABASE_USER WITH ENCRYPTED PASSWORD '$DATABASE_PASS';
+#                GRANT ALL PRIVILEGES ON DATABASE $DATABASE_NAME TO $DATABASE_USER;
+#                GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO $DATABASE_USER;
+#                GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO $DATABASE_USER;
+#              END IF;
+#            END $$;
+#            EOF
+#          env:
+#            HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+#
+
       # Step 5: Set ENV vars in Heroku
-#      - name: Set ENV Vars
-#        run: heroku config:set DATABASE_USER=${{ secrets.DATABASE_USER }} --app ${{ secrets.HEROKU_APP_NAME }}
-#        run: heroku config:set DATABASE_PASS=${{ secrets.DATABASE_PASS }} --app ${{ secrets.HEROKU_APP_NAME }}
-#        run: heroku config:set DISCORD_CLIENT_ID=${{ secrets.DISCORD_CLIENT_ID }} --app ${{ secrets.HEROKU_APP_NAME }}
-#        run: heroku config:set DISCORD_CLIENT_SECRET=${{ secrets.DISCORD_CLIENT_SECRET }} --app ${{ secrets.HEROKU_APP_NAME }}
+      - name: Set ENV Vars
+        run: |
+          heroku config:set FRONT_END_BASE_URL=${{ secrets.FRONT_END_BASE_URL }} --app ${{ secrets.HEROKU_APP_NAME }}
+          heroku config:set DATABASE_USER=${{ secrets.DATABASE_USER }} --app ${{ secrets.HEROKU_APP_NAME }}
+          heroku config:set DATABASE_PASS=${{ secrets.DATABASE_PASS }} --app ${{ secrets.HEROKU_APP_NAME }}
+          heroku config:set DISCORD_CLIENT_ID=${{ secrets.DISCORD_CLIENT_ID }} --app ${{ secrets.HEROKU_APP_NAME }}
+          heroku config:set DISCORD_CLIENT_SECRET=${{ secrets.DISCORD_CLIENT_SECRET }} --app ${{ secrets.HEROKU_APP_NAME }}
 
       # Step 6: Trigger Heroku deploy
       - name: Deploy the app on Heroku
