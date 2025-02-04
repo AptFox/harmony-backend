@@ -36,7 +36,9 @@
    - If you're not using docker and would like to run migrations locally, run `./gradlew flywayMigrate`
 
 # QOL
-- TODO: Figure out how to add hot reload/rebuild
+- Hot reload:
+  - For local dev, SpringDevTools will automatically reload the application ~5 seconds after saving changes to a file.
+  - This makes local dev much faster as you don't need to restart the application to see changes.
 
 # MacOS install instructions:
 

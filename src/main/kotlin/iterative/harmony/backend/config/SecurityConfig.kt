@@ -1,6 +1,7 @@
 package iterative.harmony.backend.config
 
 import iterative.harmony.backend.service.JwtTokenService
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
@@ -12,8 +13,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 @EnableWebSecurity
 class SecurityConfig(
-    private val customOAuth2UserService: CustomOAuth2UserService,
-    private val jwtTokenService: JwtTokenService,
+    @Autowired private val customOAuth2UserService: CustomOAuth2UserService,
+    @Autowired private val jwtTokenService: JwtTokenService,
 ) {
 
     @Bean
