@@ -1,11 +1,16 @@
 
-# Version info
- - Framework: Spring boot 3.3.5
- - Language: Kotlin 1.9.24
- - DB: postgresql 16
- - JDK: 21
- - Gradle: 8.10.2
- - Apache Ant: 1.10.14
+### FAQ
+- What is gradle?
+    - A tool that lets you determine how your app is built (manage dependencies, build the app, etc...)
+- What is groovy?
+    - The language that gradle uses.
+- What is flyaway
+    - A tool for DB migrations
+- What is lombok
+    - A library of annotations to reduce boilerplate code (like getters and setters)
+        - annotations - code shortcuts that facilitate framework "magic"
+- Linter?
+    - ktfmt - https://github.com/cortinico/ktfmt-gradle/tree/main
 
 # Development process
  - Pull the most recent version of dev
@@ -18,6 +23,7 @@
  - Run the linter from the terminal: `./gradlew ktfmtFormat`
    - To just check, run `./gradlew ktfmtCheck`
    - You can also add ktfmt to your IDE as a plugin
+   - Note: You can setup a pre-commit hook for this (Check the QOL section)
  - Commit linted changes
  - Open PR against dev branch
  - Request to have dev merged to main for deployment of new feature
@@ -36,7 +42,18 @@
    - If you're not using docker and would like to run migrations locally, run `./gradlew flywayMigrate`
 
 # QOL
-- TODO: Figure out how to add hot reload/rebuild
+- Hot reload:
+  - For local dev, SpringDevTools will automatically reload the application ~5 seconds after saving changes to a file.
+  - This makes local dev much faster as you don't need to restart the application to see changes.
+- Linting
+  - You can setup a pre-commit hook that runs ktfmt on each commit via gradle by creating a `.git/hooks/pre-commit` file with the following contents:
+     ```bash
+     #! /bin/sh
+     ./gradlew ktfmtFormat
+     git add .
+     ```
+    Then run `chmod +x .git/hooks/pre-commit`
+    - You can skip this hook during a commit by adding "--no-verify" to it
 
 # MacOS install instructions:
 
@@ -105,9 +122,15 @@ postgres=# CREATE DATABASE harmony OWNER harmony_app;
 exit
 ```
 
+### generate a JWT secret key
+```
+openssl rand -base64 32
+```
+
 ### set environment variables
  - open the repository and create a `.env` file containing the following:
 ```
+JWT_SECRET=[THE_JWT_SECRET_KEY_YOU_GENERATED]
 DATABASE_URL=jdbc:postgresql://host.docker.internal:5432/harmony;
 #DATABASE_URL=jdbc:postgresql://localhost:5432/harmony
 DATABASE_USER=harmony_app
@@ -133,3 +156,53 @@ Started BackendApplicationKt in 1.931 seconds
  - Go to `http://localhost:8080/` in a web browser
  - If you see "Hello World" then the application is running locally.
 
+# Troubleshooting
+- "Failed to configure a DataSource: 'url' attribute is not specified and no embedded datasource could be configured."
+    - Your database is not configured.
+        - Make sure to add the following dependency in the `build.gradle` file
+            - `implementation 'org.postgresql:postgresql'`
+        - Make sure teh following are set in `application.properties` file
+            - `spring.datasource.username=`
+            - `spring.datasource.password=`
+- psql login issues?
+    - a bunch of solutions: https://stackoverflow.com/questions/15301826/psql-fatal-role-postgres-does-not-exist
+- I see a login page
+    - This means spring security was enabled.
+    - Comment out the `spring-boot-starter-security` in `build.gradle`
+    - rebuild the application `./gradlew clean build`
+    - run the application again `./gradlew bootRun`
+- "Error response from daemon: Conflict. The container name "/harmony-backend" is already in use by container"
+    - You're trying to rebuild your container and one with the same name already exists
+    - Stop & remove the old container before building a fresh one
+        - ```
+        docker stop harmony-backend
+        docker rm harmony-backend
+      ```
+- "Task :buildDockerImage FAILED"
+    - If you see an error like the following:
+      ```
+          > Task :buildDockerImage FAILED
+  
+          FAILURE: Build failed with an exception.
+  
+          * What went wrong:
+          Execution failed for task ':buildDockerImage'.
+          > A problem occurred starting process 'command 'docker''
+      ```
+    - The Docker daemon is misbehaving, you may need to restart your machine
+    - You can try building the image manually
+        - `docker build -t harmony-backend:latest .`
+    - You can also try running `./gradlew bootRun` to run the application on localhost
+        - You'll need to update your DATABASE_URL from `host.docker.internal` to `localhost` in `.env`
+- Dependencies not resolving in IntelliJ?
+    - Open the `build.gradle` file in IntelliJ
+    - Click on the little elephant refresh button in the top right of the window.
+    - You can also relaunch your IDE
+
+# Version info
+- Framework: Spring boot 3.3.5
+- Language: Kotlin 1.9.24
+- DB: postgresql 16
+- JDK: 21
+- Gradle: 8.10.2
+- Apache Ant: 1.10.14

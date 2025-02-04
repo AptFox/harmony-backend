@@ -1,6 +1,7 @@
 package iterative.harmony.backend.config
 
 import iterative.harmony.backend.service.JwtTokenService
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
@@ -12,8 +13,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 @EnableWebSecurity
 class SecurityConfig(
-    private val customOAuth2UserService: CustomOAuth2UserService,
-    private val jwtTokenService: JwtTokenService,
+    @Autowired private val customOAuth2UserService: CustomOAuth2UserService,
+    @Autowired private val jwtTokenService: JwtTokenService,
 ) {
 
     @Bean
@@ -27,6 +28,18 @@ class SecurityConfig(
                     SessionCreationPolicy.STATELESS
                 ) // Disables sessions (JSESSIONID)
             }
+            .oauth2Login { oauth2 ->
+                oauth2.userInfoEndpoint { userInfo ->
+                    userInfo.userService(customOAuth2UserService)
+                }
+                oauth2.successHandler(OAuth2LoginSuccessHandler(jwtTokenService))
+                oauth2.failureHandler { _, response, _ -> response.sendError(401, "Unauthorized") }
+            }
+            .exceptionHandling { exception ->
+                exception.authenticationEntryPoint { _, response, _ ->
+                    response.sendError(401, "Unauthorized")
+                }
+            }
             .authorizeHttpRequests { auth ->
                 auth
                     .requestMatchers("/", "/login", "/login/oauth2/**", "/error")
@@ -34,13 +47,8 @@ class SecurityConfig(
                     .anyRequest()
                     .authenticated() // Protect all other endpoints
             }
-            .oauth2Login { oauth2 ->
-                oauth2.userInfoEndpoint { userInfo ->
-                    userInfo.userService(customOAuth2UserService)
-                }
-                oauth2.successHandler(OAuth2LoginSuccessHandler(jwtTokenService))
-            }
             .csrf { csrf -> csrf.disable() }
+            .cors { cors -> cors.disable() }
             .addFilterBefore(
                 jwtAuthenticationFilter,
                 UsernamePasswordAuthenticationFilter::class.java,

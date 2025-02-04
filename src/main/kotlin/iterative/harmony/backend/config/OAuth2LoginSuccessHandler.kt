@@ -11,6 +11,9 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 
 class OAuth2LoginSuccessHandler(private val jwtTokenService: JwtTokenService) :
     AuthenticationSuccessHandler {
+
+    private val frontendRedirectUrl = "http://localhost:3000/auth/callback" // TODO: Update this
+
     override fun onAuthenticationSuccess(
         request: HttpServletRequest,
         response: HttpServletResponse,
@@ -27,6 +30,8 @@ class OAuth2LoginSuccessHandler(private val jwtTokenService: JwtTokenService) :
         harmonyCookie.maxAge = 60 * 60 * 24
         response.addCookie(harmonyCookie)
 
-        response.sendRedirect("/") // TODO: redirect to front-end here (/user/@me maybe?)
+        response.sendRedirect(
+            frontendRedirectUrl
+        ) // TODO: redirect to front-end here (/user/@me maybe?)
     }
 }
