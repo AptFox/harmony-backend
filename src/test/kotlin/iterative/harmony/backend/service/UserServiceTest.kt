@@ -106,6 +106,24 @@ class UserServiceTest {
 
             assertEquals(expectedUserResponse, actualUserResponse)
         }
+
+        @Nested
+        @DisplayName("when called with a non-existing user")
+        inner class NonExistingUser() {
+            @Test
+            fun `should throw UserNotFoundException`() {
+                whenever(userRepository.findById(expectedUser.userId)).thenReturn(Optional.empty())
+
+                val securityContext = mock(SecurityContext::class.java)
+                val mockAuth = mock(Authentication::class.java)
+                whenever(mockAuth.details).thenReturn(mapOf("userId" to expectedUser.userId))
+                whenever(securityContext.authentication).thenReturn(mockAuth)
+
+                assertThrows(UserNotFoundException::class.java) {
+                    userService.getCurrentUser(securityContext)
+                }
+            }
+        }
     }
 
     @Nested

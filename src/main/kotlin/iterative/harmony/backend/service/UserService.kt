@@ -41,8 +41,11 @@ constructor(
     fun getCurrentUser(securityContext: SecurityContext): UserResponse {
         val details = securityContext.authentication.details as Map<*, *>
         val userId = UUID.fromString(details["userId"].toString())
-        val user = userRepository.findById(userId).get()
-        return mapToUserResponse(user)
+        val user = userRepository.findById(userId)
+        if (!user.isPresent) {
+            throw UserNotFoundException(userId.toString())
+        }
+        return mapToUserResponse(user.get())
     }
 
     fun updateUser(updateUserRequest: UpdateUserRequest, userId: String): UserResponse {
