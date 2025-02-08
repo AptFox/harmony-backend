@@ -51,7 +51,8 @@ jobs:
       # Step 5: Set ENV vars in Heroku
       - name: Set ENV Vars
         run: |
-          heroku config:set FRONT_END_BASE_URL=${{ secrets.FRONT_END_BASE_URL }} --app ${{ secrets.HEROKU_APP_NAME }}
+          heroku config:set FRONT_END_BASE_URL=$FRONT_END_BASE_URL --app ${{ secrets.HEROKU_APP_NAME }}
+          heroku config:set JWT_SECRET=${{ secrets.JWT_SECRET }} --app ${{ secrets.HEROKU_APP_NAME }}
           heroku config:set DATABASE_USER=${{ secrets.DATABASE_USER }} --app ${{ secrets.HEROKU_APP_NAME }}
           heroku config:set DATABASE_PASS=${{ secrets.DATABASE_PASS }} --app ${{ secrets.HEROKU_APP_NAME }}
           heroku config:set DISCORD_CLIENT_ID=${{ secrets.DISCORD_CLIENT_ID }} --app ${{ secrets.HEROKU_APP_NAME }}
