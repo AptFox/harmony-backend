@@ -1,62 +1,37 @@
 package iterative.harmony.backend.controller
 
-import iterative.harmony.backend.exception.UserNotFoundException
-import iterative.harmony.backend.model.User
-import iterative.harmony.backend.repository.UserRepository
-import java.util.*
-import org.slf4j.LoggerFactory
+import iterative.harmony.backend.controller.dto.UpdateUserRequest
+import iterative.harmony.backend.controller.dto.UserResponse
+import iterative.harmony.backend.service.UserService
+import iterative.harmony.backend.util.RoleConstants
+import iterative.harmony.backend.util.getLogger
+import jakarta.validation.Valid
+import java.security.Principal
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.security.access.prepost.PreAuthorize
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.bind.annotation.*
 
 @RestController
-class UserController @Autowired constructor(private val userRepository: UserRepository) {
-    private val log = LoggerFactory.getLogger(UserController::class.java)
+@RequestMapping("/api")
+class UserController @Autowired constructor(private val userService: UserService) {
+    private val log = getLogger()
 
-    //    TODO: Add /api/ to all endpoints
+    @PreAuthorize("hasRole('${RoleConstants.USER_ROLE}')")
+    @GetMapping("/user/@me")
+    fun getUser(principal: Principal): UserResponse {
+        log.info("getting user: ${principal.name}")
 
-    //    TODO: move the health and root endpoints elsewhere
-    @RequestMapping("/health")
-    fun health(): String {
-        return "I'm here!"
+        return userService.getCurrentUser(SecurityContextHolder.getContext())
     }
 
-    @RequestMapping("/")
-    fun home(): String {
-        return "Hello World!"
-    }
-
-    @GetMapping("/users")
-    fun getAllUsers(): List<User> {
-        return userRepository.findAll()
-    }
-
-    // TODO: Add validation to requests with @Valid
-    @PostMapping("/users")
-    fun createNewUser(@RequestBody newUser: User): User {
-        log.info("creating new user from: $newUser")
-        return userRepository.save(newUser)
-    }
-
-    @PutMapping("/users/{userId}")
-    fun updateUser(@RequestBody request: User, @PathVariable userId: UUID): User {
-        log.info("updating user: $userId")
-        val userFromDb = userRepository.findById(userId)
-
-        if (userFromDb.isPresent) {
-            val userToUpdate =
-                userFromDb.get().apply {
-                    displayName = request.displayName
-                    timeZoneId = request.timeZoneId
-                }
-            return userRepository.save(userToUpdate)
-        }
-
-        throw UserNotFoundException(userId)
-    }
-
-    @DeleteMapping("/users/{userId}")
-    fun deleteUser(@PathVariable userId: UUID) {
-        log.info("deleting user: $userId")
-        userRepository.deleteById(userId)
+    @PreAuthorize("hasRole('${RoleConstants.USER_ROLE}')")
+    @PutMapping("/user/@me")
+    fun updateUser(
+        @Valid @RequestBody request: UpdateUserRequest,
+        principal: Principal,
+    ): UserResponse {
+        log.info("updating user: ${principal.name}")
+        return userService.updateUser(request, principal.name)
     }
 }

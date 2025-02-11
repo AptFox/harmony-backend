@@ -5,11 +5,19 @@ plugins {
 	id 'io.spring.dependency-management' version '1.1.6'
 	id 'org.jetbrains.kotlin.plugin.jpa' version '1.9.25'
 	id 'com.ncorti.ktfmt.gradle' version '0.21.0'
+	id 'org.flywaydb.flyway' version '11.1.0'
+	id 'co.uzzu.dotenv.gradle' version '4.0.0'
 }
 
-
+// plugin config
 ktfmt {
 	kotlinLangStyle()
+}
+
+flyway {
+	url = env.fetch('DATABASE_URL', '')
+	user = env.fetch('DATABASE_USER', '')
+	password = env.fetch('DATABASE_PASS', '')
 }
 
 group = 'iterative.harmony'
@@ -33,25 +41,32 @@ repositories {
 
 dependencies {
 	implementation 'me.paulschwarz:spring-dotenv:4.0.0'
-	implementation 'org.springframework.boot:spring-boot-devtools'
+	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-mail'
-//	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
-//	implementation 'org.springframework.boot:spring-boot-starter-security'
+	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'com.fasterxml.jackson.module:jackson-module-kotlin'
 	implementation 'org.flywaydb:flyway-core'
 	implementation 'org.flywaydb:flyway-database-postgresql'
 	implementation 'org.jetbrains.kotlin:kotlin-reflect'
 	implementation 'org.postgresql:postgresql'
-//	implementation 'org.springframework.boot:spring-boot-docker-compose'
+	implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
+	implementation 'io.jsonwebtoken:jjwt-impl:0.11.5'
+	implementation 'io.jsonwebtoken:jjwt-jackson:0.11.5'
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.jetbrains.kotlin:kotlin-test-junit5'
-//	testImplementation 'org.springframework.security:spring-security-test'
+	testImplementation 'org.springframework.security:spring-security-test'
+	testImplementation 'org.mockito:mockito-core:5.9.0'
+	testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+	testImplementation 'org.mockito.kotlin:mockito-kotlin:5.3.1'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	testRuntimeOnly 'com.h2database:h2'
 }
 
 kotlin {
@@ -69,4 +84,53 @@ allOpen {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+tasks.withType(Test) {
+	reports {
+		junitXml.required = true  // Ensure XML reports are generated
+		html.required = true      // Enable HTML reports
+	}
+}
 
+// docker tasks
+tasks.register('buildDockerImage', Exec) {
+	dependsOn bootJar
+	commandLine 'docker', 'build', '-t', 'harmony-backend:latest', '.'
+}
+
+tasks.register('runDockerContainer', Exec) {
+	dependsOn buildDockerImage
+	doFirst {
+		// Remove any existing container
+		exec {
+			ignoreExitValue = true
+			commandLine 'docker', 'rm', '-f', 'harmony-backend'
+		}
+	}
+	commandLine 'docker', 'run', '--name', 'harmony-backend', '-p', '8080:8080', '--env-file', '.env', 'harmony-backend:latest'
+}
+
+tasks.register('newMigration') {
+	doLast {
+		def migrationsDir = file('src/main/resources/db/migration')
+		def version = new Date().format('yyyyMMddHHmmss') // Timestamp for versioning
+		def description = project.hasProperty('desc') ? project.desc : 'new_migration'
+		def fileName = "V${version}__${description.replaceAll('\\s+', '_')}.sql"
+		def migrationFile = new File(migrationsDir, fileName)
+
+		if (!migrationsDir.exists()) {
+			migrationsDir.mkdirs()
+		}
+
+		migrationFile.text = "-- Write your migration SQL here\n"
+		println "Created migration file: $migrationFile"
+	}
+}
+
+// The task below prints the DB URL during gradle build for troubleshooting purposes
+//tasks.register('printDatabaseUrl') {
+//	doLast {
+//		println "DATABASE_URL: ${env.fetch('DATABASE_URL')}"
+//	}
+//}
+//
+//bootRun.dependsOn printDatabaseUrl
