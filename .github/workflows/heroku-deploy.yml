@@ -21,11 +21,15 @@ jobs:
 
       # Step 3: Build the Docker image
       - name: Build Docker image
-        run: docker build -t registry.heroku.com/${{ secrets.HEROKU_APP_NAME }}/web .
+        run: docker build -t registry.heroku.com/$HEROKU_APP_NAME/web .
+        env:
+          HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
 
       # Step 4: Push the Docker image to Heroku
       - name: Push Docker image to Heroku
-        run: docker push registry.heroku.com/${{ secrets.HEROKU_APP_NAME }}/
+        run: docker push registry.heroku.com/$HEROKU_APP_NAME/
+        env:
+          HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
 
 #      # Step 5: set up the database
 #      - name: Create harmony database user if absent
@@ -51,14 +55,23 @@ jobs:
       # Step 5: Set ENV vars in Heroku
       - name: Set ENV Vars
         run: |
-          heroku config:set FRONT_END_BASE_URL=$FRONT_END_BASE_URL --app ${{ secrets.HEROKU_APP_NAME }}
-          heroku config:set JWT_SECRET=${{ secrets.JWT_SECRET }} --app ${{ secrets.HEROKU_APP_NAME }}
-          heroku config:set DATABASE_USER=${{ secrets.DATABASE_USER }} --app ${{ secrets.HEROKU_APP_NAME }}
-          heroku config:set DATABASE_PASS=${{ secrets.DATABASE_PASS }} --app ${{ secrets.HEROKU_APP_NAME }}
-          heroku config:set DISCORD_CLIENT_ID=${{ secrets.DISCORD_CLIENT_ID }} --app ${{ secrets.HEROKU_APP_NAME }}
-          heroku config:set DISCORD_CLIENT_SECRET=${{ secrets.DISCORD_CLIENT_SECRET }} --app ${{ secrets.HEROKU_APP_NAME }}
+          heroku config:set FRONT_END_BASE_URL=$FRONT_END_BASE_URL --app $HEROKU_APP_NAME
+          heroku config:set JWT_SECRET=$JWT_SECRET --app $HEROKU_APP_NAME
+          heroku config:set DATABASE_USER=$DATABASE_USER --app $HEROKU_APP_NAME
+          heroku config:set DATABASE_PASS=$DATABASE_PASS --app $HEROKU_APP_NAME
+          heroku config:set DISCORD_CLIENT_ID=$DISCORD_CLIENT_ID --app $HEROKU_APP_NAME
+          heroku config:set DISCORD_CLIENT_SECRET=$DISCORD_CLIENT_SECRET --app $HEROKU_APP_NAME
+        env:
+          HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          DATABASE_USER: ${{ secrets.DATABASE_USER }}
+          DATABASE_PASS: ${{ secrets.DATABASE_PASS }}
+          DISCORD_CLIENT_ID: ${{ secrets.DISCORD_CLIENT_ID }}
+          DISCORD_CLIENT_SECRET: ${{ secrets.DISCORD_CLIENT_SECRET }}
 
       # Step 6: Trigger Heroku deploy
       - name: Deploy the app on Heroku
-        run: heroku container:release web --app ${{ secrets.HEROKU_APP_NAME }}
+        run: heroku container:release web --app $HEROKU_APP_NAME
           echo "Application successfully deployed to Heroku."
+        env:
+          HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
