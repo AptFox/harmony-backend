@@ -125,3 +125,12 @@ tasks.register('newMigration') {
 		println "Created migration file: $migrationFile"
 	}
 }
+
+// The task below prints the DB URL during gradle build for troubleshooting purposes
+//tasks.register('printDatabaseUrl') {
+//	doLast {
+//		println "DATABASE_URL: ${env.fetch('DATABASE_URL')}"
+//	}
+//}
+//
+//bootRun.dependsOn printDatabaseUrl
