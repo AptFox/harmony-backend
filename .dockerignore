@@ -1,0 +1,27 @@
+# Ignore common OS files
+.DS_Store
+Thumbs.db
+
+# Ignore Git repository files
+.git
+.gitignore
+.github/
+
+# Ignore build artifacts
+build/
+.gradle/
+out/
+!gradle/wrapper/  # Keep the wrapper files
+
+# Ignore IDE/editor files
+.idea/
+.vscode/
+*.iml
+
+# Ignore local environment & dependency caches
+*.env
+node_modules/
+target/
+
+# Ignore test results and reports
+test-results/
