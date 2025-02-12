@@ -10,28 +10,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout the code
+      # Checkout the code
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Step 2: Log in to Heroku Container Registry
+      # Log in to Heroku Container Registry
       - name: Log in to Heroku Container Registry
         run: |
           echo "${{ secrets.HEROKU_AUTH_TOKEN }}" | docker login --username=_ --password-stdin registry.heroku.com
 
-      # Step 3: Build the Docker image
+      # Build the Docker image
       - name: Build Docker image
         run: docker build -t registry.heroku.com/$HEROKU_APP_NAME/web .
         env:
           HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
 
-      # Step 4: Push the Docker image to Heroku
+      # Push the Docker image to Heroku
       - name: Push Docker image to Heroku
         run: docker push registry.heroku.com/$HEROKU_APP_NAME/web
         env:
           HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
 
-#      # Step 5: set up the database
+#      # Set up the database
 #      - name: Create harmony database user if absent
 #        run: |
 #            heroku pg:psql -a $HEROKU_APP_NAME <<EOF
@@ -52,8 +52,15 @@ jobs:
 #            DATABASE_USER: ${{ secrets.DATABASE_USER }}
 #            DATABASE_PASS: ${{ secrets.DATABASE_PASS }}
 #
+      # Install Heroku CLI
+      - name: Install Heroku CLI
+        run: curl https://cli-assets.heroku.com/install.sh | sh
 
-      # Step 5: Set ENV vars in Heroku
+      # Authenticate with Heroku using the Heroku API key (GitHub secret)
+      - name: Authenticate with Heroku
+        run: echo "${{ secrets.HEROKU_AUTH_TOKEN }}" | heroku auth:token
+
+      # Set ENV vars in Heroku
       - name: Set ENV Vars
         run: |
           heroku config:set FRONT_END_BASE_URL=$FRONT_END_BASE_URL --app $HEROKU_APP_NAME
@@ -71,7 +78,7 @@ jobs:
           DISCORD_CLIENT_ID: ${{ secrets.DISCORD_CLIENT_ID }}
           DISCORD_CLIENT_SECRET: ${{ secrets.DISCORD_CLIENT_SECRET }}
 
-      # Step 6: Trigger Heroku deploy
+      # Trigger Heroku deploy
       - name: Deploy the app on Heroku
         run: heroku container:release web --app $HEROKU_APP_NAME
           echo "Application successfully deployed to Heroku."
