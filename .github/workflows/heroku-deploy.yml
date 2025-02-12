@@ -20,13 +20,13 @@ jobs:
           echo "${{ secrets.HEROKU_AUTH_TOKEN }}" | docker login --username=_ --password-stdin registry.heroku.com
 
       # Build the Docker image
-      - name: Build Docker image
+      - name: Build new Docker image
         run: docker build -t registry.heroku.com/$HEROKU_APP_NAME/web .
         env:
           HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
 
       # Push the Docker image to Heroku
-      - name: Push Docker image to Heroku
+      - name: Push new Docker image to Heroku
         run: docker push registry.heroku.com/$HEROKU_APP_NAME/web
         env:
           HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
@@ -57,11 +57,13 @@ jobs:
         run: curl https://cli-assets.heroku.com/install.sh | sh
 
       # Authenticate with Heroku using the Heroku API key (GitHub secret)
-      - name: Authenticate with Heroku
-        run: echo "${{ secrets.HEROKU_AUTH_TOKEN }}" | heroku auth:token
+      - name: Login to Heroku
+        run: heroku auth:token
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_AUTH_TOKEN }}
 
       # Set ENV vars in Heroku
-      - name: Set ENV Vars
+      - name: Set Heroku ENV Vars
         run: |
           heroku config:set FRONT_END_BASE_URL=$FRONT_END_BASE_URL --app $HEROKU_APP_NAME
           heroku config:set JWT_SECRET=$JWT_SECRET --app $HEROKU_APP_NAME
@@ -79,7 +81,7 @@ jobs:
           DISCORD_CLIENT_SECRET: ${{ secrets.DISCORD_CLIENT_SECRET }}
 
       # Trigger Heroku deploy
-      - name: Deploy the app on Heroku
+      - name: Deploy the updated container on Heroku
         run: heroku container:release web --app $HEROKU_APP_NAME
           echo "Application successfully deployed to Heroku."
         env:
