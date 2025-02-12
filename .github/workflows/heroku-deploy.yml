@@ -27,7 +27,7 @@ jobs:
 
       # Step 4: Push the Docker image to Heroku
       - name: Push Docker image to Heroku
-        run: docker push registry.heroku.com/$HEROKU_APP_NAME/
+        run: docker push registry.heroku.com/$HEROKU_APP_NAME/web
         env:
           HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
 
