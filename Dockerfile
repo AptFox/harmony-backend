@@ -30,4 +30,4 @@ COPY --from=builder /app/build/libs/harmony-backend-*.jar app.jar
 EXPOSE 8080
 
 # Define the entrypoint for running the application
-ENTRYPOINT ["java", "-jar", "app.jar", "--server.port=${PORT}"]
+ENTRYPOINT ["java", "-Xmx300m", "-Xss512k", "-XX:+UseContainerSupport", "-jar", "app.jar", "--server.port=${PORT}"]
