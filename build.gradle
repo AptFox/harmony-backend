@@ -15,9 +15,9 @@ ktfmt {
 }
 
 flyway {
-	url = env.fetch('DATABASE_URL', '')
-	user = env.fetch('DATABASE_USER', '')
-	password = env.fetch('DATABASE_PASS', '')
+	url = env.fetch('JDBC_DATABASE_URL', '')
+	user = env.fetch('JDBC_DATABASE_USERNAME', '')
+	password = env.fetch('JDBC_DATABASE_PASSWORD', '')
 }
 
 group = 'iterative.harmony'
@@ -129,8 +129,8 @@ tasks.register('newMigration') {
 // The task below prints the DB URL during gradle build for troubleshooting purposes
 //tasks.register('printDatabaseUrl') {
 //	doLast {
-//		println "DATABASE_URL: ${env.fetch('DATABASE_URL')}"
+//		println "JDBC_DATABASE_URL: ${env.fetch('JDBC_DATABASE_URL')}"
 //	}
 //}
-//
+//buildDockerImage.dependsOn printDatabaseUrl
 //bootRun.dependsOn printDatabaseUrl
