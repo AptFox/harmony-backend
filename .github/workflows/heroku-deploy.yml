@@ -40,6 +40,7 @@ jobs:
         run: heroku container:login
         env:
           HEROKU_API_KEY: ${{ secrets.HEROKU_AUTH_TOKEN }}
+          HEROKU_HEADERS: ${{ vars.HEROKU_HEADERS }}
 
 #      # Set up the database
 #      - name: Create harmony database user if absent
