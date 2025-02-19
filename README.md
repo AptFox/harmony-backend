@@ -54,6 +54,10 @@
      ```
     Then run `chmod +x .git/hooks/pre-commit`
     - You can skip this hook during a commit by adding "--no-verify" to it
+  - You can also skip linting during local docker build like this:
+     ```bash
+       ./gradlew clean build -x ktfmtCheckMain
+     ```
 
 # MacOS install instructions:
 
@@ -132,10 +136,10 @@ openssl rand -base64 32
 ```
 FRONT_END_BASE_URL=http://localhost:3000
 JWT_SECRET=[THE_JWT_SECRET_KEY_YOU_GENERATED]
-DATABASE_URL=jdbc:postgresql://host.docker.internal:5432/harmony;
-#DATABASE_URL=jdbc:postgresql://localhost:5432/harmony
-DATABASE_USER=harmony_app
-DATABASE_PASSWORD=
+JDBC_DATABASE_URL=jdbc:postgresql://host.docker.internal:5432/harmony
+#JDBC_DATABASE_URL=jdbc:postgresql://localhost:5432/harmony
+JDBC_DATABASE_USERNAME=harmony_app
+JDBC_DATABASE_PASSWORD=
 ```
 
 ### run the application
@@ -144,7 +148,7 @@ DATABASE_PASSWORD=
 ./gradlew runDockerContainer
 
 // OPTIONAL - use gradle to run the app directly if you'd like to run the app w/o docker
-//       (DATABASE_URL needs to be localhost)
+//       (JDBC_DATABASE_URL needs to be localhost)
 ./gradlew bootRun
 ```
 
@@ -194,7 +198,7 @@ Started BackendApplicationKt in 1.931 seconds
     - You can try building the image manually
         - `docker build -t harmony-backend:latest .`
     - You can also try running `./gradlew bootRun` to run the application on localhost
-        - You'll need to update your DATABASE_URL from `host.docker.internal` to `localhost` in `.env`
+        - You'll need to update your JDBC_DATABASE_URL from `host.docker.internal` to `localhost` in `.env`
 - Dependencies not resolving in IntelliJ?
     - Open the `build.gradle` file in IntelliJ
     - Click on the little elephant refresh button in the top right of the window.

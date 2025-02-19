@@ -31,27 +31,6 @@ jobs:
         env:
           HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
 
-#      # Set up the database
-#      - name: Create harmony database user if absent
-#        run: |
-#            heroku pg:psql -a $HEROKU_APP_NAME <<EOF
-#            DO $$
-#            BEGIN
-#              IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '$DATABASE_USER') THEN
-#                CREATE USER $DATABASE_USER WITH ENCRYPTED PASSWORD '$DATABASE_PASS';
-#                GRANT ALL PRIVILEGES ON DATABASE $HEROKU_DB_NAME TO $DATABASE_USER;
-#                GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO $DATABASE_USER;
-#                GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO $DATABASE_USER;
-#              END IF;
-#            END $$;
-#            EOF
-#          env:
-#            HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
-#            HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
-#            HEROKU_DB_NAME: ${{ secrets.HEROKU_DB_NAME }}
-#            DATABASE_USER: ${{ secrets.DATABASE_USER }}
-#            DATABASE_PASS: ${{ secrets.DATABASE_PASS }}
-#
       # Install Heroku CLI
       - name: Install Heroku CLI
         run: curl https://cli-assets.heroku.com/install.sh | sh
@@ -62,27 +41,42 @@ jobs:
         env:
           HEROKU_API_KEY: ${{ secrets.HEROKU_AUTH_TOKEN }}
 
+#      # Set up the database
+#      - name: Create harmony database user if absent
+#        run: |
+#            heroku pg:psql -a $HEROKU_APP_NAME <<EOF
+#            DO $$
+#            BEGIN
+#              IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '$JDBC_DATABASE_USERNAME') THEN
+#                CREATE USER $JDBC_DATABASE_USERNAME WITH ENCRYPTED PASSWORD '$JDBC_DATABASE_PASSWORD';
+#                GRANT ALL PRIVILEGES ON DATABASE $HEROKU_DB_NAME TO $JDBC_DATABASE_USERNAME;
+#                GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO $JDBC_DATABASE_USERNAME;
+#                GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO $JDBC_DATABASE_USERNAME;
+#              END IF;
+#            END $$;
+#            EOF
+#          env:
+#            HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+#            HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
+#            HEROKU_DB_NAME: ${{ secrets.HEROKU_DB_NAME }}
+#            JDBC_DATABASE_USERNAME: ${{ secrets.JDBC_DATABASE_USERNAME }}
+#            JDBC_DATABASE_PASSWORD: ${{ secrets.JDBC_DATABASE_PASSWORD }}
+#
       # Set ENV vars in Heroku
-      - name: Set Heroku ENV Vars
-        run: |
-          heroku config:set FRONT_END_BASE_URL=$FRONT_END_BASE_URL --app $HEROKU_APP_NAME
-          heroku config:set JWT_SECRET=$JWT_SECRET --app $HEROKU_APP_NAME
-          heroku config:set DATABASE_USER=$DATABASE_USER --app $HEROKU_APP_NAME
-          heroku config:set DATABASE_PASS=$DATABASE_PASS --app $HEROKU_APP_NAME
-          heroku config:set DISCORD_CLIENT_ID=$DISCORD_CLIENT_ID --app $HEROKU_APP_NAME
-          heroku config:set DISCORD_CLIENT_SECRET=$DISCORD_CLIENT_SECRET --app $HEROKU_APP_NAME
-        env:
-          FRONT_END_BASE_URL: ${{ vars.FRONT_END_BASE_URL }}
-          HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          DATABASE_USER: ${{ secrets.DATABASE_USER }}
-          DATABASE_PASS: ${{ secrets.DATABASE_PASS }}
-          DISCORD_CLIENT_ID: ${{ secrets.DISCORD_CLIENT_ID }}
-          DISCORD_CLIENT_SECRET: ${{ secrets.DISCORD_CLIENT_SECRET }}
+#      - name: Set Heroku ENV Vars
+#        run: heroku config:add FRONT_END_BASE_URL=$FRONT_END_BASE_URL JWT_SECRET=$JWT_SECRET JDBC_DATABASE_USERNAME=$JDBC_DATABASE_USERNAME JDBC_DATABASE_PASSWORD=$JDBC_DATABASE_PASSWORD DISCORD_CLIENT_ID=$DISCORD_CLIENT_ID DISCORD_CLIENT_SECRET=$DISCORD_CLIENT_SECRET -a $HEROKU_APP_NAME
+#        env:
+#          FRONT_END_BASE_URL: ${{ vars.FRONT_END_BASE_URL }}
+#          HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
+#          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+#          JDBC_DATABASE_USERNAME: ${{ secrets.JDBC_DATABASE_USERNAME }}
+#          JDBC_DATABASE_PASSWORD: ${{ secrets.JDBC_DATABASE_PASSWORD }}
+#          DISCORD_CLIENT_ID: ${{ secrets.DISCORD_CLIENT_ID }}
+#          DISCORD_CLIENT_SECRET: ${{ secrets.DISCORD_CLIENT_SECRET }}
 
       # Trigger Heroku deploy
       - name: Deploy the updated container on Heroku
-        run: heroku container:release web --app $HEROKU_APP_NAME
+        run: heroku container:release web -a $HEROKU_APP_NAME
           echo "Application successfully deployed to Heroku."
         env:
           HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
