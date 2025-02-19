@@ -30,8 +30,7 @@ COPY --from=builder /app/build/libs/harmony-backend-*.jar app.jar
 EXPOSE 8080
 
 # Set the environment variable for the port
-ARG HEROKU_PORT
-ENV HEROKU_PORT=$PORT
+ENV RANDOM_PORT=$PORT
 
 # Define the entrypoint for running the application
-ENTRYPOINT ["java", "-Xmx300m", "-Xss512k", "-XX:+UseContainerSupport", "-jar", "app.jar", "--server.port=${HEROKU_PORT}"]
+ENTRYPOINT ["java", "-Xmx300m", "-Xss512k", "-XX:+UseContainerSupport", "-jar", "app.jar", "--server.address=0.0.0.0", "--server.port=${RANDOM_PORT}"]
