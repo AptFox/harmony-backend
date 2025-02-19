@@ -37,7 +37,7 @@ jobs:
 
       # Authenticate with Heroku using the Heroku API key (GitHub secret)
       - name: Login to Heroku
-        run: heroku auth:token
+        run: heroku container:login
         env:
           HEROKU_API_KEY: ${{ secrets.HEROKU_AUTH_TOKEN }}
 
@@ -80,3 +80,4 @@ jobs:
           echo "Application successfully deployed to Heroku."
         env:
           HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
+          HEROKU_API_KEY: ${{ secrets.HEROKU_AUTH_TOKEN }}
