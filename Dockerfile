@@ -29,5 +29,9 @@ COPY --from=builder /app/build/libs/harmony-backend-*.jar app.jar
 # Expose the default Spring Boot port
 EXPOSE 8080
 
+# Set the environment variable for the port
+ARG PORT
+ENV PORT=$PORT
+
 # Define the entrypoint for running the application
 ENTRYPOINT ["java", "-Xmx300m", "-Xss512k", "-XX:+UseContainerSupport", "-jar", "app.jar", "--server.port=${PORT}"]
