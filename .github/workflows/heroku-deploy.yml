@@ -77,8 +77,8 @@ jobs:
 
       # Trigger Heroku deploy
       - name: Deploy the updated container on Heroku
-        run: heroku container:release web -a $HEROKU_APP_NAME
-          echo "Application successfully deployed to Heroku."
+        run: heroku container:release web -a harmony-backend
         env:
           HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
           HEROKU_API_KEY: ${{ secrets.HEROKU_AUTH_TOKEN }}
+          HEROKU_HEADERS: ${{ vars.HEROKU_HEADERS }}
