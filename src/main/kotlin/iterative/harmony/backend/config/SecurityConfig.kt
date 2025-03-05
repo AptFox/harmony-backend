@@ -41,7 +41,7 @@ class SecurityConfig() {
             }
             .authorizeHttpRequests { auth ->
                 auth
-                    .requestMatchers("/", "/login", "/login/oauth2/**", "/error")
+                    .requestMatchers("/", "/actuator/**", "/login", "/login/oauth2/**", "/error")
                     .permitAll() // Allow public access to certain endpoints
                     .anyRequest()
                     .authenticated() // Protect all other endpoints

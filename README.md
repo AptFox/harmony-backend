@@ -58,6 +58,9 @@
      ```bash
        ./gradlew clean build -x ktfmtCheckMain
      ```
+- Checking application status
+  - You can check if the application is up by visiting `http://localhost:8080/actuator/health` in a web browser
+  - You can also check the current git commit hash by visiting `http://localhost:8080/actuator/info` in a web browser
 
 # MacOS install instructions:
 
