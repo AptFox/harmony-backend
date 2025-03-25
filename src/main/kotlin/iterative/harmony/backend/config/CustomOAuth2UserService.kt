@@ -35,6 +35,6 @@ class CustomOAuth2UserService(@Autowired private val userService: UserService) :
                 "username" to user.username,
             )
 
-        return DefaultOAuth2User(authorities, attributes, "username")
+        return DefaultOAuth2User(authorities, attributes, "user_id")
     }
 }

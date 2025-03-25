@@ -203,6 +203,19 @@ Started BackendApplicationKt in 1.931 seconds
     - Open the `build.gradle` file in IntelliJ
     - Click on the little elephant refresh button in the top right of the window.
     - You can also relaunch your IDE
+- If you see a flyway error like the following when building:
+  - error:
+      ```
+         * What went wrong:
+         Execution failed for task ':flywayMigrate'.
+         > Error occurred while executing flywayMigrate
+         Validate failed: Migrations have failed validation
+         Detected applied migration not resolved locally: 20250305120418.
+         If you removed this migration intentionally, run repair to mark the migration as deleted.
+      ```
+  - This might have happened because a migration was deleted after it was run. To fix this, run the following command in the terminal:
+    - `./gradlew flywayRepair`
+    - This will mark the migration as deleted and allow the application to build.
 
 # Version info
 - Framework: Spring boot 3.3.5

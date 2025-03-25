@@ -10,7 +10,6 @@ import iterative.harmony.backend.repository.UserRepository
 import iterative.harmony.backend.util.RoleConstants
 import java.util.*
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.security.core.context.SecurityContext
 import org.springframework.stereotype.Service
 
 @Service
@@ -38,12 +37,18 @@ constructor(
         return user.get()
     }
 
-    fun getCurrentUser(securityContext: SecurityContext): UserResponse {
-        val details = securityContext.authentication.details as Map<*, *>
-        val userId = UUID.fromString(details["userId"].toString())
+    fun getCurrentUserRoles(userId: UUID): List<String> {
         val user = userRepository.findById(userId)
         if (!user.isPresent) {
             throw UserNotFoundException(userId.toString())
+        }
+        return user.get().roles.map { it.name }
+    }
+
+    fun getCurrentUser(userId: String): UserResponse {
+        val user = userRepository.findById(UUID.fromString(userId))
+        if (!user.isPresent) {
+            throw UserNotFoundException(userId)
         }
         return mapToUserResponse(user.get())
     }
@@ -64,6 +69,6 @@ constructor(
     }
 
     private fun mapToUserResponse(user: User): UserResponse {
-        return UserResponse(user.userId, user.displayName, user.timeZoneId)
+        return UserResponse(user.userId!!, user.displayName, user.timeZoneId)
     }
 }

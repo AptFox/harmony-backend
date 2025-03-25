@@ -16,8 +16,9 @@ class CorsConfig {
     fun corsConfigurationSource(): UrlBasedCorsConfigurationSource {
         val configuration = CorsConfiguration()
         configuration.allowedOrigins = listOf(frontEndBaseUrl)
-        configuration.allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "OPTIONS")
-        configuration.allowedHeaders = listOf("*")
+        configuration.allowedMethods = listOf("GET", "POST", "PUT")
+        configuration.allowedHeaders =
+            listOf("Authorization", "Content-Type", "Cookie", "User-Agent")
         configuration.allowCredentials = true
 
         val source = UrlBasedCorsConfigurationSource()
