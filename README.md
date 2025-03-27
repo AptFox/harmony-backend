@@ -19,6 +19,7 @@
  - Make changes
    - Write tests for changes
    - Run all tests
+     - `./gradlew test` or `./gradlew clean test --continue -Dspring.profiles.active=test`
    - Write meaningful commit messages
  - Run the linter from the terminal: `./gradlew ktfmtFormat`
    - To just check, run `./gradlew ktfmtCheck`

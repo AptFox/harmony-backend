@@ -9,6 +9,7 @@ import iterative.harmony.backend.util.SecurityConstants.COOKIE_EXPIRATION_IN_SEC
 import iterative.harmony.backend.util.SecurityConstants.REFRESH_TOKEN_NAME
 import iterative.harmony.backend.util.SecurityConstants.REFRESH_TOKEN_PATH
 import iterative.harmony.backend.util.getLogger
+import org.springframework.http.HttpHeaders.SET_COOKIE
 import org.springframework.http.ResponseCookie
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.CookieValue
@@ -26,19 +27,8 @@ class AuthController(
 
     @PostMapping("/logout")
     fun logout(): ResponseEntity<String> {
-        return ResponseEntity.ok()
-            .header(
-                "Set-Cookie",
-                ResponseCookie.from(REFRESH_TOKEN_NAME, "")
-                    .httpOnly(true)
-                    .secure(true)
-                    .path(REFRESH_TOKEN_PATH)
-                    .maxAge(0)
-                    .sameSite("None")
-                    .build()
-                    .toString(),
-            )
-            .build()
+        val emptyCookie = generateRefreshTokenCookie("", 0)
+        return ResponseEntity.ok().header(SET_COOKIE, emptyCookie).build()
     }
 
     @PostMapping("/refresh_token")
@@ -53,23 +43,16 @@ class AuthController(
             val userIdStr = refreshTokenFromDb.userId.toString()
             log.info("issuing new refresh token to $userIdStr")
 
-            // generate new access and refresh tokens
             val roles = userService.getCurrentUserRoles(refreshTokenFromDb.userId)
             val newAccessToken = tokenService.generateAccessToken(userIdStr, roles)
 
             val newRefreshToken = tokenService.generateRefreshToken(userIdStr)
 
             val newRefreshTokenCookie =
-                ResponseCookie.from(REFRESH_TOKEN_NAME, newRefreshToken)
-                    .httpOnly(true)
-                    .secure(true)
-                    .path("/auth/refresh_token")
-                    .maxAge(COOKIE_EXPIRATION_IN_SECONDS.toLong()) // This is probably wrong too
-                    .sameSite("Strict")
-                    .build()
+                generateRefreshTokenCookie(newRefreshToken, COOKIE_EXPIRATION_IN_SECONDS)
 
             return ResponseEntity.ok()
-                .header("Set-Cookie", newRefreshTokenCookie.toString())
+                .header(SET_COOKIE, newRefreshTokenCookie)
                 .body(ObjectMapper().writeValueAsString(mapOf(ACCESS_TOKEN_NAME to newAccessToken)))
         } catch (ex: JwtException) {
             log.info("Invalid refresh token: ${ex.message}")
@@ -78,5 +61,19 @@ class AuthController(
             log.info("Error while refreshing token: ${e.message}")
             return ResponseEntity.status(400).build()
         }
+    }
+
+    private fun generateRefreshTokenCookie(
+        refreshToken: String,
+        cookieExpirationInSeconds: Int,
+    ): String {
+        return ResponseCookie.from(REFRESH_TOKEN_NAME, refreshToken)
+            .httpOnly(true)
+            .secure(true)
+            .path(REFRESH_TOKEN_PATH)
+            .maxAge(cookieExpirationInSeconds.toLong())
+            .sameSite("None")
+            .build()
+            .toString()
     }
 }

@@ -9,10 +9,12 @@ import iterative.harmony.backend.util.SecurityConstants.REFRESH_TOKEN_PATH
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.http.HttpStatus
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.web.SecurityFilterChain
+import org.springframework.security.web.authentication.HttpStatusEntryPoint
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
 
 @Configuration
@@ -61,10 +63,9 @@ class SecurityConfig() {
                 oauth2.failureHandler { _, response, _ -> response.sendError(401, "Unauthorized") }
             }
             .exceptionHandling { exception ->
-                exception.authenticationEntryPoint { request, response, authException ->
-                    response.sendError(401, "Unauthorized")
-                }
+                exception.authenticationEntryPoint(HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
             }
+            .httpBasic { httpBasic -> httpBasic.disable() }
             .formLogin { formLogin -> formLogin.disable() }
             .logout { logout -> logout.disable() }
             .csrf { csrf -> csrf.disable() }

@@ -47,7 +47,6 @@ class JwtAuthenticationFilter(private val tokenService: JwtTokenService) : OnceP
             val token = getTokenFromRequest(request)
             val auth = tokenService.getAuthentication(token)
             SecurityContextHolder.getContext().authentication = auth
-            response.setHeader("Set-Cookie", "JSESSIONID=")
         } catch (e: Exception) {
             log.info("Error occurred while processing JWT token: ${e.message}")
             SecurityContextHolder.clearContext()
