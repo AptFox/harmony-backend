@@ -9,6 +9,6 @@ class RootController {
 
     @RequestMapping("/")
     fun home(): ResponseEntity<String> {
-        return ResponseEntity.ok().build()
+        return ResponseEntity.noContent().build()
     }
 }
