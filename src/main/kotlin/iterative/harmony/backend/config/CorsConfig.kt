@@ -8,9 +8,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 
 @Configuration
 class CorsConfig {
-    @Value("\${frontEndBaseUrl}")
-    private var frontEndBaseUrl: String =
-        "http://localhost:3000" // Set from spring profile at runtime
+    @Value("\${frontEndBaseUrl}") private lateinit var frontEndBaseUrl: String
 
     @Bean
     fun corsConfigurationSource(): UrlBasedCorsConfigurationSource {

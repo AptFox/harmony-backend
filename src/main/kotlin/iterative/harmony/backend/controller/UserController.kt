@@ -13,8 +13,10 @@ import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/api")
-class UserController @Autowired constructor(private val userService: UserService) {
+class UserController {
     private val log = getLogger()
+
+    @Autowired private lateinit var userService: UserService
 
     @PreAuthorize("hasRole('${RoleConstants.USER_ROLE}')")
     @GetMapping("/user/@me")

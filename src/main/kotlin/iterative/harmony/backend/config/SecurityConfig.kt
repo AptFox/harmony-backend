@@ -1,12 +1,11 @@
 package iterative.harmony.backend.config
 
-import iterative.harmony.backend.service.JwtTokenService
 import iterative.harmony.backend.util.SecurityConstants.DISCORD_OAUTH_PATH
 import iterative.harmony.backend.util.SecurityConstants.ERROR_PATH
 import iterative.harmony.backend.util.SecurityConstants.FAVICON_PATH
 import iterative.harmony.backend.util.SecurityConstants.LOGOUT_PATH
 import iterative.harmony.backend.util.SecurityConstants.REFRESH_TOKEN_PATH
-import org.springframework.beans.factory.annotation.Value
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpStatus
@@ -19,18 +18,15 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 @EnableWebSecurity
-class SecurityConfig() {
+class SecurityConfig {
 
-    @Value("\${frontEndBaseUrl}") private var frontEndBaseUrl: String = "http://localhost:3000"
+    @Autowired private lateinit var oAuth2LoginSuccessHandler: OAuth2LoginSuccessHandler
+    @Autowired private lateinit var jwtAuthenticationFilter: JwtAuthenticationFilter
+    @Autowired private lateinit var customOAuth2UserService: CustomOAuth2UserService
+    @Autowired private lateinit var corsConfig: CorsConfig
 
     @Bean
-    fun securityFilterChain(
-        http: HttpSecurity,
-        jwtAuthenticationFilter: JwtAuthenticationFilter,
-        customOAuth2UserService: CustomOAuth2UserService,
-        jwtTokenService: JwtTokenService,
-        corsConfig: CorsConfig,
-    ): SecurityFilterChain {
+    fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
         http
             .sessionManagement { session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
@@ -59,7 +55,7 @@ class SecurityConfig() {
                 oauth2.userInfoEndpoint { userInfo ->
                     userInfo.userService(customOAuth2UserService)
                 }
-                oauth2.successHandler(OAuth2LoginSuccessHandler(jwtTokenService, frontEndBaseUrl))
+                oauth2.successHandler(oAuth2LoginSuccessHandler)
                 oauth2.failureHandler { _, response, _ -> response.sendError(401, "Unauthorized") }
             }
             .exceptionHandling { exception ->

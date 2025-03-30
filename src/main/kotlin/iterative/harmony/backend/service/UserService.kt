@@ -13,12 +13,10 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
 
 @Service
-class UserService
-@Autowired
-constructor(
-    private val userRepository: UserRepository,
-    private val roleRepository: RoleRepository,
-) {
+class UserService {
+
+    @Autowired private lateinit var userRepository: UserRepository
+    @Autowired private lateinit var roleRepository: RoleRepository
 
     fun getOrCreateUser(discordUser: DiscordOAuthUser): User {
         val user = userRepository.findByDiscordId(discordUser.id)

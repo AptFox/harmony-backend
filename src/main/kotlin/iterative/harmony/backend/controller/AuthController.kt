@@ -9,6 +9,7 @@ import iterative.harmony.backend.util.SecurityConstants.COOKIE_EXPIRATION_IN_SEC
 import iterative.harmony.backend.util.SecurityConstants.REFRESH_TOKEN_NAME
 import iterative.harmony.backend.util.SecurityConstants.REFRESH_TOKEN_PATH
 import iterative.harmony.backend.util.getLogger
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.HttpHeaders.SET_COOKIE
 import org.springframework.http.ResponseCookie
 import org.springframework.http.ResponseEntity
@@ -19,11 +20,11 @@ import org.springframework.web.bind.annotation.RestController
 
 @RestController
 @RequestMapping("/auth")
-class AuthController(
-    private val tokenService: JwtTokenService,
-    private val userService: UserService,
-) {
+class AuthController {
     private val log = getLogger()
+
+    @Autowired private lateinit var tokenService: JwtTokenService
+    @Autowired private lateinit var userService: UserService
 
     @PostMapping("/logout")
     fun logout(): ResponseEntity<String> {
@@ -39,7 +40,7 @@ class AuthController(
             if (refreshTokenFromRequest.isNullOrEmpty())
                 throw IllegalArgumentException("No refresh token in request")
 
-            val refreshTokenFromDb = tokenService.verifyRefreshTokenClaims(refreshTokenFromRequest)
+            val refreshTokenFromDb = tokenService.verifyRefreshToken(refreshTokenFromRequest)
             val userIdStr = refreshTokenFromDb.userId.toString()
             log.info("issuing new refresh token to $userIdStr")
 

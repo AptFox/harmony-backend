@@ -7,6 +7,7 @@ import io.jsonwebtoken.SignatureAlgorithm
 import io.jsonwebtoken.security.Keys
 import iterative.harmony.backend.model.RefreshToken
 import iterative.harmony.backend.repository.RefreshTokenRepository
+import iterative.harmony.backend.util.Utils
 import iterative.harmony.backend.util.getLogger
 import java.security.Key
 import java.util.*
@@ -18,11 +19,8 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.stereotype.Service
 
 @Service
-class JwtTokenService(
-    @Value("\${jwt.secret}") private val secretKey: String,
-    @Autowired private val refreshTokenRepository: RefreshTokenRepository,
-) {
-
+class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
+    @Autowired private lateinit var refreshTokenRepository: RefreshTokenRepository
     private val key: Key = Keys.hmacShaKeyFor(secretKey.toByteArray())
     private val tokenParser = Jwts.parserBuilder().setSigningKey(key).build()
     private val log = getLogger()
@@ -30,19 +28,14 @@ class JwtTokenService(
     fun generateAccessToken(userId: String, roles: List<String>): String {
         val claims = Jwts.claims().setSubject(userId)
         claims["roles"] = roles
-        val tokenIssuedAt = Date()
-        val tokenExpiration = Date(tokenIssuedAt.time + ACCESS_TOKEN_DURATION_IN_MILLIS)
+        val tokenIssuedAt = Utils().getCurrentTimeInMillisRounded()
+        val tokenExpiration = tokenIssuedAt + ACCESS_TOKEN_DURATION_IN_MILLIS
 
-        return Jwts.builder()
-            .setClaims(claims)
-            .setIssuedAt(tokenIssuedAt)
-            .setExpiration(tokenExpiration)
-            .signWith(key, SignatureAlgorithm.HS256)
-            .compact()
+        return buildToken(claims, tokenIssuedAt, tokenExpiration)
     }
 
     fun generateRefreshToken(userId: String): String {
-        val tokenIssuedAt = getCurrentTimeInMillisRounded()
+        val tokenIssuedAt = Utils().getCurrentTimeInMillisRounded()
         val tokenExpiration = tokenIssuedAt + REFRESH_TOKEN_DURATION_IN_MILLIS
         val refreshToken =
             refreshTokenRepository.save(
@@ -51,10 +44,14 @@ class JwtTokenService(
 
         val claims = generateClaimsFromRefreshToken(refreshToken)
 
+        return buildToken(claims, tokenIssuedAt, tokenExpiration)
+    }
+
+    private fun buildToken(claims: Claims, issuedAt: Long, expiration: Long): String {
         return Jwts.builder()
             .setClaims(claims)
-            .setIssuedAt(Date(tokenIssuedAt))
-            .setExpiration(Date(tokenExpiration))
+            .setIssuedAt(Date(issuedAt))
+            .setExpiration(Date(expiration))
             .signWith(key, SignatureAlgorithm.HS256)
             .compact()
     }
@@ -70,12 +67,7 @@ class JwtTokenService(
         )
     }
 
-    private fun getCurrentTimeInMillisRounded(): Long {
-        val currentTimeMillis = Date().time
-        return ((currentTimeMillis + 500) / 1000) * 1000
-    }
-
-    fun verifyRefreshTokenClaims(refreshToken: String?): RefreshToken {
+    fun verifyRefreshToken(refreshToken: String?): RefreshToken {
         try {
             val tokenClaims = getClaims(refreshToken)
             val tokenFromClaims = getRefreshTokenFromClaims(tokenClaims)
@@ -129,7 +121,7 @@ class JwtTokenService(
     }
 
     companion object {
-        private const val ACCESS_TOKEN_DURATION_IN_MILLIS = 7200000 // 2 hours
-        private const val REFRESH_TOKEN_DURATION_IN_MILLIS = 172800000 // 48 hours
+        const val ACCESS_TOKEN_DURATION_IN_MILLIS: Long = 7200000 // 2 hours
+        const val REFRESH_TOKEN_DURATION_IN_MILLIS: Long = 172800000 // 48 hours
     }
 }

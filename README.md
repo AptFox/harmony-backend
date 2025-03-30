@@ -18,6 +18,8 @@
    - `git checkout -b desc-of-feature`
  - Make changes
    - Write tests for changes
+     - Most tests should be written for the service layer. 
+     - Push as much logic as possible into the service layer when adding features.
    - Run all tests
      - `./gradlew test` or `./gradlew clean test --continue -Dspring.profiles.active=test`
    - Write meaningful commit messages
