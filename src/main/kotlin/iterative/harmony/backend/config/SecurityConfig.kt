@@ -6,6 +6,7 @@ import iterative.harmony.backend.util.SecurityConstants.FAVICON_PATH
 import iterative.harmony.backend.util.SecurityConstants.LOGOUT_PATH
 import iterative.harmony.backend.util.SecurityConstants.REFRESH_TOKEN_PATH
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpStatus
@@ -25,12 +26,22 @@ class SecurityConfig {
     @Autowired private lateinit var customOAuth2UserService: CustomOAuth2UserService
     @Autowired private lateinit var corsConfig: CorsConfig
 
+    @Value("\${frontEndBaseUrl}") private lateinit var frontEndBaseUrl: String
+
     @Bean
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
         http
             .sessionManagement { session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 session.disable()
+            }
+            .headers { headers ->
+                headers.frameOptions { frameOptions -> frameOptions.deny() }
+                headers.contentSecurityPolicy { csp ->
+                    csp.policyDirectives(
+                        "default-src 'none'; " + "connect-src 'self' ${frontEndBaseUrl};"
+                    )
+                }
             }
             .authorizeHttpRequests { auth ->
                 auth
