@@ -1,5 +1,6 @@
 package iterative.harmony.backend.service
 
+import io.jsonwebtoken.JwtException
 import io.jsonwebtoken.JwtParser
 import io.jsonwebtoken.Jwts
 import io.jsonwebtoken.security.Keys
@@ -8,6 +9,7 @@ import iterative.harmony.backend.repository.RefreshTokenRepository
 import iterative.harmony.backend.util.RoleConstants
 import iterative.harmony.backend.util.Utils
 import java.util.*
+import kotlin.test.assertContains
 import kotlin.test.fail
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
@@ -32,21 +34,25 @@ class JwtTokenServiceTest {
 
     @InjectMocks private var jwtTokenService: JwtTokenService = JwtTokenService(secretKey)
 
-    private val testUuid = "f52b5cb8-a692-455a-8db2-ba416db5429b"
-    // Lacks a JTI and should throw an exception when parsed as a refresh token
-    private var mockToken =
-        "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJmNTJiNWNiOC1hNjkyLTQ1NWEtOGRiMi1iYTQxNmRiNTQyOWIiLCJyb2xlcyI6WyJVU0VSIl19.38HNklVyRsd9Nxddv4pByz8CYQkdB3lN6okKJvIueTA"
+    private val testUuid = UUID.randomUUID().toString()
     private val userRoles = listOf(RoleConstants.USER_ROLE)
     private val issuedAt = Utils().getCurrentTimeInMillisRounded()
     private val expiration = issuedAt + JwtTokenService.ACCESS_TOKEN_DURATION_IN_MILLIS
 
-    private fun buildValidRefreshToken(): String {
-        val claims =
-            mapOf("sub" to testUuid, "jti" to testUuid, "iat" to issuedAt, "exp" to expiration)
+    private fun buildToken(
+        sub: String? = testUuid,
+        jti: String? = testUuid,
+        roles: List<String>? = userRoles,
+        iat: Long? = issuedAt,
+        exp: Long? = expiration,
+    ): String {
+        val issuedAt = if (iat != null) Date(iat) else null
+        val expiredAt = if (exp != null) Date(exp) else null
+        val claims = mapOf("sub" to sub, "jti" to jti, "roles" to roles, "iat" to iat, "exp" to exp)
         return Jwts.builder()
             .setClaims(claims)
-            .setIssuedAt(Date(issuedAt))
-            .setExpiration(Date(expiration))
+            .setIssuedAt(issuedAt)
+            .setExpiration(expiredAt)
             .signWith(Keys.hmacShaKeyFor(secretKey.toByteArray()))
             .compact()
     }
@@ -101,7 +107,7 @@ class JwtTokenServiceTest {
             val uuid = UUID.fromString(testUuid)
             val jti = UUID.fromString(testUuid)
             val refreshToken = RefreshToken(uuid, issuedAt, expiration, jti)
-            val validToken = buildValidRefreshToken()
+            val validToken = buildToken()
 
             whenever(mockRefreshTokenRepository.findByJti(refreshToken.jti!!))
                 .thenReturn(Optional.of(refreshToken))
@@ -114,11 +120,15 @@ class JwtTokenServiceTest {
         }
 
         @Test
-        fun `when given an invalid token, should return false`() {
+        fun `when given a token missing jti, should throw an exception`() {
             try {
-                jwtTokenService.verifyRefreshToken(mockToken)
+                val invalidToken = buildToken(jti = null)
+                jwtTokenService.verifyRefreshToken(invalidToken)
                 fail("Exception should have been thrown")
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                assertTrue(e is JwtException)
+                assertEquals("JTI is missing from Refresh token", e.message)
+            }
         }
     }
 
@@ -126,13 +136,37 @@ class JwtTokenServiceTest {
     @DisplayName("getAuthentication")
     inner class GetAuthentication() {
         @Test
-        fun `should return an authentication object`() {
-            val auth = jwtTokenService.getAuthentication(mockToken)
+        fun `when token is valid, should return an authentication object`() {
+            val validToken = buildToken()
+            val auth = jwtTokenService.getAuthentication(validToken)
             val authDetails = auth.details as Map<*, *>
 
-            assertNotNull(auth)
             assertTrue(auth.isAuthenticated)
             assertEquals(testUuid, authDetails["userId"])
+            assertEquals(auth.authorities.toString(), userRoles.toString())
+        }
+
+        @Test
+        fun `should throw an exception if userRoles are missing`() {
+            try {
+                val invalidToken = buildToken(roles = null)
+                jwtTokenService.getAuthentication(invalidToken)
+                fail("Exception should have been thrown")
+            } catch (e: Exception) {
+                assertTrue(e is NullPointerException)
+            }
+        }
+
+        @Test
+        fun `should throw an exception when token is missing iat or exp`() {
+            try {
+                val invalidToken = buildToken(iat = null, exp = null)
+                jwtTokenService.getAuthentication(invalidToken)
+                fail("Exception should have been thrown")
+            } catch (e: Exception) {
+                assertTrue(e is JwtException)
+                assertEquals("Token is missing iat and/or exp", e.message)
+            }
         }
     }
 
@@ -141,10 +175,46 @@ class JwtTokenServiceTest {
     inner class GetClaims() {
         @Test
         fun `should return claims from token`() {
-            val claims = jwtTokenService.getClaims(mockToken)
+            val validToken = buildToken()
+            val claims = jwtTokenService.getClaims(validToken)
             assertNotNull(claims)
             assertEquals(testUuid, claims.subject)
             assertEquals(userRoles, claims["roles"])
+        }
+
+        @Test
+        fun `should throw an exception when token is null or empty`() {
+            try {
+                jwtTokenService.getClaims(null)
+                fail("Exception should have been thrown")
+            } catch (e: Exception) {
+                assertTrue(e is JwtException)
+                assertEquals("Token is null", e.message)
+            }
+        }
+
+        @Test
+        fun `should throw an exception when token is expired`() {
+            try {
+                val expiredToken = buildToken(exp = issuedAt - 1000)
+                jwtTokenService.getClaims(expiredToken)
+                fail("Exception should have been thrown")
+            } catch (e: Exception) {
+                assertTrue(e is JwtException)
+                assertContains(e.message.toString(), "JWT expired at")
+            }
+        }
+
+        @Test
+        fun `should throw an exception when token is missing iat or exp`() {
+            try {
+                val invalidToken = buildToken(iat = null, exp = null)
+                jwtTokenService.getClaims(invalidToken)
+                fail("Exception should have been thrown")
+            } catch (e: Exception) {
+                assertTrue(e is JwtException)
+                assertEquals("Token is missing iat and/or exp", e.message)
+            }
         }
     }
 }

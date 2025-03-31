@@ -117,7 +117,13 @@ class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
         if (token.isNullOrEmpty()) {
             throw JwtException("Token is null")
         }
-        return tokenParser.parseClaimsJws(token).body
+        val claims = tokenParser.parseClaimsJws(token).body
+
+        if (claims.issuedAt == null || claims.expiration == null) {
+            throw JwtException("Token is missing iat and/or exp")
+        }
+
+        return claims
     }
 
     companion object {
