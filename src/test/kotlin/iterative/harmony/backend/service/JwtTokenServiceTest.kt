@@ -148,13 +148,12 @@ class JwtTokenServiceTest {
 
         @Test
         fun `should throw an exception if userRoles are missing`() {
-            try {
-                val invalidToken = buildToken(roles = null)
-                jwtTokenService.getAuthentication(invalidToken)
-                fail("Exception should have been thrown")
-            } catch (e: Exception) {
-                assertTrue(e is NullPointerException)
-            }
+            val invalidToken = buildToken(roles = null)
+            assertThrows(
+                NullPointerException::class.java,
+                { jwtTokenService.getAuthentication(invalidToken) },
+                "should have thrown an exception",
+            )
         }
 
         @Test

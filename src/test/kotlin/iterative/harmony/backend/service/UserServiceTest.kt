@@ -11,7 +11,6 @@ import iterative.harmony.backend.repository.UserRepository
 import iterative.harmony.backend.util.RoleConstants
 import java.util.*
 import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -22,8 +21,6 @@ import org.mockito.Mock
 import org.mockito.Mockito.*
 import org.mockito.Mockito.`when` as whenever
 import org.mockito.junit.jupiter.MockitoExtension
-import org.springframework.security.core.Authentication
-import org.springframework.security.core.context.SecurityContext
 
 @ExtendWith(MockitoExtension::class)
 class UserServiceTest {
@@ -37,6 +34,7 @@ class UserServiceTest {
     private val uuid: UUID = UUID.fromString("306420e2-5f30-4070-a5c1-b9961bf10ef4")
     private val discordUser = DiscordOAuthUser("1", "username", "globalName")
     private val userRole = Role(1, RoleConstants.USER_ROLE, "The default role for a user")
+    private val userRoles = listOf(userRole.name)
     private val expectedUser = User(uuid, "username", "username", "1", 0, setOf(userRole))
 
     @Nested
@@ -77,53 +75,62 @@ class UserServiceTest {
             fun `should return existing user`() {
                 whenever(userRepository.findByDiscordId(discordUser.id))
                     .thenReturn(Optional.of(expectedUser))
-
-                verify(userRepository, never()).save(any())
+                whenever(roleRepository.findByName(RoleConstants.USER_ROLE)).thenThrow()
 
                 val actualUser = userService.getOrCreateUser(discordUser)
 
+                verify(userRepository, never()).save(any())
                 assertEquals(expectedUser, actualUser)
             }
         }
     }
 
     @Nested
-    @DisplayName("getCurrentUser")
-    @Disabled("needs updated")
-    inner class GetCurrentUser() {
+    @DisplayName("getCurrentUserRoles")
+    inner class GetCurrentUserRoles {
+        @Test
+        fun `should return the current user roles`() {
+            whenever(userRepository.findById(uuid)).thenReturn(Optional.of(expectedUser))
 
-        private val securityContext: SecurityContext = mock(SecurityContext::class.java)
+            val actualRoles = userService.getCurrentUserRoles(uuid)
+
+            assertEquals(userRoles, actualRoles)
+        }
+
+        @Test
+        fun `should throw UserNotFoundException when user does not exist`() {
+            whenever(userRepository.findById(uuid)).thenReturn(Optional.empty())
+
+            assertThrows(UserNotFoundException::class.java) {
+                userService.getCurrentUserRoles(uuid)
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("getCurrentUser")
+    inner class GetCurrentUser() {
 
         @Test
         fun `should return the current user`() {
-            val mockAuth = mock(Authentication::class.java)
-            whenever(mockAuth.details).thenReturn(mapOf("userId" to uuid))
-            whenever(securityContext.authentication).thenReturn(mockAuth)
-
             whenever(userRepository.findById(uuid)).thenReturn(Optional.of(expectedUser))
 
-            //            val actualUserResponse = userService.getCurrentUser(securityContext)
+            val actualUserResponse = userService.getCurrentUser(uuid.toString())
             val expectedUserResponse =
                 UserResponse(uuid, expectedUser.displayName, expectedUser.timeZoneId)
-
-            //            assertEquals(expectedUserResponse, actualUserResponse)
+            assertEquals(expectedUserResponse, actualUserResponse)
         }
 
         @Nested
-        @DisplayName("when called with a non-existing user")
-        inner class NonExistingUser() {
+        @DisplayName("when called with a new user")
+        inner class NewUser() {
             @Test
             fun `should throw UserNotFoundException`() {
-                //
-                // whenever(userRepository.findById(expectedUser.userId)).thenReturn(Optional.empty())
-
-                val securityContext = mock(SecurityContext::class.java)
-                val mockAuth = mock(Authentication::class.java)
-                whenever(mockAuth.details).thenReturn(mapOf("userId" to expectedUser.userId))
-                whenever(securityContext.authentication).thenReturn(mockAuth)
+                whenever(userRepository.findById(expectedUser.userId!!))
+                    .thenReturn(Optional.empty())
 
                 assertThrows(UserNotFoundException::class.java) {
-                    //                    userService.getCurrentUser(securityContext)
+                    userService.getCurrentUser(uuid.toString())
                 }
             }
         }
@@ -131,7 +138,6 @@ class UserServiceTest {
 
     @Nested
     @DisplayName("updateUser")
-    @Disabled("needs updated")
     inner class UpdateUser() {
 
         private val updateUserRequest = UpdateUserRequest("newUsername", "2")
@@ -147,15 +153,21 @@ class UserServiceTest {
                         timeZoneId = updateUserRequest.timeZoneId.toInt()
                     }
 
-                //                whenever(userRepository.findById(expectedUser.userId))
-                //                    .thenReturn(Optional.of(expectedUser))
+                whenever(userRepository.findById(expectedUser.userId!!))
+                    .thenReturn(Optional.of(expectedUser))
                 whenever(userRepository.save(updatedUser)).thenReturn(updatedUser)
 
-                val actual =
+                val expectedUserResponse =
+                    UserResponse(
+                        expectedUser.userId!!,
+                        updateUserRequest.displayName,
+                        updateUserRequest.timeZoneId.toInt(),
+                    )
+
+                val actualUserResponse =
                     userService.updateUser(updateUserRequest, expectedUser.userId.toString())
 
-                assertEquals(updateUserRequest.displayName, actual.displayName)
-                assertEquals(updateUserRequest.timeZoneId.toInt(), actual.timeZoneId)
+                assertEquals(expectedUserResponse, actualUserResponse)
             }
         }
 
@@ -164,8 +176,8 @@ class UserServiceTest {
         inner class NonExistingUser() {
             @Test
             fun `should throw UserNotFoundException`() {
-                //
-                // whenever(userRepository.findById(expectedUser.userId)).thenReturn(Optional.empty())
+                whenever(userRepository.findById(expectedUser.userId!!))
+                    .thenReturn(Optional.empty())
 
                 assertThrows(UserNotFoundException::class.java) {
                     userService.updateUser(updateUserRequest, expectedUser.userId.toString())
