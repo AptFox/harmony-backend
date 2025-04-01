@@ -20,7 +20,7 @@ class AuthController {
 
     @PostMapping("/logout")
     fun logout(): ResponseEntity<String> {
-        val emptyRefreshTokenCookie = authService.setEmptyCookie()
+        val emptyRefreshTokenCookie = authService.generateEmptyRefreshTokenCookie()
         return ResponseEntity.ok().header(SET_COOKIE, emptyRefreshTokenCookie).build()
     }
 

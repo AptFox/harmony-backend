@@ -15,7 +15,7 @@ class AuthService {
 
     private val log = getLogger()
 
-    fun setEmptyCookie(): String {
+    fun generateEmptyRefreshTokenCookie(): String {
         return generateRefreshTokenCookie("", 0)
     }
 

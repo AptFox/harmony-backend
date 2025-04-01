@@ -38,7 +38,7 @@ class JwtTokenServiceTest {
     private val issuedAt = Utils().getCurrentTimeInMillisRounded()
     private val expiration = issuedAt + JwtTokenService.ACCESS_TOKEN_DURATION_IN_MILLIS
 
-    private fun buildToken(
+    fun buildToken(
         sub: String? = testUuid,
         jti: String? = testUuid,
         roles: List<String>? = userRoles,
@@ -131,6 +131,63 @@ class JwtTokenServiceTest {
                     "should have thrown an exception",
                 )
             assertEquals("JTI is missing from Refresh token", exception.message)
+        }
+
+        @Test
+        fun `when token is revoked, should throw an exception`() {
+            val validToken = buildToken()
+            val refreshToken =
+                RefreshToken(
+                    UUID.fromString(testUuid),
+                    issuedAt,
+                    expiration,
+                    UUID.fromString(testUuid),
+                    revoked = true,
+                )
+            whenever(mockRefreshTokenRepository.findByJti(refreshToken.jti!!))
+                .thenReturn(Optional.of(refreshToken))
+            val exception =
+                assertThrows(
+                    JwtException::class.java,
+                    { jwtTokenService.verifyRefreshToken(validToken) },
+                    "should have thrown an exception",
+                )
+            assertEquals("Token is revoked or expired", exception.message)
+        }
+
+        @Test
+        fun `when token is expired, should throw an exception`() {
+            val validToken = buildToken()
+            val refreshToken =
+                RefreshToken(
+                    UUID.fromString(testUuid),
+                    issuedAt,
+                    issuedAt - 1000,
+                    UUID.fromString(testUuid),
+                )
+            whenever(mockRefreshTokenRepository.findByJti(refreshToken.jti!!))
+                .thenReturn(Optional.of(refreshToken))
+            val exception =
+                assertThrows(
+                    JwtException::class.java,
+                    { jwtTokenService.verifyRefreshToken(validToken) },
+                    "should have thrown an exception",
+                )
+            assertEquals("Token is revoked or expired", exception.message)
+        }
+
+        @Test
+        fun `when token is missing from DB, should throw an exception`() {
+            val validToken = buildToken()
+            whenever(mockRefreshTokenRepository.findByJti(UUID.fromString(testUuid)))
+                .thenReturn(Optional.empty())
+            val exception =
+                assertThrows(
+                    JwtException::class.java,
+                    { jwtTokenService.verifyRefreshToken(validToken) },
+                    "should have thrown an exception",
+                )
+            assertEquals("Refresh token not found in database", exception.message)
         }
     }
 
