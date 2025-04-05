@@ -1,13 +1,14 @@
 package iterative.harmony.backend.controller
 
+import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
-class DashboardController {
+class RootController {
 
     @RequestMapping("/")
-    fun home(): String {
-        return "Hello World!"
+    fun home(): ResponseEntity<String> {
+        return ResponseEntity.noContent().build()
     }
 }

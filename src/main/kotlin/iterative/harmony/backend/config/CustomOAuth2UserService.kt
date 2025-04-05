@@ -11,8 +11,10 @@ import org.springframework.security.oauth2.core.user.OAuth2User
 import org.springframework.stereotype.Service
 
 @Service
-class CustomOAuth2UserService(@Autowired private val userService: UserService) :
-    DefaultOAuth2UserService() {
+class CustomOAuth2UserService : DefaultOAuth2UserService() {
+
+    @Autowired private lateinit var userService: UserService
+
     override fun loadUser(userRequest: OAuth2UserRequest): OAuth2User {
         val oAuth2User = super.loadUser(userRequest)
         val discordAttributes = oAuth2User.attributes
@@ -35,6 +37,6 @@ class CustomOAuth2UserService(@Autowired private val userService: UserService) :
                 "username" to user.username,
             )
 
-        return DefaultOAuth2User(authorities, attributes, "username")
+        return DefaultOAuth2User(authorities, attributes, "user_id")
     }
 }

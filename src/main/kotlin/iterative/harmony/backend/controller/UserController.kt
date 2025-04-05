@@ -9,20 +9,21 @@ import jakarta.validation.Valid
 import java.security.Principal
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.security.access.prepost.PreAuthorize
-import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/api")
-class UserController @Autowired constructor(private val userService: UserService) {
+class UserController {
     private val log = getLogger()
+
+    @Autowired private lateinit var userService: UserService
 
     @PreAuthorize("hasRole('${RoleConstants.USER_ROLE}')")
     @GetMapping("/user/@me")
     fun getUser(principal: Principal): UserResponse {
         log.info("getting user: ${principal.name}")
 
-        return userService.getCurrentUser(SecurityContextHolder.getContext())
+        return userService.getCurrentUser(principal.name)
     }
 
     @PreAuthorize("hasRole('${RoleConstants.USER_ROLE}')")

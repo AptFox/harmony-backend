@@ -18,7 +18,10 @@
    - `git checkout -b desc-of-feature`
  - Make changes
    - Write tests for changes
+     - Most tests should be written for the service layer. 
+     - Push as much logic as possible into the service layer when adding features.
    - Run all tests
+     - `./gradlew test` or `./gradlew clean test --continue -Dspring.profiles.active=test`
    - Write meaningful commit messages
  - Run the linter from the terminal: `./gradlew ktfmtFormat`
    - To just check, run `./gradlew ktfmtCheck`
@@ -45,6 +48,7 @@
 - Hot reload:
   - For local dev, SpringDevTools will automatically reload the application ~5 seconds after saving changes to a file.
   - This makes local dev much faster as you don't need to restart the application to see changes.
+  - The application must be running debug mode for this to work.
 - Linting
   - You can setup a pre-commit hook that runs ktfmt on each commit via gradle by creating a `.git/hooks/pre-commit` file with the following contents:
      ```bash
@@ -203,6 +207,19 @@ Started BackendApplicationKt in 1.931 seconds
     - Open the `build.gradle` file in IntelliJ
     - Click on the little elephant refresh button in the top right of the window.
     - You can also relaunch your IDE
+- If you see a flyway error like the following when building:
+  - error:
+      ```
+         * What went wrong:
+         Execution failed for task ':flywayMigrate'.
+         > Error occurred while executing flywayMigrate
+         Validate failed: Migrations have failed validation
+         Detected applied migration not resolved locally: 20250305120418.
+         If you removed this migration intentionally, run repair to mark the migration as deleted.
+      ```
+  - This might have happened because a migration was deleted after it was run. To fix this, run the following command in the terminal:
+    - `./gradlew flywayRepair`
+    - This will mark the migration as deleted and allow the application to build.
 
 # Version info
 - Framework: Spring boot 3.3.5
