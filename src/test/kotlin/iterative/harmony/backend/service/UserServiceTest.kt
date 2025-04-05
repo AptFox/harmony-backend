@@ -21,21 +21,20 @@ import org.mockito.Mock
 import org.mockito.Mockito.*
 import org.mockito.Mockito.`when` as whenever
 import org.mockito.junit.jupiter.MockitoExtension
-import org.springframework.security.core.Authentication
-import org.springframework.security.core.context.SecurityContext
 
 @ExtendWith(MockitoExtension::class)
 class UserServiceTest {
 
-    @Mock private lateinit var userRepository: UserRepository
+    @Mock private lateinit var userRepositoryMock: UserRepository
 
-    @Mock private lateinit var roleRepository: RoleRepository
+    @Mock private lateinit var roleRepositoryMock: RoleRepository
 
     @InjectMocks private lateinit var userService: UserService
 
     private val uuid: UUID = UUID.fromString("306420e2-5f30-4070-a5c1-b9961bf10ef4")
     private val discordUser = DiscordOAuthUser("1", "username", "globalName")
     private val userRole = Role(1, RoleConstants.USER_ROLE, "The default role for a user")
+    private val userRoles = listOf(userRole.name)
     private val expectedUser = User(uuid, "username", "username", "1", 0, setOf(userRole))
 
     @Nested
@@ -48,16 +47,16 @@ class UserServiceTest {
 
             @Test
             fun `should create and return new user`() {
-                whenever(userRepository.findByDiscordId(discordUser.id))
+                whenever(userRepositoryMock.findByDiscordId(discordUser.id))
                     .thenReturn(Optional.empty())
-                whenever(roleRepository.findByName(RoleConstants.USER_ROLE))
+                whenever(roleRepositoryMock.findByName(RoleConstants.USER_ROLE))
                     .thenReturn(Optional.of(userRole))
-                whenever(userRepository.save(any())).thenReturn(expectedUser)
+                whenever(userRepositoryMock.save(any())).thenReturn(expectedUser)
 
                 val argumentCaptor: ArgumentCaptor<User> = ArgumentCaptor.captor()
                 userService.getOrCreateUser(discordUser)
 
-                verify(userRepository, times(1)).save(argumentCaptor.capture())
+                verify(userRepositoryMock, times(1)).save(argumentCaptor.capture())
 
                 val actualUserArgs = argumentCaptor.value
 
@@ -74,14 +73,36 @@ class UserServiceTest {
         inner class PreExistingUser() {
             @Test
             fun `should return existing user`() {
-                whenever(userRepository.findByDiscordId(discordUser.id))
+                whenever(userRepositoryMock.findByDiscordId(discordUser.id))
                     .thenReturn(Optional.of(expectedUser))
-
-                verify(userRepository, never()).save(any())
 
                 val actualUser = userService.getOrCreateUser(discordUser)
 
+                verify(userRepositoryMock, never()).save(any())
+                verify(roleRepositoryMock, never()).findByName(RoleConstants.USER_ROLE)
                 assertEquals(expectedUser, actualUser)
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("getCurrentUserRoles")
+    inner class GetCurrentUserRoles {
+        @Test
+        fun `should return the current user roles`() {
+            whenever(userRepositoryMock.findById(uuid)).thenReturn(Optional.of(expectedUser))
+
+            val actualRoles = userService.getCurrentUserRoles(uuid)
+
+            assertEquals(userRoles, actualRoles)
+        }
+
+        @Test
+        fun `should throw UserNotFoundException when user does not exist`() {
+            whenever(userRepositoryMock.findById(uuid)).thenReturn(Optional.empty())
+
+            assertThrows(UserNotFoundException::class.java) {
+                userService.getCurrentUserRoles(uuid)
             }
         }
     }
@@ -90,37 +111,26 @@ class UserServiceTest {
     @DisplayName("getCurrentUser")
     inner class GetCurrentUser() {
 
-        private val securityContext: SecurityContext = mock(SecurityContext::class.java)
-
         @Test
         fun `should return the current user`() {
-            val mockAuth = mock(Authentication::class.java)
-            whenever(mockAuth.details).thenReturn(mapOf("userId" to uuid))
-            whenever(securityContext.authentication).thenReturn(mockAuth)
+            whenever(userRepositoryMock.findById(uuid)).thenReturn(Optional.of(expectedUser))
 
-            whenever(userRepository.findById(uuid)).thenReturn(Optional.of(expectedUser))
-
-            val actualUserResponse = userService.getCurrentUser(securityContext)
+            val actualUserResponse = userService.getCurrentUser(uuid.toString())
             val expectedUserResponse =
                 UserResponse(uuid, expectedUser.displayName, expectedUser.timeZoneId)
-
             assertEquals(expectedUserResponse, actualUserResponse)
         }
 
         @Nested
-        @DisplayName("when called with a non-existing user")
-        inner class NonExistingUser() {
+        @DisplayName("when called with a new user")
+        inner class NewUser() {
             @Test
             fun `should throw UserNotFoundException`() {
-                whenever(userRepository.findById(expectedUser.userId)).thenReturn(Optional.empty())
-
-                val securityContext = mock(SecurityContext::class.java)
-                val mockAuth = mock(Authentication::class.java)
-                whenever(mockAuth.details).thenReturn(mapOf("userId" to expectedUser.userId))
-                whenever(securityContext.authentication).thenReturn(mockAuth)
+                whenever(userRepositoryMock.findById(expectedUser.userId!!))
+                    .thenReturn(Optional.empty())
 
                 assertThrows(UserNotFoundException::class.java) {
-                    userService.getCurrentUser(securityContext)
+                    userService.getCurrentUser(uuid.toString())
                 }
             }
         }
@@ -143,15 +153,21 @@ class UserServiceTest {
                         timeZoneId = updateUserRequest.timeZoneId.toInt()
                     }
 
-                whenever(userRepository.findById(expectedUser.userId))
+                whenever(userRepositoryMock.findById(expectedUser.userId!!))
                     .thenReturn(Optional.of(expectedUser))
-                whenever(userRepository.save(updatedUser)).thenReturn(updatedUser)
+                whenever(userRepositoryMock.save(updatedUser)).thenReturn(updatedUser)
 
-                val actual =
+                val expectedUserResponse =
+                    UserResponse(
+                        expectedUser.userId!!,
+                        updateUserRequest.displayName,
+                        updateUserRequest.timeZoneId.toInt(),
+                    )
+
+                val actualUserResponse =
                     userService.updateUser(updateUserRequest, expectedUser.userId.toString())
 
-                assertEquals(updateUserRequest.displayName, actual.displayName)
-                assertEquals(updateUserRequest.timeZoneId.toInt(), actual.timeZoneId)
+                assertEquals(expectedUserResponse, actualUserResponse)
             }
         }
 
@@ -160,7 +176,8 @@ class UserServiceTest {
         inner class NonExistingUser() {
             @Test
             fun `should throw UserNotFoundException`() {
-                whenever(userRepository.findById(expectedUser.userId)).thenReturn(Optional.empty())
+                whenever(userRepositoryMock.findById(expectedUser.userId!!))
+                    .thenReturn(Optional.empty())
 
                 assertThrows(UserNotFoundException::class.java) {
                     userService.updateUser(updateUserRequest, expectedUser.userId.toString())
