@@ -42,7 +42,7 @@ class AuthServiceTest {
             val exception =
                 assertThrows(
                     IllegalArgumentException::class.java,
-                    { authService.rotateRefreshToken(null) },
+                    { authService.rotateTokens(null) },
                     "Expected IllegalArgumentException to be thrown",
                 )
             assertEquals("No refresh token in request", exception.message)
@@ -71,15 +71,12 @@ class AuthServiceTest {
                     Date(Date().time + COOKIE_EXPIRATION_IN_SECONDS.toLong() * 1000)
                 )
 
-            val expectedRefreshTokenCookie =
-                "${REFRESH_TOKEN_NAME}=newRefreshToken; Path=${REFRESH_TOKEN_PATH}; Max-Age=${COOKIE_EXPIRATION_IN_SECONDS.toLong()}; Expires=${expirationString}; Secure; HttpOnly; SameSite=None"
-            val expectedAccessToken = "newAccessToken"
             val expected =
-                mapOf(
-                    "newAccessToken" to expectedAccessToken,
-                    "newRefreshTokenCookie" to expectedRefreshTokenCookie,
+                Pair(
+                    "newAccessToken",
+                    "${REFRESH_TOKEN_NAME}=newRefreshToken; Path=${REFRESH_TOKEN_PATH}; Max-Age=${COOKIE_EXPIRATION_IN_SECONDS.toLong()}; Expires=${expirationString}; Secure; HttpOnly; SameSite=None",
                 )
-            val actual = authService.rotateRefreshToken(refreshTokenFromRequest)
+            val actual = authService.rotateTokens(refreshTokenFromRequest)
 
             assertEquals(expected, actual)
         }

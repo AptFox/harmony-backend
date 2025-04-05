@@ -28,13 +28,11 @@ class AuthController {
     fun refreshToken(
         @CookieValue(REFRESH_TOKEN_NAME) refreshTokenFromRequest: String?
     ): ResponseEntity<String> {
-        val newTokenMap = authService.rotateRefreshToken(refreshTokenFromRequest)
+        val (newAccessToken, newRefreshTokenCookie) =
+            authService.rotateTokens(refreshTokenFromRequest)
 
         return ResponseEntity.ok()
-            .header(SET_COOKIE, newTokenMap["newRefreshTokenCookie"])
-            .body(
-                ObjectMapper()
-                    .writeValueAsString(mapOf(ACCESS_TOKEN_NAME to newTokenMap["newAccessToken"]))
-            )
+            .header(SET_COOKIE, newRefreshTokenCookie)
+            .body(ObjectMapper().writeValueAsString(mapOf(ACCESS_TOKEN_NAME to newAccessToken)))
     }
 }

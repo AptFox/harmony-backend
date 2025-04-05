@@ -19,7 +19,13 @@ class AuthService {
         return generateRefreshTokenCookie("", 0)
     }
 
-    fun rotateRefreshToken(refreshTokenFromRequest: String?): Map<String, String> {
+    /**
+     * Rotates the refresh token and issues a new access token.
+     *
+     * @param refreshTokenFromRequest The string value of the refresh token from the request.
+     * @return A pair containing the new access token and the new refresh token cookie respectively.
+     */
+    fun rotateTokens(refreshTokenFromRequest: String?): Pair<String, String> {
         if (refreshTokenFromRequest.isNullOrEmpty())
             throw IllegalArgumentException("No refresh token in request")
 
@@ -32,10 +38,7 @@ class AuthService {
         val newRefreshTokenCookie =
             generateRefreshTokenCookie(newRefreshToken, COOKIE_EXPIRATION_IN_SECONDS)
 
-        return mapOf(
-            "newAccessToken" to newAccessToken,
-            "newRefreshTokenCookie" to newRefreshTokenCookie,
-        )
+        return Pair(newAccessToken, newRefreshTokenCookie)
     }
 
     private fun generateRefreshTokenCookie(
