@@ -15,34 +15,34 @@ class BaseExceptionAdvice {
     @ResponseStatus(HttpStatus.NOT_FOUND)
     fun exceptionHandler(ex: UserNotFoundException): String? {
         log.info("UserNotFoundException: ${ex.message}")
-        return ex.message
+        return null
     }
 
     @ExceptionHandler(IllegalArgumentException::class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     fun exceptionHandler(ex: IllegalArgumentException): String? {
         log.info("IllegalArgumentException: ${ex.message}")
-        return ex.message
+        return null
     }
 
     @ExceptionHandler(JwtException::class)
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     fun exceptionHandler(ex: JwtException): String? {
         log.info("JwtException: ${ex.message}")
-        return ex.message
+        return null
     }
 
     @ExceptionHandler(NullPointerException::class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     fun exceptionHandler(ex: NullPointerException): String? {
         log.error("NullPointerException: ${ex.message}")
-        return ex.message
+        return null
     }
 
     @ExceptionHandler(Exception::class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     fun exceptionHandler(ex: Exception): String? {
         log.error("Exception: ${ex.message}")
-        return ex.message
+        return null
     }
 }
