@@ -51,7 +51,7 @@ class JwtAuthenticationFilter : OncePerRequestFilter() {
             val auth = tokenService.getAuthentication(token)
             SecurityContextHolder.getContext().authentication = auth
         } catch (e: Exception) {
-            log.info("Error occurred while processing JWT token: ${e.message}")
+            log.info("Error occurred while processing JWT access token: ${e.message}")
             SecurityContextHolder.clearContext()
             response.sendError(401, "Unauthorized")
             return
