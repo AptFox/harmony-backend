@@ -1,12 +1,13 @@
 package iterative.harmony.backend.config
 
+import io.jsonwebtoken.JwtException
+import io.sentry.Sentry
 import iterative.harmony.backend.service.JwtTokenService
 import iterative.harmony.backend.util.SecurityConstants.DISCORD_OAUTH_PATH
 import iterative.harmony.backend.util.SecurityConstants.ERROR_PATH
 import iterative.harmony.backend.util.SecurityConstants.FAVICON_PATH
 import iterative.harmony.backend.util.SecurityConstants.LOGOUT_PATH
 import iterative.harmony.backend.util.SecurityConstants.REFRESH_TOKEN_PATH
-import iterative.harmony.backend.util.getLogger
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -19,8 +20,6 @@ import org.springframework.web.filter.OncePerRequestFilter
 class JwtAuthenticationFilter : OncePerRequestFilter() {
 
     @Autowired private lateinit var tokenService: JwtTokenService
-
-    private val log = getLogger()
 
     override fun shouldNotFilter(request: HttpServletRequest): Boolean {
         try {
@@ -36,7 +35,7 @@ class JwtAuthenticationFilter : OncePerRequestFilter() {
                     .any { pattern -> request.requestURI!!.contentEquals(pattern) }
             return urlIsPublic
         } catch (e: Exception) {
-            log.error("Error occurred while checking if request should be filtered: ${e.message}")
+            Sentry.captureException(e)
             return false
         }
     }
@@ -50,13 +49,14 @@ class JwtAuthenticationFilter : OncePerRequestFilter() {
             val token = getTokenFromRequest(request)
             val auth = tokenService.getAuthentication(token)
             SecurityContextHolder.getContext().authentication = auth
+            filterChain.doFilter(request, response)
         } catch (e: Exception) {
-            log.info("Error occurred while processing JWT access token: ${e.message}")
+            if (e !is JwtException) {
+                Sentry.captureException(e)
+            }
             SecurityContextHolder.clearContext()
             response.sendError(401, "Unauthorized")
-            return
         }
-        filterChain.doFilter(request, response)
     }
 
     private fun getTokenFromRequest(request: HttpServletRequest): String {
