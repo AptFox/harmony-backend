@@ -145,6 +145,10 @@ openssl rand -base64 32
 ```
 FRONT_END_BASE_URL=http://localhost:3000
 JWT_SECRET=[THE_JWT_SECRET_KEY_YOU_GENERATED]
+DISCORD_CLIENT_ID=
+DISCORD_CLIENT_SECRET=
+DISCORD_REDIRECT_URI=http://localhost:8080
+HOT_RELOAD=true
 JDBC_DATABASE_URL=jdbc:postgresql://host.docker.internal:5432/harmony
 #JDBC_DATABASE_URL=jdbc:postgresql://localhost:5432/harmony
 JDBC_DATABASE_USERNAME=harmony_app
