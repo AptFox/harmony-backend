@@ -62,6 +62,11 @@
      ```bash
        ./gradlew clean build -x ktfmtCheckMain
      ```
+- Postman
+  - You can use Postman to test the API endpoints
+    - You can import the Postman collection and environment vars from the `postman` folder in the repo.
+    - You'll need to get your initial access and refresh tokens using a browser (http://localhost:8080/oauth2/authorization/discord) and set them in postman's environment variables.
+      - Postman has a script that will automatically retrieve a new set of access and refresh tokens whenever you get a 401 error. This only works when the 401 is received before the access token expires.
 
 # MacOS install instructions:
 

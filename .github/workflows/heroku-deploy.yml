@@ -74,6 +74,10 @@ jobs:
 #          JDBC_DATABASE_PASSWORD: ${{ secrets.JDBC_DATABASE_PASSWORD }}
 #          DISCORD_CLIENT_ID: ${{ secrets.DISCORD_CLIENT_ID }}
 #          DISCORD_CLIENT_SECRET: ${{ secrets.DISCORD_CLIENT_SECRET }}
+#          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+#          SENTRY_ENABLED: ${{ vars.SENTRY_ENABLED }}
+#          SENTRY_ENV: ${{ vars.SENTRY_ENV }}
+#          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
 
       # Trigger Heroku deploy
       - name: Deploy the updated container on Heroku
