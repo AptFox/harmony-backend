@@ -1,5 +1,6 @@
 package iterative.harmony.backend.config
 
+import iterative.harmony.backend.util.SecurityConstants.LOGOUT_PATH
 import iterative.harmony.backend.util.SecurityConstants.REFRESH_TOKEN_PATH
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
@@ -14,7 +15,8 @@ class TokenRefreshFilter : OncePerRequestFilter() {
     @Value("\${frontEndBaseUrl}") private lateinit var frontEndBaseUrl: String
 
     override fun shouldNotFilter(request: HttpServletRequest): Boolean {
-        return request.requestURI != REFRESH_TOKEN_PATH
+        val uri = request.requestURI
+        return uri != REFRESH_TOKEN_PATH && uri != LOGOUT_PATH
     }
 
     override fun doFilterInternal(
