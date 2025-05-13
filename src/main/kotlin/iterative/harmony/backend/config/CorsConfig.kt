@@ -13,7 +13,6 @@ class CorsConfig {
     @Bean
     fun corsConfigurationSource(): UrlBasedCorsConfigurationSource {
         val configuration = CorsConfiguration()
-        //        configuration.applyPermitDefaultValues()
         configuration.allowedOrigins = listOf(frontEndBaseUrl)
         configuration.allowedMethods = listOf("GET", "POST", "PUT")
         configuration.allowedHeaders =
