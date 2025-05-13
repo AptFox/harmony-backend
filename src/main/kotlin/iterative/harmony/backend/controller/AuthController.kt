@@ -4,7 +4,10 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import iterative.harmony.backend.service.AuthService
 import iterative.harmony.backend.util.SecurityConstants.ACCESS_TOKEN_NAME
 import iterative.harmony.backend.util.SecurityConstants.REFRESH_TOKEN_NAME
+import iterative.harmony.backend.util.Utils
+import jakarta.servlet.http.HttpServletRequest
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.http.HttpHeaders.CONTENT_TYPE
 import org.springframework.http.HttpHeaders.SET_COOKIE
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.CookieValue
@@ -21,15 +24,24 @@ class AuthController {
     @PostMapping("/logout")
     fun logout(): ResponseEntity<String> {
         val emptyRefreshTokenCookie = authService.generateEmptyRefreshTokenCookie()
-        return ResponseEntity.ok().header(SET_COOKIE, emptyRefreshTokenCookie).build()
+
+        return ResponseEntity.status(200)
+            .headers { headers ->
+                headers.set(SET_COOKIE, emptyRefreshTokenCookie)
+                headers.set(CONTENT_TYPE, "application/json")
+            }
+            .build()
     }
 
     @PostMapping("/refresh_token")
     fun refreshToken(
-        @CookieValue(REFRESH_TOKEN_NAME) refreshTokenFromRequest: String?
+        @CookieValue(REFRESH_TOKEN_NAME) refreshTokenFromRequest: String?,
+        request: HttpServletRequest,
     ): ResponseEntity<String> {
+        val initialLogin = request.getHeader("Initial-Login").toBoolean()
+        val userAgent = Utils().getUserAgentFromRequest(request)
         val (newAccessToken, newRefreshTokenCookie) =
-            authService.rotateTokens(refreshTokenFromRequest)
+            authService.rotateTokens(refreshTokenFromRequest, userAgent, initialLogin)
 
         return ResponseEntity.ok()
             .header(SET_COOKIE, newRefreshTokenCookie)
