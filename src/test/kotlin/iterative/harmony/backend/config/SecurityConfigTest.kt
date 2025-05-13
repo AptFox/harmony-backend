@@ -53,7 +53,7 @@ class SecurityConfigTest {
     @WithMockUser(username = "306420e2-5f30-4070-a5c1-b9961bf10ef4", roles = [USER_ROLE])
     fun `authenticated user can access protected endpoints`() {
         val userId = UUID.fromString("306420e2-5f30-4070-a5c1-b9961bf10ef4")
-        val jwtTokenString = "valid JWT token"
+        val accessTokenString = "valid JWT token"
         val expectedUser = UserResponse(userId, "expectedUser", 0)
 
         whenever(userService.getCurrentUser(any())).thenReturn(expectedUser)
@@ -62,11 +62,11 @@ class SecurityConfigTest {
         val userAgent = "SomeUserAgent"
         val userAgentFingerprint = Utils().generateFingerprint("${userAgent}|127")
 
-        whenever(jwtTokenService.getAuthentication(jwtTokenString, userAgentFingerprint))
+        whenever(jwtTokenService.getAuthentication(accessTokenString, userAgentFingerprint))
             .thenReturn(auth)
 
         val multiValueMap = LinkedMultiValueMap<String, String>()
-        multiValueMap.add("Authorization", "Bearer " + jwtTokenString)
+        multiValueMap.add("Authorization", "Bearer " + accessTokenString)
         multiValueMap.add("User-Agent", userAgent)
 
         mockMvc
