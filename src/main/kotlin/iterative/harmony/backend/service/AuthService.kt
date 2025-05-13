@@ -29,18 +29,20 @@ class AuthService {
      */
     fun rotateTokens(
         refreshTokenFromRequest: String?,
-        userAgent: String,
+        userAgentFingerprint: String,
         initialLogin: Boolean,
     ): Pair<String, String> {
         if (refreshTokenFromRequest.isNullOrEmpty())
             throw IllegalArgumentException("No refresh token in request")
 
-        val refreshTokenFromDb = tokenService.verifyRefreshToken(refreshTokenFromRequest, userAgent)
+        val refreshTokenFromDb =
+            tokenService.verifyRefreshToken(refreshTokenFromRequest, userAgentFingerprint)
         val userIdStr = refreshTokenFromDb.userId.toString()
         log.info("issuing new tokens to $userIdStr, initialLogin: $initialLogin")
         val roles = userService.getCurrentUserRoles(refreshTokenFromDb.userId)
-        val newAccessToken = tokenService.generateAccessToken(userIdStr, userAgent, roles)
-        val newRefreshToken = tokenService.generateRefreshToken(userIdStr, userAgent)
+        val newAccessToken =
+            tokenService.generateAccessToken(userIdStr, userAgentFingerprint, roles)
+        val newRefreshToken = tokenService.generateRefreshToken(userIdStr, userAgentFingerprint)
         val newRefreshTokenCookie =
             generateRefreshTokenCookie(newRefreshToken, COOKIE_EXPIRATION_IN_SECONDS)
 

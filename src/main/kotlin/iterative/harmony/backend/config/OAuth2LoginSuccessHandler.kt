@@ -45,8 +45,8 @@ class OAuth2LoginSuccessHandler : AuthenticationSuccessHandler {
         val principal = authentication.principal as DefaultOAuth2User
         val userId = principal.name
 
-        val userAgent = Utils().getUserAgentFromRequest(request)
-        val refreshToken = jwtTokenService.generateRefreshToken(userId, userAgent)
+        val userAgentFingerprint = Utils().generateUserAgentFingerprint(request)
+        val refreshToken = jwtTokenService.generateRefreshToken(userId, userAgentFingerprint)
         val refreshTokenCookie = createRefreshTokenCookie(refreshToken)
 
         response.addCookie(refreshTokenCookie)

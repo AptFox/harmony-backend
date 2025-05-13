@@ -1,6 +1,8 @@
 package iterative.harmony.backend.util
 
 import jakarta.servlet.http.HttpServletRequest
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
 import java.util.*
 
 class Utils {
@@ -14,19 +16,27 @@ class Utils {
     }
 
     /**
-     * Returns a user agent string based on the request's User-Agent header and the client's IP
-     * address.
+     * Returns a user agent fingerprint string based on the request's User-Agent header and the
+     * client's IP address.
      *
      * @param request The HttpServletRequest object containing the request information.
-     * @return A string representing the user agent, formatted as "User-Agent|IP-Prefix".
+     * @return A hashed fingerprint representing the user agent.
      */
-    fun getUserAgentFromRequest(request: HttpServletRequest): String {
+    fun generateUserAgentFingerprint(request: HttpServletRequest): String {
         val userAgent = request.getHeader("User-Agent")?.trim() ?: "unknown"
         val rawIp =
             request.getHeader("X-Forwarded-For")?.split(",")?.firstOrNull()
                 ?: request.remoteAddr
                 ?: "0.0.0.0"
         val ipPrefix = rawIp.substringBefore('.')
-        return "${userAgent}|${ipPrefix}"
+        val uniqueUserAgent = "${userAgent}|${ipPrefix}"
+        return generateFingerprint(uniqueUserAgent)
+    }
+
+    fun generateFingerprint(str: String): String {
+        val md = MessageDigest.getInstance("SHA-256")
+        val digest = md.digest(str.toByteArray(StandardCharsets.UTF_8))
+
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(digest)
     }
 }

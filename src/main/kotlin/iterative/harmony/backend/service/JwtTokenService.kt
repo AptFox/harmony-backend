@@ -9,9 +9,7 @@ import iterative.harmony.backend.model.RefreshToken
 import iterative.harmony.backend.repository.RefreshTokenRepository
 import iterative.harmony.backend.util.Utils
 import iterative.harmony.backend.util.getLogger
-import java.nio.charset.StandardCharsets
 import java.security.Key
-import java.security.MessageDigest
 import java.util.*
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
@@ -27,25 +25,17 @@ class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
     private val tokenParser = Jwts.parserBuilder().setSigningKey(key).build()
     private val log = getLogger()
 
-    private fun generateFingerprint(userAgent: String): String {
-        val md = MessageDigest.getInstance("SHA-256")
-        val digest = md.digest(userAgent.toByteArray(StandardCharsets.UTF_8))
-
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(digest)
-    }
-
-    fun generateAccessToken(userId: String, userAgent: String, roles: List<String>): String {
+    fun generateAccessToken(userId: String, fingerprint: String, roles: List<String>): String {
         val claims = Jwts.claims().setSubject(userId)
         claims["roles"] = roles
-        claims["fp"] = generateFingerprint(userAgent)
+        claims["fp"] = fingerprint
         val tokenIssuedAt = Utils().getCurrentTimeInMillisRounded()
         val tokenExpiration = tokenIssuedAt + ACCESS_TOKEN_DURATION_IN_MILLIS
 
         return buildToken(claims, tokenIssuedAt, tokenExpiration)
     }
 
-    fun generateRefreshToken(userId: String, userAgent: String): String {
-        val fingerprint = generateFingerprint(userAgent)
+    fun generateRefreshToken(userId: String, fingerprint: String): String {
         val tokenIssuedAt = Utils().getCurrentTimeInMillisRounded()
         val tokenExpiration = tokenIssuedAt + REFRESH_TOKEN_DURATION_IN_MILLIS
         val refreshToken =
@@ -79,13 +69,12 @@ class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
         )
     }
 
-    fun verifyRefreshToken(refreshToken: String?, userAgent: String): RefreshToken {
+    fun verifyRefreshToken(refreshToken: String?, userAgentFingerprint: String): RefreshToken {
         try {
             val tokenClaims = getClaims(refreshToken)
             val tokenFromClaims = getRefreshTokenFromClaims(tokenClaims)
 
-            val fingerprintFromRequest = generateFingerprint(userAgent)
-            if (tokenFromClaims.fingerprint != fingerprintFromRequest) {
+            if (tokenFromClaims.fingerprint != userAgentFingerprint) {
                 throw JwtException("Fingerprint mismatch")
             }
 
@@ -122,11 +111,10 @@ class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
         return RefreshToken(userId, fp, iat, exp, jti)
     }
 
-    fun getAuthentication(token: String, userAgent: String): Authentication {
+    fun getAuthentication(token: String, userAgentFingerprint: String): Authentication {
         val tokenClaims = getClaims(token)
 
-        val fingerprintFromRequest = generateFingerprint(userAgent)
-        if (tokenClaims.get("fp", String::class.java) != fingerprintFromRequest) {
+        if (tokenClaims.get("fp", String::class.java) != userAgentFingerprint) {
             throw JwtException("Fingerprint mismatch")
         }
 

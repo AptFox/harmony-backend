@@ -39,9 +39,9 @@ class AuthController {
         request: HttpServletRequest,
     ): ResponseEntity<String> {
         val initialLogin = request.getHeader("Initial-Login").toBoolean()
-        val userAgent = Utils().getUserAgentFromRequest(request)
+        val userAgentFingerprint = Utils().generateUserAgentFingerprint(request)
         val (newAccessToken, newRefreshTokenCookie) =
-            authService.rotateTokens(refreshTokenFromRequest, userAgent, initialLogin)
+            authService.rotateTokens(refreshTokenFromRequest, userAgentFingerprint, initialLogin)
 
         return ResponseEntity.ok()
             .header(SET_COOKIE, newRefreshTokenCookie)

@@ -4,6 +4,7 @@ import iterative.harmony.backend.controller.dto.UserResponse
 import iterative.harmony.backend.service.JwtTokenService
 import iterative.harmony.backend.service.UserService
 import iterative.harmony.backend.util.RoleConstants.USER_ROLE
+import iterative.harmony.backend.util.Utils
 import java.util.*
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.`when` as whenever
@@ -58,10 +59,15 @@ class SecurityConfigTest {
         whenever(userService.getCurrentUser(any())).thenReturn(expectedUser)
         val authorities = listOf(SimpleGrantedAuthority(USER_ROLE))
         val auth = UsernamePasswordAuthenticationToken(userId, null, authorities)
-        whenever(jwtTokenService.getAuthentication(jwtTokenString)).thenReturn(auth)
+        val userAgent = "SomeUserAgent"
+        val userAgentFingerprint = Utils().generateFingerprint("${userAgent}|127")
+
+        whenever(jwtTokenService.getAuthentication(jwtTokenString, userAgentFingerprint))
+            .thenReturn(auth)
 
         val multiValueMap = LinkedMultiValueMap<String, String>()
         multiValueMap.add("Authorization", "Bearer " + jwtTokenString)
+        multiValueMap.add("User-Agent", userAgent)
 
         mockMvc
             .perform(
