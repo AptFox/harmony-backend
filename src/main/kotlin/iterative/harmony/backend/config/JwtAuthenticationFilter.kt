@@ -8,6 +8,7 @@ import iterative.harmony.backend.util.SecurityConstants.ERROR_PATH
 import iterative.harmony.backend.util.SecurityConstants.FAVICON_PATH
 import iterative.harmony.backend.util.SecurityConstants.LOGOUT_PATH
 import iterative.harmony.backend.util.SecurityConstants.REFRESH_TOKEN_PATH
+import iterative.harmony.backend.util.Utils
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -47,7 +48,8 @@ class JwtAuthenticationFilter : OncePerRequestFilter() {
     ) {
         try {
             val token = getTokenFromRequest(request)
-            val auth = tokenService.getAuthentication(token)
+            val userAgentFingerprint = Utils().generateUserAgentFingerprint(request)
+            val auth = tokenService.getAuthentication(token, userAgentFingerprint)
             SecurityContextHolder.getContext().authentication = auth
             filterChain.doFilter(request, response)
         } catch (e: Exception) {
@@ -62,7 +64,7 @@ class JwtAuthenticationFilter : OncePerRequestFilter() {
     private fun getTokenFromRequest(request: HttpServletRequest): String {
         val bearerToken = request.getHeader("Authorization")
         if (bearerToken == null || !bearerToken.startsWith("Bearer ")) {
-            throw IllegalArgumentException("Invalid token")
+            throw JwtException("Missing or invalid token")
         }
         return bearerToken.substring(7)
     }
