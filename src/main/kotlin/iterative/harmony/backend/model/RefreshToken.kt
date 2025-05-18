@@ -9,6 +9,7 @@ import java.util.UUID
 @Table(name = "refresh_tokens")
 data class RefreshToken(
     @Column(nullable = false) val userId: UUID,
+    @Transient val fingerprint: String? = null,
     @Column(nullable = false) val issuedAt: Long,
     @Column(nullable = false) val expiresAt: Long,
     @Id

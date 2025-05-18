@@ -6,6 +6,7 @@ object RoleConstants {
 }
 
 object SecurityConstants {
+    const val AUTH_PATH = "/auth"
     const val REFRESH_TOKEN_PATH = "/auth/refresh_token"
     const val LOGOUT_PATH = "/auth/logout"
     const val DISCORD_OAUTH_PATH = "/oauth2/authorization/discord"

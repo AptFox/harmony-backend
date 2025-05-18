@@ -25,21 +25,22 @@ class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
     private val tokenParser = Jwts.parserBuilder().setSigningKey(key).build()
     private val log = getLogger()
 
-    fun generateAccessToken(userId: String, roles: List<String>): String {
+    fun generateAccessToken(userId: String, fingerprint: String, roles: List<String>): String {
         val claims = Jwts.claims().setSubject(userId)
         claims["roles"] = roles
+        claims["fp"] = fingerprint
         val tokenIssuedAt = Utils().getCurrentTimeInMillisRounded()
         val tokenExpiration = tokenIssuedAt + ACCESS_TOKEN_DURATION_IN_MILLIS
 
         return buildToken(claims, tokenIssuedAt, tokenExpiration)
     }
 
-    fun generateRefreshToken(userId: String): String {
+    fun generateRefreshToken(userId: String, fingerprint: String): String {
         val tokenIssuedAt = Utils().getCurrentTimeInMillisRounded()
         val tokenExpiration = tokenIssuedAt + REFRESH_TOKEN_DURATION_IN_MILLIS
         val refreshToken =
             refreshTokenRepository.save(
-                RefreshToken(UUID.fromString(userId), tokenIssuedAt, tokenExpiration)
+                RefreshToken(UUID.fromString(userId), fingerprint, tokenIssuedAt, tokenExpiration)
             )
 
         val claims = generateClaimsFromRefreshToken(refreshToken)
@@ -61,21 +62,28 @@ class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
             mapOf(
                 "sub" to refreshToken.userId.toString(),
                 "jti" to refreshToken.jti.toString(),
+                "fp" to refreshToken.fingerprint,
                 "iat" to refreshToken.issuedAt,
                 "exp" to refreshToken.expiresAt,
             )
         )
     }
 
-    fun verifyRefreshToken(refreshToken: String?): RefreshToken {
+    fun verifyRefreshToken(refreshToken: String?, userAgentFingerprint: String): RefreshToken {
         try {
             val tokenClaims = getClaims(refreshToken)
             val tokenFromClaims = getRefreshTokenFromClaims(tokenClaims)
+
+            if (tokenFromClaims.fingerprint != userAgentFingerprint) {
+                throw JwtException("Fingerprint mismatch")
+            }
+
             val tokenFromDb = refreshTokenRepository.findByJti(tokenFromClaims.jti!!).get()
             val tokenIsExpired = Date(tokenFromDb.expiresAt).before(Date())
             if (tokenFromDb.revoked || tokenIsExpired) {
                 throw JwtException("Token is revoked or expired")
             }
+
             tokenFromDb.throwOnTokenMismatch(tokenFromClaims)
 
             return tokenFromDb
@@ -96,14 +104,20 @@ class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
     private fun getRefreshTokenFromClaims(tokenClaims: Claims): RefreshToken {
         val jti = UUID.fromString(tokenClaims.get("jti", String::class.java))
         val userId = UUID.fromString(tokenClaims.subject)
+        val fp = tokenClaims.get("fp", String::class.java)
         val exp = tokenClaims.expiration.time
         val iat = tokenClaims.issuedAt.time
 
-        return RefreshToken(userId, iat, exp, jti)
+        return RefreshToken(userId, fp, iat, exp, jti)
     }
 
-    fun getAuthentication(token: String): Authentication {
+    fun getAuthentication(token: String, userAgentFingerprint: String): Authentication {
         val tokenClaims = getClaims(token)
+
+        if (tokenClaims.get("fp", String::class.java) != userAgentFingerprint) {
+            throw JwtException("Fingerprint mismatch")
+        }
+
         val userId = tokenClaims.subject
         val roles = tokenClaims.get("roles", List::class.java).filterIsInstance<String>()
 
@@ -127,6 +141,7 @@ class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
     }
 
     companion object {
+        // TODO: shorten Access token duration to 15 minutes
         const val ACCESS_TOKEN_DURATION_IN_MILLIS: Long = 7200000 // 2 hours
         const val REFRESH_TOKEN_DURATION_IN_MILLIS: Long = 172800000 // 48 hours
     }

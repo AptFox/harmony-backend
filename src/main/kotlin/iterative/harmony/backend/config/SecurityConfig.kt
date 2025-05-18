@@ -9,12 +9,10 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.http.HttpStatus
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.web.SecurityFilterChain
-import org.springframework.security.web.authentication.HttpStatusEntryPoint
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
 
 @Configuration
@@ -23,6 +21,7 @@ class SecurityConfig {
 
     @Autowired private lateinit var oAuth2LoginSuccessHandler: OAuth2LoginSuccessHandler
     @Autowired private lateinit var jwtAuthenticationFilter: JwtAuthenticationFilter
+    @Autowired private lateinit var tokenRefreshFilter: TokenRefreshFilter
     @Autowired private lateinit var customOAuth2UserService: CustomOAuth2UserService
     @Autowired private lateinit var corsConfig: CorsConfig
 
@@ -62,6 +61,7 @@ class SecurityConfig {
                 jwtAuthenticationFilter,
                 UsernamePasswordAuthenticationFilter::class.java,
             )
+            .addFilterAfter(tokenRefreshFilter, UsernamePasswordAuthenticationFilter::class.java)
             .oauth2Login { oauth2 ->
                 oauth2.userInfoEndpoint { userInfo ->
                     userInfo.userService(customOAuth2UserService)
@@ -70,7 +70,12 @@ class SecurityConfig {
                 oauth2.failureHandler { _, response, _ -> response.sendError(401, "Unauthorized") }
             }
             .exceptionHandling { exception ->
-                exception.authenticationEntryPoint(HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
+                exception.authenticationEntryPoint { _, response, _ ->
+                    response.sendError(401, "Unauthorized")
+                }
+                exception.accessDeniedHandler { _, response, _ ->
+                    response.sendError(403, "Forbidden")
+                }
             }
             .httpBasic { httpBasic -> httpBasic.disable() }
             .formLogin { formLogin -> formLogin.disable() }
