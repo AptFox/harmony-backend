@@ -141,7 +141,6 @@ class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
     }
 
     companion object {
-        // TODO: shorten Access token duration to 15 minutes
         const val ACCESS_TOKEN_DURATION_IN_MILLIS: Long = 7200000 // 2 hours
         const val REFRESH_TOKEN_DURATION_IN_MILLIS: Long = 172800000 // 48 hours
     }
