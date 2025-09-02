@@ -117,7 +117,7 @@ tasks.register('runDockerContainer', Exec) {
 			commandLine 'docker', 'rm', '-f', 'harmony-backend'
 		}
 	}
-	commandLine 'docker', 'run', '--name', 'harmony-backend', '-p', '8080:8080', '--env-file', '.env', 'harmony-backend:latest'
+	commandLine 'docker', 'run', '--name', 'harmony-backend', '--rm', '-p', '8080:8080', '--env-file', '.env', 'harmony-backend:latest'
 }
 
 tasks.register('newMigration') {
