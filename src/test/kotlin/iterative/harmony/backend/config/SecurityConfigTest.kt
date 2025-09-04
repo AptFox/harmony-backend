@@ -58,7 +58,7 @@ class SecurityConfigTest {
     fun `authenticated user can access protected endpoints`() {
         val userId = UUID.fromString("306420e2-5f30-4070-a5c1-b9961bf10ef4")
         val accessTokenString = "valid JWT token"
-        val expectedUser = UserResponse(userId, "expectedUser", 0)
+        val expectedUser = UserResponse(userId, "expectedUser", 0, "123456", "1234567")
 
         whenever(userService.getCurrentUser(any())).thenReturn(expectedUser)
         val authorities = listOf(SimpleGrantedAuthority(USER_ROLE))

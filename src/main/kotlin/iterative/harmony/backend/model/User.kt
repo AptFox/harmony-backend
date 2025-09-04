@@ -14,6 +14,7 @@ data class User(
     val username: String,
     var displayName: String,
     val discordId: String,
+    var discordAvatarHash: String,
     var timeZoneId: Int,
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
