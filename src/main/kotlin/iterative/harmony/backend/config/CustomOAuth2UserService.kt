@@ -24,6 +24,7 @@ class CustomOAuth2UserService : DefaultOAuth2UserService() {
                 id = discordAttributes["id"] as String,
                 username = discordAttributes["username"] as String,
                 globalName = discordAttributes["global_name"] as String,
+                avatarHash = discordAttributes["avatar"] as String,
             )
         val user = userService.getOrCreateUser(discordUser)
 
