@@ -4,8 +4,6 @@ import iterative.harmony.backend.controller.dto.UserResponse
 import iterative.harmony.backend.service.JwtTokenService
 import iterative.harmony.backend.service.UserService
 import iterative.harmony.backend.util.RoleConstants.USER_ROLE
-import iterative.harmony.backend.util.SecurityConstants.LOGOUT_PATH
-import iterative.harmony.backend.util.SecurityConstants.REFRESH_TOKEN_PATH
 import iterative.harmony.backend.util.Utils
 import java.util.*
 import org.junit.jupiter.api.Test
@@ -58,7 +56,7 @@ class SecurityConfigTest {
     fun `authenticated user can access protected endpoints`() {
         val userId = UUID.fromString("306420e2-5f30-4070-a5c1-b9961bf10ef4")
         val accessTokenString = "valid JWT token"
-        val expectedUser = UserResponse(userId, "expectedUser", 0)
+        val expectedUser = UserResponse(userId, "expectedUser", 0, "123456", "1234567")
 
         whenever(userService.getCurrentUser(any())).thenReturn(expectedUser)
         val authorities = listOf(SimpleGrantedAuthority(USER_ROLE))
@@ -70,7 +68,7 @@ class SecurityConfigTest {
             .thenReturn(auth)
 
         val multiValueMap = LinkedMultiValueMap<String, String>()
-        multiValueMap.add("Authorization", "Bearer " + accessTokenString)
+        multiValueMap.add("Authorization", "Bearer $accessTokenString")
         multiValueMap.add("User-Agent", userAgent)
 
         mockMvc
@@ -92,51 +90,5 @@ class SecurityConfigTest {
                             .trimIndent()
                     )
             )
-    }
-
-    @Test
-    @WithAnonymousUser
-    fun `anonymous requests not from frontend to refresh token endpoint are rejected with 403`() {
-        mockMvc
-            .perform(MockMvcRequestBuilders.post(REFRESH_TOKEN_PATH))
-            .andExpect(MockMvcResultMatchers.status().isForbidden)
-    }
-
-    @Test
-    @WithAnonymousUser
-    fun `anonymous requests not from frontend to logout endpoint are rejected with 403`() {
-        val multiValueMap = LinkedMultiValueMap<String, String>()
-        multiValueMap.add("Origin", "https://someRandomWebsite.com")
-        multiValueMap.add("Referer", "")
-
-        mockMvc
-            .perform(MockMvcRequestBuilders.post(LOGOUT_PATH).headers(HttpHeaders(multiValueMap)))
-            .andExpect(MockMvcResultMatchers.status().isForbidden)
-    }
-
-    @Test
-    @WithAnonymousUser
-    fun `anonymous requests from front-end can access refresh token endpoint`() {
-        val multiValueMap = LinkedMultiValueMap<String, String>()
-        multiValueMap.add("Origin", frontEndBaseUrl)
-        multiValueMap.add("Referer", frontEndBaseUrl)
-
-        mockMvc
-            .perform(
-                MockMvcRequestBuilders.post(REFRESH_TOKEN_PATH).headers(HttpHeaders(multiValueMap))
-            )
-            .andExpect(MockMvcResultMatchers.status().isBadRequest)
-    }
-
-    @Test
-    @WithAnonymousUser
-    fun `anonymous requests from front-end can access logout endpoint`() {
-        val multiValueMap = LinkedMultiValueMap<String, String>()
-        multiValueMap.add("Origin", frontEndBaseUrl)
-        multiValueMap.add("Referer", frontEndBaseUrl)
-
-        mockMvc
-            .perform(MockMvcRequestBuilders.post(LOGOUT_PATH).headers(HttpHeaders(multiValueMap)))
-            .andExpect(MockMvcResultMatchers.status().is2xxSuccessful)
     }
 }

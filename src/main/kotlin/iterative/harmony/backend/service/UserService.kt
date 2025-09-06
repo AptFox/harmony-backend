@@ -27,12 +27,16 @@ class UserService {
                     username = discordUser.username,
                     displayName = discordUser.username,
                     discordId = discordUser.id,
+                    discordAvatarHash = discordUser.avatarHash,
                     timeZoneId = 0,
                     roles = setOf(userRole),
                 )
             return userRepository.save(newUser)
         }
-        return user.get()
+
+        // Update user avatar
+        val updatedUser = user.get().apply { discordAvatarHash = discordUser.avatarHash }
+        return userRepository.save(updatedUser)
     }
 
     fun getCurrentUserRoles(userId: UUID): List<String> {
@@ -67,6 +71,12 @@ class UserService {
     }
 
     private fun mapToUserResponse(user: User): UserResponse {
-        return UserResponse(user.userId!!, user.displayName, user.timeZoneId)
+        return UserResponse(
+            user.userId!!,
+            user.displayName,
+            user.timeZoneId,
+            user.discordId,
+            user.discordAvatarHash,
+        )
     }
 }

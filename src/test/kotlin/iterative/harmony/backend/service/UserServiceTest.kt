@@ -32,10 +32,10 @@ class UserServiceTest {
     @InjectMocks private lateinit var userService: UserService
 
     private val uuid: UUID = UUID.fromString("306420e2-5f30-4070-a5c1-b9961bf10ef4")
-    private val discordUser = DiscordOAuthUser("1", "username", "globalName")
+    private val discordUser = DiscordOAuthUser("1", "username", "globalName", "123456")
     private val userRole = Role(1, RoleConstants.USER_ROLE, "The default role for a user")
     private val userRoles = listOf(userRole.name)
-    private val expectedUser = User(uuid, "username", "username", "1", 0, setOf(userRole))
+    private val expectedUser = User(uuid, "username", "username", "1", "123456", 0, setOf(userRole))
 
     @Nested
     @DisplayName("getOrCreateUser")
@@ -72,15 +72,21 @@ class UserServiceTest {
         @DisplayName("when called with a pre-existing user")
         inner class PreExistingUser() {
             @Test
-            fun `should return existing user`() {
+            fun `should update the discordAvatarHash and return existing user`() {
+                val expectedUserWithUpdatedDiscordAvatarHash =
+                    expectedUser.copy(discordAvatarHash = "098765")
                 whenever(userRepositoryMock.findByDiscordId(discordUser.id))
                     .thenReturn(Optional.of(expectedUser))
+                whenever(userRepositoryMock.save(expectedUserWithUpdatedDiscordAvatarHash))
+                    .thenReturn(expectedUserWithUpdatedDiscordAvatarHash)
 
-                val actualUser = userService.getOrCreateUser(discordUser)
+                val discordUserWithUpdatedAvatarHash = discordUser.copy(avatarHash = "098765")
 
-                verify(userRepositoryMock, never()).save(any())
+                val actualUser = userService.getOrCreateUser(discordUserWithUpdatedAvatarHash)
+
+                verify(userRepositoryMock, times(1)).save(expectedUserWithUpdatedDiscordAvatarHash)
                 verify(roleRepositoryMock, never()).findByName(RoleConstants.USER_ROLE)
-                assertEquals(expectedUser, actualUser)
+                assertEquals(expectedUserWithUpdatedDiscordAvatarHash, actualUser)
             }
         }
     }
@@ -117,7 +123,13 @@ class UserServiceTest {
 
             val actualUserResponse = userService.getCurrentUser(uuid.toString())
             val expectedUserResponse =
-                UserResponse(uuid, expectedUser.displayName, expectedUser.timeZoneId)
+                UserResponse(
+                    uuid,
+                    expectedUser.displayName,
+                    expectedUser.timeZoneId,
+                    expectedUser.discordId,
+                    expectedUser.discordAvatarHash,
+                )
             assertEquals(expectedUserResponse, actualUserResponse)
         }
 
@@ -162,6 +174,8 @@ class UserServiceTest {
                         expectedUser.userId!!,
                         updateUserRequest.displayName,
                         updateUserRequest.timeZoneId.toInt(),
+                        expectedUser.discordId,
+                        expectedUser.discordAvatarHash,
                     )
 
                 val actualUserResponse =
