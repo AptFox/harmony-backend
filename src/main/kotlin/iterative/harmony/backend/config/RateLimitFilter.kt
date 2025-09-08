@@ -16,6 +16,9 @@ class RateLimitFilter : OncePerRequestFilter() {
 
     private val buckets: MutableMap<String, Bucket> = ConcurrentHashMap()
 
+    private val AUTH_REQUEST_LIMIT: Long = 5L
+    private val ALL_REQUEST_LIMIT: Long = 100L
+
     override fun doFilterInternal(
         request: HttpServletRequest,
         response: HttpServletResponse,
@@ -43,8 +46,8 @@ class RateLimitFilter : OncePerRequestFilter() {
     }
 
     private fun createBucket(isAuthEndpoint: Boolean): Bucket {
-        val tokens = if (isAuthEndpoint) 30L else 100L
-        // 30 requests per minute if auth endpoint, 100 if not
+        val tokens = if (isAuthEndpoint) AUTH_REQUEST_LIMIT else ALL_REQUEST_LIMIT
+        // 5 requests per minute if auth endpoint, 100 if not
 
         val selectedLimit =
             Bandwidth.builder().capacity(tokens).refillGreedy(tokens, Duration.ofMinutes(1)).build()
