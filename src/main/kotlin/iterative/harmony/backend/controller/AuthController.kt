@@ -2,6 +2,7 @@ package iterative.harmony.backend.controller
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import iterative.harmony.backend.service.AuthService
+import iterative.harmony.backend.service.JwtTokenService
 import iterative.harmony.backend.util.SecurityConstants.ACCESS_TOKEN_NAME
 import iterative.harmony.backend.util.SecurityConstants.REFRESH_TOKEN_NAME
 import iterative.harmony.backend.util.Utils
@@ -20,12 +21,17 @@ import org.springframework.web.bind.annotation.RestController
 class AuthController {
 
     @Autowired private lateinit var authService: AuthService
+    @Autowired private lateinit var jwtTokenService: JwtTokenService
 
     @PostMapping("/logout")
     fun logout(
-        @CookieValue(value = REFRESH_TOKEN_NAME) refreshToken: String?
+        @CookieValue(value = REFRESH_TOKEN_NAME) refreshToken: String?,
+        request: HttpServletRequest,
     ): ResponseEntity<String> {
-        authService.throwIfNoRefreshToken(refreshToken)
+        val nonNullRefreshToken = authService.throwIfNoRefreshToken(refreshToken)
+        val userAgentFingerprint = Utils().generateUserAgentFingerprint(request)
+        jwtTokenService.deleteRefreshToken(nonNullRefreshToken, userAgentFingerprint)
+
         val emptyRefreshTokenCookie = authService.generateEmptyRefreshTokenCookie()
 
         return ResponseEntity.status(200)
@@ -41,10 +47,10 @@ class AuthController {
         @CookieValue(REFRESH_TOKEN_NAME) refreshTokenFromRequest: String?,
         request: HttpServletRequest,
     ): ResponseEntity<String> {
-        authService.throwIfNoRefreshToken(refreshTokenFromRequest)
+        val nonNullRefreshToken = authService.throwIfNoRefreshToken(refreshTokenFromRequest)
         val userAgentFingerprint = Utils().generateUserAgentFingerprint(request)
         val (newAccessToken, newRefreshTokenCookie) =
-            authService.rotateTokens(refreshTokenFromRequest, userAgentFingerprint)
+            authService.rotateTokens(nonNullRefreshToken, userAgentFingerprint)
 
         return ResponseEntity.ok()
             .header(SET_COOKIE, newRefreshTokenCookie)

@@ -46,7 +46,7 @@ class AuthServiceTest {
             val exception =
                 assertThrows(
                     IllegalArgumentException::class.java,
-                    { authService.rotateTokens(null, userAgent, false) },
+                    { authService.rotateTokens(null, userAgent) },
                     "Expected IllegalArgumentException to be thrown",
                 )
             assertEquals("No refresh token in request", exception.message)
@@ -82,7 +82,7 @@ class AuthServiceTest {
                     "newAccessToken",
                     "${REFRESH_TOKEN_NAME}=newRefreshToken; Path=${AUTH_PATH}; Max-Age=${COOKIE_EXPIRATION_IN_SECONDS.toLong()}; Expires=${expirationString}; Secure; HttpOnly; SameSite=None",
                 )
-            val actual = authService.rotateTokens(refreshTokenFromRequest, userAgent, false)
+            val actual = authService.rotateTokens(refreshTokenFromRequest, userAgent)
 
             assertEquals(expected, actual)
         }

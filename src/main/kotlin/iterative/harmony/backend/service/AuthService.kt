@@ -21,9 +21,10 @@ class AuthService {
         return generateRefreshTokenCookie("", 0)
     }
 
-    fun throwIfNoRefreshToken(refreshToken: String?) {
+    fun throwIfNoRefreshToken(refreshToken: String?): String {
         if (refreshToken.isNullOrEmpty())
             throw IllegalArgumentException("No refresh token in request")
+        return refreshToken
     }
 
     /**
@@ -33,14 +34,16 @@ class AuthService {
      * @return A pair containing the new access token and the new refresh token cookie respectively.
      */
     fun rotateTokens(
-        refreshTokenFromRequest: String?,
+        refreshTokenFromRequest: String,
         userAgentFingerprint: String,
     ): Pair<String, String> {
-        throwIfNoRefreshToken(refreshTokenFromRequest)
-
         val refreshTokenFromDb =
             tokenService.verifyRefreshToken(refreshTokenFromRequest, userAgentFingerprint)
         val userIdStr = refreshTokenFromDb.userId.toString()
+
+        tokenService.deleteExpiredRefreshTokens(refreshTokenFromDb.userId)
+        tokenService.deleteExcessRefreshTokens(refreshTokenFromDb.userId)
+
         log.info("issuing new tokens to $userIdStr")
         val roles = userService.getCurrentUserRoles(refreshTokenFromDb.userId)
         val newAccessToken =

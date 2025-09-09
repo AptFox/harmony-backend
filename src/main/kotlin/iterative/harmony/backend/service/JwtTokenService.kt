@@ -10,9 +10,11 @@ import iterative.harmony.backend.repository.RefreshTokenRepository
 import iterative.harmony.backend.util.Utils
 import iterative.harmony.backend.util.getLogger
 import java.security.Key
+import java.sql.Timestamp
 import java.util.*
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.data.domain.Limit
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.authority.SimpleGrantedAuthority
@@ -48,6 +50,38 @@ class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
         return buildToken(claims, tokenIssuedAt, tokenExpiration)
     }
 
+    fun deleteRefreshToken(refreshToken: String, userAgentFingerprint: String) {
+        val refreshTokenFromDb = verifyRefreshToken(refreshToken, userAgentFingerprint)
+        refreshTokenRepository.delete(refreshTokenFromDb)
+    }
+
+    fun deleteExpiredRefreshTokens(userId: UUID) {
+        log.info("querying for expired refresh tokens issued to $userId...")
+        val timestamp =
+            Timestamp(Utils().getCurrentTimeInMillisRounded() - REFRESH_TOKEN_DURATION_IN_MILLIS)
+        val expiredRefreshTokens: List<RefreshToken> =
+            refreshTokenRepository.findAllByUserIdAndCreatedAtBefore(userId, timestamp)
+
+        if (expiredRefreshTokens.count() > 0) {
+            log.info("${expiredRefreshTokens.count()} expired tokens found. Deleting...")
+            refreshTokenRepository.deleteAll(expiredRefreshTokens)
+        }
+    }
+
+    fun deleteExcessRefreshTokens(userId: UUID) {
+        log.info("querying for excess refresh tokens issued to $userId...")
+        val refreshTokenCountForUser = refreshTokenRepository.countByUserId(userId)
+        if (refreshTokenCountForUser > 2) {
+            log.info(
+                "$userId has $refreshTokenCountForUser active refresh tokens. Deleting all but the 2 most recently issued tokens..."
+            )
+            val limit = Limit.of(refreshTokenCountForUser - 2)
+            val refreshTokens: List<RefreshToken> =
+                refreshTokenRepository.findAllByUserIdOrderByCreatedAtAsc(userId, limit)
+            refreshTokenRepository.deleteAll(refreshTokens)
+        }
+    }
+
     private fun buildToken(claims: Claims, issuedAt: Long, expiration: Long): String {
         return Jwts.builder()
             .setClaims(claims)
@@ -69,7 +103,7 @@ class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
         )
     }
 
-    fun verifyRefreshToken(refreshToken: String?, userAgentFingerprint: String): RefreshToken {
+    fun verifyRefreshToken(refreshToken: String, userAgentFingerprint: String): RefreshToken {
         try {
             val tokenClaims = getClaims(refreshToken)
             val tokenFromClaims = getRefreshTokenFromClaims(tokenClaims)
