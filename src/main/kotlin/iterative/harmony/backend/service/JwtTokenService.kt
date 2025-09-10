@@ -1,10 +1,17 @@
 package iterative.harmony.backend.service
 
 import io.jsonwebtoken.Claims
-import io.jsonwebtoken.JwtException
 import io.jsonwebtoken.Jwts
+import io.jsonwebtoken.MalformedJwtException
 import io.jsonwebtoken.SignatureAlgorithm
 import io.jsonwebtoken.security.Keys
+import iterative.harmony.backend.exception.JtiNotInRefreshTokenException
+import iterative.harmony.backend.exception.RefreshTokenExpiredException
+import iterative.harmony.backend.exception.RefreshTokenFieldMismatchException
+import iterative.harmony.backend.exception.RefreshTokenNotInDBException
+import iterative.harmony.backend.exception.TokenFingerprintMismatchException
+import iterative.harmony.backend.exception.UnexpectedRefreshTokenVerificationException
+import iterative.harmony.backend.exception.UnparseableTokenException
 import iterative.harmony.backend.model.RefreshToken
 import iterative.harmony.backend.repository.RefreshTokenRepository
 import iterative.harmony.backend.util.Utils
@@ -14,6 +21,7 @@ import java.sql.Timestamp
 import java.util.*
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.dao.OptimisticLockingFailureException
 import org.springframework.data.domain.Limit
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.Authentication
@@ -50,12 +58,16 @@ class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
         return buildToken(claims, tokenIssuedAt, tokenExpiration)
     }
 
-    fun deleteRefreshToken(refreshToken: String, userAgentFingerprint: String) {
-        val refreshTokenFromDb = verifyRefreshToken(refreshToken, userAgentFingerprint)
-        refreshTokenRepository.delete(refreshTokenFromDb)
+    fun deleteRefreshToken(refreshToken: RefreshToken) {
+        try {
+            refreshTokenRepository.delete(refreshToken)
+        } catch (ex: OptimisticLockingFailureException) {
+            log.info("refresh token not in DB")
+            throw RefreshTokenNotInDBException(ex)
+        }
     }
 
-    fun deleteExpiredRefreshTokens(userId: UUID) {
+    fun deleteExpiredRefreshTokensForUser(userId: UUID) {
         log.info("querying for expired refresh tokens issued to $userId...")
         val timestamp =
             Timestamp(Utils().getCurrentTimeInMillisRounded() - REFRESH_TOKEN_DURATION_IN_MILLIS)
@@ -68,7 +80,7 @@ class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
         }
     }
 
-    fun deleteExcessRefreshTokens(userId: UUID) {
+    fun deleteExcessRefreshTokensForUser(userId: UUID) {
         log.info("querying for excess refresh tokens issued to $userId...")
         val refreshTokenCountForUser = refreshTokenRepository.countByUserId(userId)
         if (refreshTokenCountForUser > 2) {
@@ -108,31 +120,36 @@ class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
             val tokenClaims = getClaims(refreshToken)
             val tokenFromClaims = getRefreshTokenFromClaims(tokenClaims)
 
-            if (tokenFromClaims.fingerprint != userAgentFingerprint) {
-                throw JwtException("Fingerprint mismatch")
-            }
+            if (tokenFromClaims.fingerprint != userAgentFingerprint)
+                throw TokenFingerprintMismatchException()
 
             val tokenFromDb = refreshTokenRepository.findByJti(tokenFromClaims.jti!!).get()
             val tokenIsExpired = Date(tokenFromDb.expiresAt).before(Date())
-            if (tokenFromDb.revoked || tokenIsExpired) {
-                throw JwtException("Token is revoked or expired")
-            }
+            if (tokenIsExpired) throw RefreshTokenExpiredException()
 
-            tokenFromDb.throwOnTokenMismatch(tokenFromClaims)
+            throwOnRefreshTokenMismatch(tokenFromDb, tokenFromClaims)
 
             return tokenFromDb
-        } catch (ex: KotlinNullPointerException) {
-            log.info("JTI is missing from Refresh token")
-            throw JwtException("JTI is missing from Refresh token")
         } catch (ex: NullPointerException) {
-            log.info("JTI is missing from Refresh token")
-            throw JwtException("JTI is missing from Refresh token")
-        } catch (e: NoSuchElementException) {
-            throw JwtException("Refresh token not found in database")
-        } catch (e: Exception) {
-            log.info("Error while verifying refresh token: ${e.message}")
-            throw e
+            throw JtiNotInRefreshTokenException(ex)
+        } catch (ex: NoSuchElementException) {
+            throw RefreshTokenNotInDBException(ex)
+        } catch (ex: Exception) {
+            throw UnexpectedRefreshTokenVerificationException(ex)
         }
+    }
+
+    fun throwOnRefreshTokenMismatch(tokenFromDb: RefreshToken, tokenFromClaims: RefreshToken) {
+        if (tokenFromDb == tokenFromClaims) return
+
+        val mismatches = mutableListOf<String>()
+
+        if (tokenFromDb.jti != tokenFromClaims.jti) mismatches.add("jti")
+        if (tokenFromDb.userId != tokenFromClaims.userId) mismatches.add("userId")
+        if (tokenFromDb.expiresAt != tokenFromClaims.expiresAt) mismatches.add("expiresAt")
+        if (tokenFromDb.issuedAt != tokenFromClaims.issuedAt) mismatches.add("issuedAt")
+
+        if (mismatches.isNotEmpty()) throw RefreshTokenFieldMismatchException(mismatches)
     }
 
     private fun getRefreshTokenFromClaims(tokenClaims: Claims): RefreshToken {
@@ -145,15 +162,18 @@ class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
         return RefreshToken(userId, fp, iat, exp, jti)
     }
 
-    fun getAuthentication(token: String, userAgentFingerprint: String): Authentication {
-        val tokenClaims = getClaims(token)
+    fun getAuthenticationFromAccessToken(
+        accessToken: String,
+        userAgentFingerprint: String,
+    ): Authentication {
+        val accessTokenClaims = getClaims(accessToken)
+        val accessTokenFingerprint = accessTokenClaims.get("fp", String::class.java)
 
-        if (tokenClaims.get("fp", String::class.java) != userAgentFingerprint) {
-            throw JwtException("Fingerprint mismatch")
-        }
+        if (accessTokenFingerprint != userAgentFingerprint)
+            throw TokenFingerprintMismatchException()
 
-        val userId = tokenClaims.subject
-        val roles = tokenClaims.get("roles", List::class.java).filterIsInstance<String>()
+        val userId = accessTokenClaims.subject
+        val roles = accessTokenClaims.get("roles", List::class.java).filterIsInstance<String>()
 
         val authorities = roles.map { role -> SimpleGrantedAuthority(role) }
         val auth = UsernamePasswordAuthenticationToken(userId, null, authorities)
@@ -161,17 +181,16 @@ class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
         return auth
     }
 
-    fun getClaims(token: String?): Claims {
-        if (token.isNullOrEmpty()) {
-            throw JwtException("Token is null")
+    fun getClaims(token: String): Claims {
+        try {
+            val claims = tokenParser.parseClaimsJws(token).body
+            if (claims.issuedAt == null || claims.expiration == null) {
+                throw MalformedJwtException("Token is missing iat and/or exp")
+            }
+            return claims
+        } catch (ex: IllegalArgumentException) {
+            throw UnparseableTokenException(ex)
         }
-        val claims = tokenParser.parseClaimsJws(token).body
-
-        if (claims.issuedAt == null || claims.expiration == null) {
-            throw JwtException("Token is missing iat and/or exp")
-        }
-
-        return claims
     }
 
     companion object {

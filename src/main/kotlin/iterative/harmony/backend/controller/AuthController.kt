@@ -2,7 +2,6 @@ package iterative.harmony.backend.controller
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import iterative.harmony.backend.service.AuthService
-import iterative.harmony.backend.service.JwtTokenService
 import iterative.harmony.backend.util.SecurityConstants.ACCESS_TOKEN_NAME
 import iterative.harmony.backend.util.SecurityConstants.REFRESH_TOKEN_NAME
 import iterative.harmony.backend.util.Utils
@@ -21,7 +20,6 @@ import org.springframework.web.bind.annotation.RestController
 class AuthController {
 
     @Autowired private lateinit var authService: AuthService
-    @Autowired private lateinit var jwtTokenService: JwtTokenService
 
     @PostMapping("/logout")
     fun logout(
@@ -30,7 +28,7 @@ class AuthController {
     ): ResponseEntity<String> {
         val nonNullRefreshToken = authService.throwIfNoRefreshToken(refreshToken)
         val userAgentFingerprint = Utils().generateUserAgentFingerprint(request)
-        jwtTokenService.deleteRefreshToken(nonNullRefreshToken, userAgentFingerprint)
+        authService.deleteRefreshToken(nonNullRefreshToken, userAgentFingerprint)
 
         val emptyRefreshTokenCookie = authService.generateEmptyRefreshTokenCookie()
 

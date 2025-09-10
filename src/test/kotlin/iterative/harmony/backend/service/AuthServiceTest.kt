@@ -7,7 +7,6 @@ import iterative.harmony.backend.util.SecurityConstants.REFRESH_TOKEN_NAME
 import java.text.SimpleDateFormat
 import java.util.*
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -40,17 +39,6 @@ class AuthServiceTest {
     @Nested
     @DisplayName("rotateRefreshToken")
     inner class RotateRefreshToken {
-        @Test
-        fun `should throw IllegalArgumentException if refresh token is null or empty`() {
-            val userAgent = "SomeUserAgent|127"
-            val exception =
-                assertThrows(
-                    IllegalArgumentException::class.java,
-                    { authService.rotateTokens(null, userAgent) },
-                    "Expected IllegalArgumentException to be thrown",
-                )
-            assertEquals("No refresh token in request", exception.message)
-        }
 
         @Test
         fun `should return new access and refresh tokens`() {

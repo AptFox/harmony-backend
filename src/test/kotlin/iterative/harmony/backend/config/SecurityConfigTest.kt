@@ -64,7 +64,12 @@ class SecurityConfigTest {
         val userAgent = "SomeUserAgent"
         val userAgentFingerprint = Utils().generateFingerprint("${userAgent}|127")
 
-        whenever(jwtTokenService.getAuthentication(accessTokenString, userAgentFingerprint))
+        whenever(
+                jwtTokenService.getAuthenticationFromAccessToken(
+                    accessTokenString,
+                    userAgentFingerprint,
+                )
+            )
             .thenReturn(auth)
 
         val multiValueMap = LinkedMultiValueMap<String, String>()

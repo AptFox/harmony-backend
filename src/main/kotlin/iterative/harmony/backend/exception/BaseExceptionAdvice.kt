@@ -26,9 +26,10 @@ class BaseExceptionAdvice {
         return null
     }
 
-    @ExceptionHandler(JwtException::class)
+    //    TODO: list all custom exceptions
+    @ExceptionHandler(JwtException::class, RefreshTokenNotInDBException::class)
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
-    fun exceptionHandler(ex: JwtException): String? {
+    fun exceptionHandler(ex: RuntimeException): String? {
         log.info("JwtException: ${ex.message}")
         return null
     }

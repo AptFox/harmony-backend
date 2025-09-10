@@ -152,29 +152,6 @@ class JwtTokenServiceTest {
         }
 
         @Test
-        fun `when token is revoked, should throw an exception`() {
-            val validToken = buildToken()
-            val refreshToken =
-                RefreshToken(
-                    UUID.fromString(testUuid),
-                    userAgentFingerprint,
-                    issuedAt,
-                    expiration,
-                    UUID.fromString(testUuid),
-                    revoked = true,
-                )
-            whenever(mockRefreshTokenRepository.findByJti(refreshToken.jti!!))
-                .thenReturn(Optional.of(refreshToken))
-            val exception =
-                assertThrows(
-                    JwtException::class.java,
-                    { jwtTokenService.verifyRefreshToken(validToken, userAgentFingerprint) },
-                    "should have thrown an exception",
-                )
-            assertEquals("Token is revoked or expired", exception.message)
-        }
-
-        @Test
         fun `when token is expired, should throw an exception`() {
             val validToken = buildToken()
             val refreshToken =
@@ -193,7 +170,7 @@ class JwtTokenServiceTest {
                     { jwtTokenService.verifyRefreshToken(validToken, userAgentFingerprint) },
                     "should have thrown an exception",
                 )
-            assertEquals("Token is revoked or expired", exception.message)
+            assertEquals("Token is expired", exception.message)
         }
 
         @Test
@@ -229,7 +206,8 @@ class JwtTokenServiceTest {
         @Test
         fun `when token is valid, should return an authentication object`() {
             val validToken = buildToken()
-            val auth = jwtTokenService.getAuthentication(validToken, userAgentFingerprint)
+            val auth =
+                jwtTokenService.getAuthenticationFromAccessToken(validToken, userAgentFingerprint)
             val authDetails = auth.details as Map<*, *>
 
             assertTrue(auth.isAuthenticated)
@@ -242,7 +220,12 @@ class JwtTokenServiceTest {
             val invalidToken = buildToken(roles = null)
             assertThrows(
                 NullPointerException::class.java,
-                { jwtTokenService.getAuthentication(invalidToken, userAgentFingerprint) },
+                {
+                    jwtTokenService.getAuthenticationFromAccessToken(
+                        invalidToken,
+                        userAgentFingerprint,
+                    )
+                },
                 "should have thrown an exception",
             )
         }
@@ -253,7 +236,12 @@ class JwtTokenServiceTest {
             val exception =
                 assertThrows(
                     JwtException::class.java,
-                    { jwtTokenService.getAuthentication(invalidToken, userAgentFingerprint) },
+                    {
+                        jwtTokenService.getAuthenticationFromAccessToken(
+                            invalidToken,
+                            userAgentFingerprint,
+                        )
+                    },
                     "should have thrown an exception",
                 )
             assertEquals("Token is missing iat and/or exp", exception.message)

@@ -1,9 +1,11 @@
 package iterative.harmony.backend.service
 
+import iterative.harmony.backend.exception.RefreshTokenNotInRequestException
 import iterative.harmony.backend.util.SecurityConstants.AUTH_PATH
 import iterative.harmony.backend.util.SecurityConstants.COOKIE_EXPIRATION_IN_SECONDS
 import iterative.harmony.backend.util.SecurityConstants.REFRESH_TOKEN_NAME
 import iterative.harmony.backend.util.getLogger
+import java.util.UUID
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.core.env.Environment
 import org.springframework.http.ResponseCookie
@@ -22,9 +24,13 @@ class AuthService {
     }
 
     fun throwIfNoRefreshToken(refreshToken: String?): String {
-        if (refreshToken.isNullOrEmpty())
-            throw IllegalArgumentException("No refresh token in request")
+        if (refreshToken.isNullOrEmpty()) throw RefreshTokenNotInRequestException()
         return refreshToken
+    }
+
+    fun deleteRefreshToken(refreshToken: String, userAgentFingerprint: String) {
+        val refreshTokenFromDb = tokenService.verifyRefreshToken(refreshToken, userAgentFingerprint)
+        tokenService.deleteRefreshToken(refreshTokenFromDb)
     }
 
     /**
@@ -39,16 +45,18 @@ class AuthService {
     ): Pair<String, String> {
         val refreshTokenFromDb =
             tokenService.verifyRefreshToken(refreshTokenFromRequest, userAgentFingerprint)
-        val userIdStr = refreshTokenFromDb.userId.toString()
+        val userId: UUID = refreshTokenFromDb.userId
 
-        tokenService.deleteExpiredRefreshTokens(refreshTokenFromDb.userId)
-        tokenService.deleteExcessRefreshTokens(refreshTokenFromDb.userId)
+        tokenService.deleteRefreshToken(refreshTokenFromDb)
+        tokenService.deleteExpiredRefreshTokensForUser(userId)
+        tokenService.deleteExcessRefreshTokensForUser(userId)
 
-        log.info("issuing new tokens to $userIdStr")
-        val roles = userService.getCurrentUserRoles(refreshTokenFromDb.userId)
+        log.info("issuing new tokens to $userId")
+        val roles = userService.getCurrentUserRoles(userId)
         val newAccessToken =
-            tokenService.generateAccessToken(userIdStr, userAgentFingerprint, roles)
-        val newRefreshToken = tokenService.generateRefreshToken(userIdStr, userAgentFingerprint)
+            tokenService.generateAccessToken(userId.toString(), userAgentFingerprint, roles)
+        val newRefreshToken =
+            tokenService.generateRefreshToken(userId.toString(), userAgentFingerprint)
         val newRefreshTokenCookie =
             generateRefreshTokenCookie(newRefreshToken, COOKIE_EXPIRATION_IN_SECONDS)
 

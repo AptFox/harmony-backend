@@ -2,6 +2,7 @@ package iterative.harmony.backend.config
 
 import io.jsonwebtoken.JwtException
 import io.sentry.Sentry
+import iterative.harmony.backend.exception.AccessTokenMissingOrMalformedInRequestException
 import iterative.harmony.backend.service.JwtTokenService
 import iterative.harmony.backend.util.SecurityConstants.DISCORD_OAUTH_PATH
 import iterative.harmony.backend.util.SecurityConstants.ERROR_PATH
@@ -47,25 +48,26 @@ class JwtAuthenticationFilter : OncePerRequestFilter() {
         filterChain: FilterChain,
     ) {
         try {
-            val token = getTokenFromRequest(request)
+            val accessToken = getAccessTokenFromRequest(request)
             val userAgentFingerprint = Utils().generateUserAgentFingerprint(request)
-            val auth = tokenService.getAuthentication(token, userAgentFingerprint)
+            val auth =
+                tokenService.getAuthenticationFromAccessToken(accessToken, userAgentFingerprint)
             SecurityContextHolder.getContext().authentication = auth
             filterChain.doFilter(request, response)
-        } catch (e: Exception) {
-            if (e !is JwtException) {
-                Sentry.captureException(e)
+        } catch (ex: Exception) {
+            if (ex !is JwtException) {
+                Sentry.captureException(ex)
             }
             SecurityContextHolder.clearContext()
             response.sendError(401, "Unauthorized")
         }
     }
 
-    private fun getTokenFromRequest(request: HttpServletRequest): String {
+    private fun getAccessTokenFromRequest(request: HttpServletRequest): String {
         val bearerToken = request.getHeader("Authorization")
-        if (bearerToken == null || !bearerToken.startsWith("Bearer ")) {
-            throw JwtException("Missing or invalid token")
-        }
+        val isMissingOrMalformed = bearerToken == null || !bearerToken.startsWith("Bearer ")
+        if (isMissingOrMalformed) throw AccessTokenMissingOrMalformedInRequestException()
+
         return bearerToken.substring(7)
     }
 }
