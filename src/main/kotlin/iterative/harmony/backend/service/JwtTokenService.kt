@@ -62,30 +62,29 @@ class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
         try {
             refreshTokenRepository.delete(refreshToken)
         } catch (ex: OptimisticLockingFailureException) {
-            log.info("refresh token not in DB")
             throw RefreshTokenNotInDBException(ex)
         }
     }
 
     fun deleteExpiredRefreshTokensForUser(userId: UUID) {
-        log.info("querying for expired refresh tokens issued to $userId...")
+        log.info("querying for expired refresh tokens")
         val timestamp =
             Timestamp(Utils().getCurrentTimeInMillisRounded() - REFRESH_TOKEN_DURATION_IN_MILLIS)
         val expiredRefreshTokens: List<RefreshToken> =
             refreshTokenRepository.findAllByUserIdAndCreatedAtBefore(userId, timestamp)
 
         if (expiredRefreshTokens.count() > 0) {
-            log.info("${expiredRefreshTokens.count()} expired tokens found. Deleting...")
+            log.info("${expiredRefreshTokens.count()} expired tokens found. Deleting.")
             refreshTokenRepository.deleteAll(expiredRefreshTokens)
         }
     }
 
     fun deleteExcessRefreshTokensForUser(userId: UUID) {
-        log.info("querying for excess refresh tokens issued to $userId...")
+        log.info("querying for excess refresh tokens")
         val refreshTokenCountForUser = refreshTokenRepository.countByUserId(userId)
         if (refreshTokenCountForUser > 2) {
             log.info(
-                "$userId has $refreshTokenCountForUser active refresh tokens. Deleting all but the 2 most recently issued tokens..."
+                "$refreshTokenCountForUser active refresh tokens found. Deleting all but the 2 most recently issued tokens..."
             )
             val limit = Limit.of(refreshTokenCountForUser - 2)
             val refreshTokens: List<RefreshToken> =

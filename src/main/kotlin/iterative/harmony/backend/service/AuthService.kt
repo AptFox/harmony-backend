@@ -6,6 +6,7 @@ import iterative.harmony.backend.util.SecurityConstants.COOKIE_EXPIRATION_IN_SEC
 import iterative.harmony.backend.util.SecurityConstants.REFRESH_TOKEN_NAME
 import iterative.harmony.backend.util.getLogger
 import java.util.UUID
+import org.slf4j.MDC
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.core.env.Environment
 import org.springframework.http.ResponseCookie
@@ -19,6 +20,10 @@ class AuthService {
 
     private val log = getLogger()
 
+    fun setUserIdInLogs(userId: UUID) {
+        MDC.put("userId", userId.toString())
+    }
+
     fun generateEmptyRefreshTokenCookie(): String {
         return generateRefreshTokenCookie("", 0)
     }
@@ -30,6 +35,8 @@ class AuthService {
 
     fun deleteRefreshToken(refreshToken: String, userAgentFingerprint: String) {
         val refreshTokenFromDb = tokenService.verifyRefreshToken(refreshToken, userAgentFingerprint)
+        setUserIdInLogs(refreshTokenFromDb.userId)
+        log.info("Logging out")
         tokenService.deleteRefreshToken(refreshTokenFromDb)
     }
 
@@ -46,12 +53,13 @@ class AuthService {
         val refreshTokenFromDb =
             tokenService.verifyRefreshToken(refreshTokenFromRequest, userAgentFingerprint)
         val userId: UUID = refreshTokenFromDb.userId
+        setUserIdInLogs(userId)
 
         tokenService.deleteRefreshToken(refreshTokenFromDb)
         tokenService.deleteExpiredRefreshTokensForUser(userId)
         tokenService.deleteExcessRefreshTokensForUser(userId)
 
-        log.info("issuing new tokens to $userId")
+        log.info("Issuing new access and refresh tokens")
         val roles = userService.getCurrentUserRoles(userId)
         val newAccessToken =
             tokenService.generateAccessToken(userId.toString(), userAgentFingerprint, roles)

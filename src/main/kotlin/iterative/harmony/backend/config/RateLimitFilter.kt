@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
 
@@ -39,8 +40,8 @@ class RateLimitFilter : OncePerRequestFilter() {
     }
 
     private fun resolveKey(request: HttpServletRequest): String {
-        // Use userId, otherwise IP
-        val user = request.userPrincipal?.name
+        val authentication = SecurityContextHolder.getContext().authentication
+        val user = authentication?.name
         val ip = request.remoteAddr ?: "unknown"
         return user ?: ip
     }
