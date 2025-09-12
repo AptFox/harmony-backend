@@ -187,7 +187,7 @@ class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
                 throw MalformedJwtException("Token is missing iat and/or exp")
             }
             return claims
-        } catch (ex: IllegalArgumentException) {
+        } catch (ex: Exception) {
             throw UnparseableTokenException(ex)
         }
     }
