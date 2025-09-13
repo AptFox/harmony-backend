@@ -3,6 +3,7 @@ package iterative.harmony.backend.config
 import io.github.bucket4j.Bandwidth
 import io.github.bucket4j.Bucket
 import io.sentry.Sentry
+import iterative.harmony.backend.util.getLogger
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -14,7 +15,7 @@ import org.springframework.web.filter.OncePerRequestFilter
 
 @Component
 class RateLimitFilter : OncePerRequestFilter() {
-
+    private val log = getLogger()
     private val buckets: MutableMap<String, Bucket> = ConcurrentHashMap()
 
     private val AUTH_REQUEST_LIMIT: Long = 5L
@@ -32,9 +33,9 @@ class RateLimitFilter : OncePerRequestFilter() {
         if (bucket.tryConsume(1)) {
             filterChain.doFilter(request, response)
         } else {
-            Sentry.captureException(
-                Exception("Rate limit triggered, key: $key, endpoint: ${request.requestURI}")
-            )
+            val msg = "Rate limit triggered, key: $key, endpoint: ${request.requestURI}"
+            log.info(msg)
+            Sentry.captureException(Exception(msg))
             response.sendError(429, "Too many requests")
         }
     }
