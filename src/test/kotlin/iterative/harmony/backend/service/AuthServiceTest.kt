@@ -1,11 +1,13 @@
 package iterative.harmony.backend.service
 
+import iterative.harmony.backend.exception.RefreshTokenNotInRequestException
 import iterative.harmony.backend.model.RefreshToken
 import iterative.harmony.backend.util.SecurityConstants.AUTH_PATH
 import iterative.harmony.backend.util.SecurityConstants.COOKIE_EXPIRATION_IN_SECONDS
 import iterative.harmony.backend.util.SecurityConstants.REFRESH_TOKEN_NAME
 import java.text.SimpleDateFormat
 import java.util.*
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.DisplayName
@@ -16,7 +18,9 @@ import org.mockito.InjectMocks
 import org.mockito.Mock
 import org.mockito.Mockito.mock
 import org.mockito.junit.jupiter.MockitoExtension
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.slf4j.MDC
 import org.springframework.core.env.Environment
 
 @ExtendWith(MockitoExtension::class)
@@ -26,6 +30,11 @@ class AuthServiceTest {
     @Mock private lateinit var tokenService: JwtTokenService
     @Mock private lateinit var environment: Environment
     @InjectMocks private lateinit var authService: AuthService
+
+    @AfterEach
+    fun clearMDC() {
+        MDC.clear()
+    }
 
     @Test
     fun `generateEmptyRefreshTokenCookie should return an empty, expired cookie`() {
@@ -37,20 +46,50 @@ class AuthServiceTest {
         assertEquals(expected, actual)
     }
 
+    @Test
+    fun `setUserIdInLogs should set userId in MDC`() {
+        val userId = UUID.randomUUID()
+        authService.setUserIdInLogs(userId)
+        assertEquals(userId.toString(), MDC.get("userId"))
+    }
+
+    @Test
+    fun `throwIfNoRefreshToken should throw if refreshToken is null or empty`() {
+        assertThrows(RefreshTokenNotInRequestException::class.java) {
+            authService.throwIfNoRefreshToken(null)
+        }
+        assertThrows(RefreshTokenNotInRequestException::class.java) {
+            authService.throwIfNoRefreshToken("")
+        }
+    }
+
+    @Test
+    fun `throwIfNoRefreshToken should return token if present`() {
+        val token = "token"
+        assertEquals(token, authService.throwIfNoRefreshToken(token))
+    }
+
+    @Test
+    fun `deleteRefreshToken should verify and delete refresh token`() {
+        val refreshToken = "refreshToken"
+        val userAgentFingerprint = "userAgent"
+        val userId = UUID.randomUUID()
+        val refreshTokenMock =
+            mock(RefreshToken::class.java).apply { whenever(this.userId).thenReturn(userId) }
+
+        whenever(tokenService.verifyRefreshToken(refreshToken, userAgentFingerprint))
+            .thenReturn(refreshTokenMock)
+
+        authService.deleteRefreshToken(refreshToken, userAgentFingerprint)
+
+        verify(tokenService).verifyRefreshToken(refreshToken, userAgentFingerprint)
+        verify(tokenService).deleteRefreshToken(refreshTokenMock)
+        assertEquals(userId.toString(), MDC.get("userId"))
+    }
+
     @Nested
     @DisplayName("rotateRefreshToken")
     inner class RotateRefreshToken {
-        @Test
-        fun `should throw IllegalArgumentException if refresh token is null or empty`() {
-            val userAgent = "SomeUserAgent|127"
-            val exception =
-                assertThrows(
-                    IllegalArgumentException::class.java,
-                    { authService.rotateTokens(null, userAgent, false) },
-                    "Expected IllegalArgumentException to be thrown",
-                )
-            assertEquals("No refresh token in request", exception.message)
-        }
 
         @Test
         fun `should return new access and refresh tokens`() {
@@ -82,7 +121,7 @@ class AuthServiceTest {
                     "newAccessToken",
                     "${REFRESH_TOKEN_NAME}=newRefreshToken; Path=${AUTH_PATH}; Max-Age=${COOKIE_EXPIRATION_IN_SECONDS.toLong()}; Expires=${expirationString}; Secure; HttpOnly; SameSite=None",
                 )
-            val actual = authService.rotateTokens(refreshTokenFromRequest, userAgent, false)
+            val actual = authService.rotateTokens(refreshTokenFromRequest, userAgent)
 
             assertEquals(expected, actual)
         }

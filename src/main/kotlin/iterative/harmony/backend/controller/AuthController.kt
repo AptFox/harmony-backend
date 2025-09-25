@@ -22,7 +22,14 @@ class AuthController {
     @Autowired private lateinit var authService: AuthService
 
     @PostMapping("/logout")
-    fun logout(): ResponseEntity<String> {
+    fun logout(
+        @CookieValue(value = REFRESH_TOKEN_NAME) refreshToken: String?,
+        request: HttpServletRequest,
+    ): ResponseEntity<String> {
+        val nonNullRefreshToken = authService.throwIfNoRefreshToken(refreshToken)
+        val userAgentFingerprint = Utils().generateUserAgentFingerprint(request)
+        authService.deleteRefreshToken(nonNullRefreshToken, userAgentFingerprint)
+
         val emptyRefreshTokenCookie = authService.generateEmptyRefreshTokenCookie()
 
         return ResponseEntity.status(200)
@@ -38,10 +45,10 @@ class AuthController {
         @CookieValue(REFRESH_TOKEN_NAME) refreshTokenFromRequest: String?,
         request: HttpServletRequest,
     ): ResponseEntity<String> {
-        val initialLogin = request.getHeader("Initial-Login").toBoolean()
+        val nonNullRefreshToken = authService.throwIfNoRefreshToken(refreshTokenFromRequest)
         val userAgentFingerprint = Utils().generateUserAgentFingerprint(request)
         val (newAccessToken, newRefreshTokenCookie) =
-            authService.rotateTokens(refreshTokenFromRequest, userAgentFingerprint, initialLogin)
+            authService.rotateTokens(nonNullRefreshToken, userAgentFingerprint)
 
         return ResponseEntity.ok()
             .header(SET_COOKIE, newRefreshTokenCookie)

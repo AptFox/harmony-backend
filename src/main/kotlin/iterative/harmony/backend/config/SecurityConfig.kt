@@ -24,6 +24,7 @@ class SecurityConfig {
     @Autowired private lateinit var customOAuth2UserService: CustomOAuth2UserService
     @Autowired private lateinit var corsConfig: CorsConfig
     @Autowired private lateinit var rateLimitFilter: RateLimitFilter
+    @Autowired private lateinit var loggingFilter: LoggingFilter
 
     @Value("\${frontEndBaseUrl}") private lateinit var frontEndBaseUrl: String
 
@@ -69,6 +70,7 @@ class SecurityConfig {
                 oauth2.successHandler(oAuth2LoginSuccessHandler)
                 oauth2.failureHandler { _, response, _ -> response.sendError(401, "Unauthorized") }
             }
+            .addFilterAfter(loggingFilter, UsernamePasswordAuthenticationFilter::class.java)
             .exceptionHandling { exception ->
                 exception.authenticationEntryPoint { _, response, _ ->
                     response.sendError(401, "Unauthorized")
