@@ -7,20 +7,14 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
-import org.mockito.InjectMocks
-import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.*
-import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.context.SecurityContext
 import org.springframework.security.core.context.SecurityContextHolder
 
-@ExtendWith(MockitoExtension::class)
-@SpringBootTest
 class RateLimiterServiceTest {
 
-    @InjectMocks private val rateLimiterService = RateLimiterService()
+    private val rateLimiterService = RateLimiterService()
     private val requestBuckets = mutableMapOf<String, Bucket>()
 
     @BeforeEach
