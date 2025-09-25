@@ -16,9 +16,15 @@ import org.junit.jupiter.api.extension.ExtendWith
 import org.mockito.InjectMocks
 import org.mockito.Mock
 import org.mockito.Mockito.any
+import org.mockito.Mockito.doThrow
 import org.mockito.Mockito.mock
+import org.mockito.Mockito.never
+import org.mockito.Mockito.verify
 import org.mockito.junit.jupiter.MockitoExtension
+import org.mockito.kotlin.any as kotlinAny
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.whenever
+import org.springframework.dao.OptimisticLockingFailureException
 
 @ExtendWith(MockitoExtension::class)
 class JwtTokenServiceTest {
@@ -40,7 +46,17 @@ class JwtTokenServiceTest {
     private val userAgent = "SomeUserAgent|127"
     private val userAgentFingerprint = Utils().generateFingerprint(userAgent)
 
-    fun buildToken(
+    fun buildRefreshToken(
+        userId: UUID? = UUID.randomUUID(),
+        fingerprint: String? = userAgentFingerprint,
+        iat: Long? = issuedAt,
+        expiresAt: Long? = expiration,
+        jti: UUID? = UUID.randomUUID(),
+    ): RefreshToken {
+        return RefreshToken(userId!!, fingerprint, iat!!, expiresAt!!, jti!!)
+    }
+
+    fun buildTokenString(
         sub: String? = testUuid,
         jti: String? = testUuid,
         fp: String? = userAgentFingerprint,
@@ -117,6 +133,123 @@ class JwtTokenServiceTest {
     }
 
     @Nested
+    @DisplayName("deleteRefreshToken")
+    inner class DeleteRefreshToken() {
+        @Test
+        fun `should call repository delete`() {
+            val refreshToken = buildRefreshToken()
+            assertDoesNotThrow { jwtTokenService.deleteRefreshToken(refreshToken) }
+            verify(mockRefreshTokenRepository).delete(refreshToken)
+        }
+
+        @Test
+        fun `should throw when supplied token is not in DB`() {
+            val refreshToken = buildRefreshToken()
+            doThrow(OptimisticLockingFailureException("fail"))
+                .`when`(mockRefreshTokenRepository)
+                .delete(refreshToken)
+            val ex =
+                assertThrows(
+                    JwtException::class.java,
+                    { jwtTokenService.deleteRefreshToken(refreshToken) },
+                )
+            assertEquals("Refresh token not in DB.", ex.message)
+        }
+    }
+
+    @Nested
+    @DisplayName("deleteExpiredRefreshTokensForUser")
+    inner class DeleteExpiredRefreshTokensForUser() {
+        @Test
+        fun `should delete expired tokens`() {
+            val expiredToken = buildRefreshToken(expiresAt = issuedAt - 1000)
+            whenever(
+                    mockRefreshTokenRepository.findAllByUserIdAndCreatedAtBefore(
+                        eq(expiredToken.userId),
+                        kotlinAny(),
+                    )
+                )
+                .thenReturn(listOf(expiredToken))
+            assertDoesNotThrow {
+                jwtTokenService.deleteExpiredRefreshTokensForUser(expiredToken.userId)
+            }
+            verify(mockRefreshTokenRepository).deleteAll(listOf(expiredToken))
+        }
+
+        @Test
+        fun `should not delete if no expired tokens`() {
+            val uuid = UUID.fromString(testUuid)
+            whenever(
+                    mockRefreshTokenRepository.findAllByUserIdAndCreatedAtBefore(
+                        eq(uuid),
+                        kotlinAny(),
+                    )
+                )
+                .thenReturn(emptyList())
+            assertDoesNotThrow { jwtTokenService.deleteExpiredRefreshTokensForUser(uuid) }
+            verify(mockRefreshTokenRepository, never()).deleteAll(kotlinAny())
+        }
+    }
+
+    @Nested
+    @DisplayName("deleteExcessRefreshTokensForUser")
+    inner class DeleteExcessRefreshTokensForUser() {
+        @Test
+        fun `should delete excess tokens`() {
+            val uuid = UUID.fromString(testUuid)
+            whenever(mockRefreshTokenRepository.countByUserId(uuid)).thenReturn(5)
+            val excessTokens =
+                listOf(
+                    buildRefreshToken(userId = uuid),
+                    buildRefreshToken(userId = uuid, iat = issuedAt + 1, expiresAt = expiration + 1),
+                )
+            whenever(
+                    mockRefreshTokenRepository.findAllByUserIdOrderByCreatedAtAsc(
+                        eq(uuid),
+                        kotlinAny(),
+                    )
+                )
+                .thenReturn(excessTokens)
+            assertDoesNotThrow { jwtTokenService.deleteExcessRefreshTokensForUser(uuid) }
+            verify(mockRefreshTokenRepository).deleteAll(excessTokens)
+        }
+
+        @Test
+        fun `should not delete if 2 or fewer tokens`() {
+            val uuid = UUID.fromString(testUuid)
+            whenever(mockRefreshTokenRepository.countByUserId(uuid)).thenReturn(2)
+            assertDoesNotThrow { jwtTokenService.deleteExcessRefreshTokensForUser(uuid) }
+            verify(mockRefreshTokenRepository, never()).deleteAll(kotlinAny())
+        }
+    }
+
+    @Nested
+    @DisplayName("throwOnRefreshTokenMismatch")
+    inner class ThrowOnRefreshTokenMismatch() {
+        @Test
+        fun `should not throw when tokens match`() {
+            val token = buildRefreshToken()
+            assertDoesNotThrow { jwtTokenService.throwOnRefreshTokenMismatch(token, token) }
+        }
+
+        @Test
+        fun `should throw when tokens mismatch`() {
+            val uuid = UUID.fromString(testUuid)
+            val tokenDb = buildRefreshToken(userId = uuid, jti = uuid)
+            val tokenClaims = buildRefreshToken(userId = uuid, iat = issuedAt + 1, jti = uuid)
+            val ex =
+                assertThrows(
+                    JwtException::class.java,
+                    { jwtTokenService.throwOnRefreshTokenMismatch(tokenDb, tokenClaims) },
+                )
+            assertEquals(
+                "The supplied refresh token does not match the DB. Mismatched fields: [issuedAt]",
+                ex.message,
+            )
+        }
+    }
+
+    @Nested
     @DisplayName("verifyRefreshToken")
     inner class VerifyRefreshTokenClaims() {
 
@@ -125,7 +258,7 @@ class JwtTokenServiceTest {
             val uuid = UUID.fromString(testUuid)
             val jti = UUID.fromString(testUuid)
             val refreshToken = RefreshToken(uuid, userAgentFingerprint, issuedAt, expiration, jti)
-            val validToken = buildToken()
+            val validToken = buildTokenString()
 
             whenever(mockRefreshTokenRepository.findByJti(refreshToken.jti!!))
                 .thenReturn(Optional.of(refreshToken))
@@ -141,7 +274,7 @@ class JwtTokenServiceTest {
 
         @Test
         fun `when given a token missing jti, should throw an exception`() {
-            val invalidToken = buildToken(jti = null)
+            val invalidToken = buildTokenString(jti = null)
             val exception =
                 assertThrows(
                     JwtException::class.java,
@@ -153,7 +286,7 @@ class JwtTokenServiceTest {
 
         @Test
         fun `when token is expired, should throw an exception`() {
-            val validToken = buildToken()
+            val validToken = buildTokenString()
             val refreshToken =
                 RefreshToken(
                     UUID.fromString(testUuid),
@@ -170,12 +303,15 @@ class JwtTokenServiceTest {
                     { jwtTokenService.verifyRefreshToken(validToken, userAgentFingerprint) },
                     "should have thrown an exception",
                 )
-            assertEquals("Token is expired", exception.message)
+            assertEquals(
+                "Unexpected refresh token verification error: The supplied refresh token is expired",
+                exception.message,
+            )
         }
 
         @Test
         fun `when token is missing from DB, should throw an exception`() {
-            val validToken = buildToken()
+            val validToken = buildTokenString()
             whenever(mockRefreshTokenRepository.findByJti(UUID.fromString(testUuid)))
                 .thenReturn(Optional.empty())
             val exception =
@@ -184,19 +320,22 @@ class JwtTokenServiceTest {
                     { jwtTokenService.verifyRefreshToken(validToken, userAgentFingerprint) },
                     "should have thrown an exception",
                 )
-            assertEquals("Refresh token not found in database", exception.message)
+            assertEquals("Refresh token not in DB.", exception.message)
         }
 
         @Test
         fun `when token fingerprint and request fingerprint dont match, should throw an exception`() {
-            val invalidToken = buildToken(fp = "testFingerprint")
+            val invalidToken = buildTokenString(fp = "testFingerprint")
             val exception =
                 assertThrows(
                     JwtException::class.java,
                     { jwtTokenService.verifyRefreshToken(invalidToken, userAgentFingerprint) },
                     "should have thrown an exception",
                 )
-            assertEquals("Fingerprint mismatch", exception.message)
+            assertEquals(
+                "Unexpected refresh token verification error: Request fingerprint and token fingerprint do not match",
+                exception.message,
+            )
         }
     }
 
@@ -205,7 +344,7 @@ class JwtTokenServiceTest {
     inner class GetAuthentication() {
         @Test
         fun `when token is valid, should return an authentication object`() {
-            val validToken = buildToken()
+            val validToken = buildTokenString()
             val auth =
                 jwtTokenService.getAuthenticationFromAccessToken(validToken, userAgentFingerprint)
             val authDetails = auth.details as Map<*, *>
@@ -217,7 +356,7 @@ class JwtTokenServiceTest {
 
         @Test
         fun `should throw an exception if userRoles are missing`() {
-            val invalidToken = buildToken(roles = null)
+            val invalidToken = buildTokenString(roles = null)
             assertThrows(
                 NullPointerException::class.java,
                 {
@@ -232,7 +371,7 @@ class JwtTokenServiceTest {
 
         @Test
         fun `should throw an exception when token is missing iat or exp`() {
-            val invalidToken = buildToken(iat = null, exp = null)
+            val invalidToken = buildTokenString(iat = null, exp = null)
             val exception =
                 assertThrows(
                     JwtException::class.java,
@@ -244,7 +383,10 @@ class JwtTokenServiceTest {
                     },
                     "should have thrown an exception",
                 )
-            assertEquals("Token is missing iat and/or exp", exception.message)
+            assertEquals(
+                "Unable to parse token: Token is missing iat and/or exp",
+                exception.message,
+            )
         }
     }
 
@@ -253,7 +395,7 @@ class JwtTokenServiceTest {
     inner class GetClaims() {
         @Test
         fun `should return claims from token`() {
-            val validToken = buildToken()
+            val validToken = buildTokenString()
             val claims = jwtTokenService.getClaims(validToken)
             assertNotNull(claims)
             assertEquals(testUuid, claims.subject)
@@ -265,15 +407,18 @@ class JwtTokenServiceTest {
             val exception =
                 assertThrows(
                     JwtException::class.java,
-                    { jwtTokenService.getClaims(null) },
+                    { jwtTokenService.getClaims("") },
                     "should have thrown an exception",
                 )
-            assertEquals("Token is null", exception.message)
+            assertEquals(
+                "Unable to parse token: JWT String argument cannot be null or empty.",
+                exception.message,
+            )
         }
 
         @Test
         fun `should throw an exception when token is expired`() {
-            val expiredToken = buildToken(exp = issuedAt - 1000)
+            val expiredToken = buildTokenString(exp = issuedAt - 1000)
             val exception =
                 assertThrows(
                     JwtException::class.java,
@@ -285,14 +430,17 @@ class JwtTokenServiceTest {
 
         @Test
         fun `should throw an exception when token is missing iat or exp`() {
-            val invalidToken = buildToken(iat = null, exp = null)
+            val invalidToken = buildTokenString(iat = null, exp = null)
             val exception =
                 assertThrows(
                     JwtException::class.java,
                     { jwtTokenService.getClaims(invalidToken) },
                     "should have thrown an exception",
                 )
-            assertEquals("Token is missing iat and/or exp", exception.message)
+            assertEquals(
+                "Unable to parse token: Token is missing iat and/or exp",
+                exception.message,
+            )
         }
     }
 }
