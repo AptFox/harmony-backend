@@ -1,9 +1,12 @@
 package iterative.harmony.backend.service
 
+import iterative.harmony.backend.exception.RefreshTokenNotInRequestException
 import iterative.harmony.backend.util.SecurityConstants.AUTH_PATH
 import iterative.harmony.backend.util.SecurityConstants.COOKIE_EXPIRATION_IN_SECONDS
 import iterative.harmony.backend.util.SecurityConstants.REFRESH_TOKEN_NAME
 import iterative.harmony.backend.util.getLogger
+import java.util.UUID
+import org.slf4j.MDC
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.core.env.Environment
 import org.springframework.http.ResponseCookie
@@ -17,8 +20,24 @@ class AuthService {
 
     private val log = getLogger()
 
+    fun setUserIdInLogs(userId: UUID) {
+        MDC.put("userId", userId.toString())
+    }
+
     fun generateEmptyRefreshTokenCookie(): String {
         return generateRefreshTokenCookie("", 0)
+    }
+
+    fun throwIfNoRefreshToken(refreshToken: String?): String {
+        if (refreshToken.isNullOrEmpty()) throw RefreshTokenNotInRequestException()
+        return refreshToken
+    }
+
+    fun deleteRefreshToken(refreshToken: String, userAgentFingerprint: String) {
+        val refreshTokenFromDb = tokenService.verifyRefreshToken(refreshToken, userAgentFingerprint)
+        setUserIdInLogs(refreshTokenFromDb.userId)
+        log.info("Logging out")
+        tokenService.deleteRefreshToken(refreshTokenFromDb)
     }
 
     /**
@@ -28,21 +47,24 @@ class AuthService {
      * @return A pair containing the new access token and the new refresh token cookie respectively.
      */
     fun rotateTokens(
-        refreshTokenFromRequest: String?,
+        refreshTokenFromRequest: String,
         userAgentFingerprint: String,
-        initialLogin: Boolean,
     ): Pair<String, String> {
-        if (refreshTokenFromRequest.isNullOrEmpty())
-            throw IllegalArgumentException("No refresh token in request")
-
         val refreshTokenFromDb =
             tokenService.verifyRefreshToken(refreshTokenFromRequest, userAgentFingerprint)
-        val userIdStr = refreshTokenFromDb.userId.toString()
-        log.info("issuing new tokens to $userIdStr, initialLogin: $initialLogin")
-        val roles = userService.getCurrentUserRoles(refreshTokenFromDb.userId)
+        val userId: UUID = refreshTokenFromDb.userId
+        setUserIdInLogs(userId)
+
+        tokenService.deleteRefreshToken(refreshTokenFromDb)
+        tokenService.deleteExpiredRefreshTokensForUser(userId)
+        tokenService.deleteExcessRefreshTokensForUser(userId)
+
+        log.info("Issuing new access and refresh tokens")
+        val roles = userService.getCurrentUserRoles(userId)
         val newAccessToken =
-            tokenService.generateAccessToken(userIdStr, userAgentFingerprint, roles)
-        val newRefreshToken = tokenService.generateRefreshToken(userIdStr, userAgentFingerprint)
+            tokenService.generateAccessToken(userId.toString(), userAgentFingerprint, roles)
+        val newRefreshToken =
+            tokenService.generateRefreshToken(userId.toString(), userAgentFingerprint)
         val newRefreshTokenCookie =
             generateRefreshTokenCookie(newRefreshToken, COOKIE_EXPIRATION_IN_SECONDS)
 

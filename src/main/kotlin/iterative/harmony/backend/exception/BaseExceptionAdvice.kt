@@ -12,31 +12,49 @@ import org.springframework.web.bind.annotation.RestControllerAdvice
 class BaseExceptionAdvice {
     private val log = getLogger()
 
+    fun logException(ex: Exception) {
+        log.error("${ex.javaClass.simpleName}: ${ex.message}")
+    }
+
     @ExceptionHandler(UserNotFoundException::class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
-    fun exceptionHandler(ex: UserNotFoundException): String? {
-        log.info("UserNotFoundException: ${ex.message}")
+    fun notFoundExceptionHandler(ex: UserNotFoundException): String? {
+        logException(ex)
         return null
     }
 
-    @ExceptionHandler(IllegalArgumentException::class)
+    @ExceptionHandler(
+        IllegalArgumentException::class,
+        AccessTokenMissingOrMalformedInRequestException::class,
+        RefreshTokenNotInRequestException::class,
+    )
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    fun exceptionHandler(ex: IllegalArgumentException): String? {
-        log.info("IllegalArgumentException: ${ex.message}")
+    fun badRequestExceptionHandler(ex: IllegalArgumentException): String? {
+        logException(ex)
         return null
     }
 
-    @ExceptionHandler(JwtException::class)
+    @ExceptionHandler(
+        JwtException::class,
+        RefreshTokenNotInDBException::class,
+        JtiNotInRefreshTokenException::class,
+        RefreshTokenExpiredException::class,
+        RefreshTokenFieldMismatchException::class,
+        RefreshTokenNotInDBException::class,
+        TokenFingerprintMismatchException::class,
+        UnexpectedRefreshTokenVerificationException::class,
+        UnparseableTokenException::class,
+    )
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
-    fun exceptionHandler(ex: JwtException): String? {
-        log.info("JwtException: ${ex.message}")
+    fun unauthorizedExceptionHandler(ex: RuntimeException): String? {
+        logException(ex)
         return null
     }
 
     @ExceptionHandler(Exception::class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    fun exceptionHandler(ex: Exception): String? {
-        log.error("Exception: ${ex.message}")
+    fun internalServerExceptionHandler(ex: Exception): String? {
+        logException(ex)
         Sentry.captureException(ex)
         return null
     }
