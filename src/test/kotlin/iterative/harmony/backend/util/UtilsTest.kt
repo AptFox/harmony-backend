@@ -1,7 +1,6 @@
 package iterative.harmony.backend.util
 
 import iterative.harmony.backend.util.SecurityConstants.ANON_USER_AGENT
-import iterative.harmony.backend.util.SecurityConstants.ANON_USER_ID
 import jakarta.servlet.http.HttpServletRequest
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
@@ -39,7 +38,7 @@ class UtilsTest {
             whenever(request.getHeader("User-Agent")).thenReturn(null)
             whenever(request.getHeader("X-Forwarded-For")).thenReturn(ipAddress)
 
-            val expected = "$ANON_USER_ID|$ANON_USER_AGENT|198"
+            val expected = "$ANON_USER_AGENT|198"
             val actual = Utils().getUserAgentFromRequest(request)
 
             assertEquals(expected, actual)
@@ -59,7 +58,7 @@ class UtilsTest {
                 whenever(request.getHeader("X-Forwarded-For")).thenReturn(ipAddress)
                 whenever(request.remoteAddr).thenReturn(remoteAddr)
 
-                val expected = "$ANON_USER_ID|${userAgent}|178"
+                val expected = "$userAgent|178"
                 val actual = Utils().getUserAgentFromRequest(request)
 
                 assertEquals(expected, actual)
@@ -76,7 +75,7 @@ class UtilsTest {
                 whenever(request.getHeader("X-Forwarded-For")).thenReturn(ipAddress)
                 whenever(request.remoteAddr).thenReturn(remoteAddr)
 
-                val expected = "$ANON_USER_ID|${userAgent}|0"
+                val expected = "$userAgent|0"
                 val actual = Utils().getUserAgentFromRequest(request)
 
                 assertEquals(expected, actual)

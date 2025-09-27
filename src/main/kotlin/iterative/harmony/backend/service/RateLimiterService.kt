@@ -15,10 +15,11 @@ class RateLimiterService() {
     private val ALL_REQUEST_LIMIT: Long = 100L
 
     fun getRequestId(request: HttpServletRequest): String {
+        val userId = Utils().getUserIdFromSecurityContext()
         val userAgent = Utils().getUserAgentFromRequest(request)
         val authPrefix =
             if (request.requestURI.startsWith("/$AUTH_PREFIX/")) AUTH_PREFIX else NON_AUTH_PREFIX
-        return "${authPrefix}|${userAgent}"
+        return "${authPrefix}|$userId|${userAgent}"
     }
 
     fun requestIsAllowed(requestId: String, requestBuckets: MutableMap<String, Bucket>): Boolean {

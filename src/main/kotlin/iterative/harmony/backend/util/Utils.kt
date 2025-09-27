@@ -31,14 +31,13 @@ class Utils {
      * @return "userAgent|ipPrefix"
      */
     fun getUserAgentFromRequest(request: HttpServletRequest): String {
-        val userId = getUserIdFromSecurityContext()
         val userAgent = request.getHeader("User-Agent")?.trim() ?: ANON_USER_AGENT
         val rawIp =
             request.getHeader("X-Forwarded-For")?.split(",")?.firstOrNull()
                 ?: request.remoteAddr
                 ?: ANON_REQUEST_IP
         val ipPrefix = rawIp.substringBefore('.')
-        return "$userId|${userAgent}|${ipPrefix}"
+        return "${userAgent}|${ipPrefix}"
     }
 
     /**
