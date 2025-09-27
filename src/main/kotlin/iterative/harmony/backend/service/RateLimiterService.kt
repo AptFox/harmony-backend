@@ -2,9 +2,11 @@ package iterative.harmony.backend.service
 
 import io.github.bucket4j.Bandwidth
 import io.github.bucket4j.Bucket
+import iterative.harmony.backend.util.SecurityConstants.AUTH_PREFIX
+import iterative.harmony.backend.util.SecurityConstants.NON_AUTH_PREFIX
+import iterative.harmony.backend.util.Utils
 import jakarta.servlet.http.HttpServletRequest
 import java.time.Duration
-import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Service
 
 @Service
@@ -13,18 +15,15 @@ class RateLimiterService() {
     private val ALL_REQUEST_LIMIT: Long = 100L
 
     fun getRequestId(request: HttpServletRequest): String {
-        val authentication = SecurityContextHolder.getContext()?.authentication
-        val user = authentication?.name
-        val ip = request.remoteAddr ?: "unknown"
-        return user ?: ip
+        val userId = Utils().getUserIdFromSecurityContext()
+        val userAgent = Utils().getUserAgentFromRequest(request)
+        val authPrefix =
+            if (request.requestURI.startsWith("/$AUTH_PREFIX/")) AUTH_PREFIX else NON_AUTH_PREFIX
+        return "${authPrefix}|$userId|${userAgent}"
     }
 
-    fun requestIsAllowed(
-        requestId: String,
-        request: HttpServletRequest,
-        requestBuckets: MutableMap<String, Bucket>,
-    ): Boolean {
-        val isAuthEndpoint = request.requestURI.startsWith("/auth/")
+    fun requestIsAllowed(requestId: String, requestBuckets: MutableMap<String, Bucket>): Boolean {
+        val isAuthEndpoint = requestId.startsWith(AUTH_PREFIX)
         val bucket = requestBuckets.computeIfAbsent(requestId) { createBucket(isAuthEndpoint) }
         return bucket.tryConsume(1)
     }
