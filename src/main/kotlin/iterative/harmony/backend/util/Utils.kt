@@ -1,9 +1,13 @@
 package iterative.harmony.backend.util
 
+import iterative.harmony.backend.util.SecurityConstants.ANON_REQUEST_IP
+import iterative.harmony.backend.util.SecurityConstants.ANON_USER_AGENT
+import iterative.harmony.backend.util.SecurityConstants.ANON_USER_ID
 import jakarta.servlet.http.HttpServletRequest
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.util.*
+import org.springframework.security.core.context.SecurityContextHolder
 
 class Utils {
     /**
@@ -15,6 +19,11 @@ class Utils {
         return ((Date().time + 500) / 1000) * 1000
     }
 
+    fun getUserIdFromSecurityContext(): String {
+        val authentication = SecurityContextHolder.getContext()?.authentication
+        return authentication?.name ?: ANON_USER_ID
+    }
+
     /**
      * Creates a unique user agent string from the supplied request.
      *
@@ -22,13 +31,14 @@ class Utils {
      * @return "userAgent|ipPrefix"
      */
     fun getUserAgentFromRequest(request: HttpServletRequest): String {
-        val userAgent = request.getHeader("User-Agent")?.trim() ?: "unknown"
+        val userId = getUserIdFromSecurityContext()
+        val userAgent = request.getHeader("User-Agent")?.trim() ?: ANON_USER_AGENT
         val rawIp =
             request.getHeader("X-Forwarded-For")?.split(",")?.firstOrNull()
                 ?: request.remoteAddr
-                ?: "0.0.0.0"
+                ?: ANON_REQUEST_IP
         val ipPrefix = rawIp.substringBefore('.')
-        return "${userAgent}|${ipPrefix}"
+        return "$userId|${userAgent}|${ipPrefix}"
     }
 
     /**

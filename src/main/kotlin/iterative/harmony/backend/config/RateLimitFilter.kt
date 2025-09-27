@@ -24,7 +24,7 @@ class RateLimitFilter : OncePerRequestFilter() {
         filterChain: FilterChain,
     ) {
         val requestId = rateLimiterService.getRequestId(request)
-        if (rateLimiterService.requestIsAllowed(requestId, request, requestBuckets)) {
+        if (rateLimiterService.requestIsAllowed(requestId, requestBuckets)) {
             filterChain.doFilter(request, response)
         } else {
             val msg = "Rate limit triggered, key: $requestId, endpoint: ${request.requestURI}"
