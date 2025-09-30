@@ -26,7 +26,7 @@ class BaseExceptionAdvice {
     }
 
     fun reportExceptionToSentry(ex: Exception) {
-        if (!environment.activeProfiles.contains("prod")) return // don't report when not in prod
+        if (!environment.activeProfiles.contains("prod")) return // don't report unless prod
         if (ex::class in COMMON_EXCEPTIONS) return
         Sentry.captureException(ex)
     }
