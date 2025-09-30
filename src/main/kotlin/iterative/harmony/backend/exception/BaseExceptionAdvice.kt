@@ -11,9 +11,20 @@ import org.springframework.web.bind.annotation.RestControllerAdvice
 @RestControllerAdvice
 class BaseExceptionAdvice {
     private val log = getLogger()
+    private val COMMON_EXCEPTIONS =
+        setOf(
+            AccessTokenMissingOrMalformedInRequestException::class,
+            RefreshTokenNotInRequestException::class,
+            RefreshTokenExpiredException::class,
+        )
 
     fun logException(ex: Exception) {
         log.error("${ex.javaClass.simpleName}: ${ex.message}")
+    }
+
+    fun reportExceptionToSentry(ex: Exception) {
+        if (ex::class in COMMON_EXCEPTIONS) return
+        Sentry.captureException(ex)
     }
 
     @ExceptionHandler(UserNotFoundException::class)
@@ -40,7 +51,6 @@ class BaseExceptionAdvice {
         JtiNotInRefreshTokenException::class,
         RefreshTokenExpiredException::class,
         RefreshTokenFieldMismatchException::class,
-        RefreshTokenNotInDBException::class,
         TokenFingerprintMismatchException::class,
         UnexpectedRefreshTokenVerificationException::class,
         UnparseableTokenException::class,
@@ -55,7 +65,7 @@ class BaseExceptionAdvice {
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     fun internalServerExceptionHandler(ex: Exception): String? {
         logException(ex)
-        Sentry.captureException(ex)
+        reportExceptionToSentry(ex)
         return null
     }
 }
