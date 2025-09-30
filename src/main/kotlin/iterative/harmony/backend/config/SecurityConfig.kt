@@ -16,6 +16,9 @@ import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
 
+val PUBLIC_URLS = arrayOf("/", LOGOUT_PATH, REFRESH_TOKEN_PATH, DISCORD_OAUTH_PATH, ERROR_PATH)
+val INAPPROPRIATE_URLS = arrayOf(FAVICON_PATH, GIT_PATH)
+
 @Configuration
 @EnableWebSecurity
 class SecurityConfig {
@@ -28,14 +31,6 @@ class SecurityConfig {
     @Autowired private lateinit var loggingFilter: LoggingFilter
 
     @Value("\${frontEndBaseUrl}") private lateinit var frontEndBaseUrl: String
-
-    private val PUBLIC_URLS =
-        arrayOf("/", LOGOUT_PATH, REFRESH_TOKEN_PATH, DISCORD_OAUTH_PATH, ERROR_PATH)
-    private val INAPPROPRIATE_URLS =
-        arrayOf(
-            FAVICON_PATH,
-            GIT_PATH,
-        ) // don't waste resources on requests inappropriate for an API
 
     @Bean
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
@@ -56,7 +51,9 @@ class SecurityConfig {
                 auth
                     .requestMatchers(*PUBLIC_URLS)
                     .permitAll() // Allow public access to certain endpoints
-                    .requestMatchers(*INAPPROPRIATE_URLS)
+                    .requestMatchers(
+                        *INAPPROPRIATE_URLS
+                    ) // don't waste resources on requests inappropriate for an API
                     .denyAll()
                     .anyRequest()
                     .authenticated() // Protect all other endpoints

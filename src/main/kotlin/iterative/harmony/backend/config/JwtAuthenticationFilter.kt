@@ -4,11 +4,6 @@ import io.jsonwebtoken.JwtException
 import io.sentry.Sentry
 import iterative.harmony.backend.exception.AccessTokenMissingOrMalformedInRequestException
 import iterative.harmony.backend.service.JwtTokenService
-import iterative.harmony.backend.util.SecurityConstants.DISCORD_OAUTH_PATH
-import iterative.harmony.backend.util.SecurityConstants.ERROR_PATH
-import iterative.harmony.backend.util.SecurityConstants.FAVICON_PATH
-import iterative.harmony.backend.util.SecurityConstants.LOGOUT_PATH
-import iterative.harmony.backend.util.SecurityConstants.REFRESH_TOKEN_PATH
 import iterative.harmony.backend.util.Utils
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
@@ -25,17 +20,7 @@ class JwtAuthenticationFilter : OncePerRequestFilter() {
 
     override fun shouldNotFilter(request: HttpServletRequest): Boolean {
         try {
-            val urlIsPublic =
-                listOf(
-                        "/",
-                        REFRESH_TOKEN_PATH,
-                        DISCORD_OAUTH_PATH,
-                        ERROR_PATH,
-                        LOGOUT_PATH,
-                        FAVICON_PATH,
-                    )
-                    .any { pattern -> request.requestURI!!.contentEquals(pattern) }
-            return urlIsPublic
+            return request.requestURI in PUBLIC_URLS
         } catch (e: Exception) {
             Sentry.captureException(e)
             return false
