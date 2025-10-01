@@ -3,6 +3,8 @@ package iterative.harmony.backend.exception
 import io.jsonwebtoken.JwtException
 import io.sentry.Sentry
 import iterative.harmony.backend.util.getLogger
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.core.env.Environment
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.ResponseStatus
@@ -11,9 +13,22 @@ import org.springframework.web.bind.annotation.RestControllerAdvice
 @RestControllerAdvice
 class BaseExceptionAdvice {
     private val log = getLogger()
+    private val COMMON_EXCEPTIONS =
+        setOf(
+            AccessTokenMissingOrMalformedInRequestException::class,
+            RefreshTokenNotInRequestException::class,
+            RefreshTokenExpiredException::class,
+        )
+    @Autowired private lateinit var environment: Environment
 
     fun logException(ex: Exception) {
         log.error("${ex.javaClass.simpleName}: ${ex.message}")
+    }
+
+    fun reportExceptionToSentry(ex: Exception) {
+        if (!environment.activeProfiles.contains("prod")) return // don't report unless prod
+        if (ex::class in COMMON_EXCEPTIONS) return
+        Sentry.captureException(ex)
     }
 
     @ExceptionHandler(UserNotFoundException::class)
@@ -40,7 +55,6 @@ class BaseExceptionAdvice {
         JtiNotInRefreshTokenException::class,
         RefreshTokenExpiredException::class,
         RefreshTokenFieldMismatchException::class,
-        RefreshTokenNotInDBException::class,
         TokenFingerprintMismatchException::class,
         UnexpectedRefreshTokenVerificationException::class,
         UnparseableTokenException::class,
@@ -55,7 +69,7 @@ class BaseExceptionAdvice {
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     fun internalServerExceptionHandler(ex: Exception): String? {
         logException(ex)
-        Sentry.captureException(ex)
+        reportExceptionToSentry(ex)
         return null
     }
 }

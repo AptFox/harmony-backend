@@ -35,18 +35,23 @@ class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
     private val tokenParser = Jwts.parserBuilder().setSigningKey(key).build()
     private val log = getLogger()
 
-    fun generateAccessToken(userId: String, fingerprint: String, roles: List<String>): String {
+    fun generateAccessToken(
+        userId: String,
+        fingerprint: String,
+        roles: List<String>,
+        utils: Utils = Utils(),
+    ): String {
         val claims = Jwts.claims().setSubject(userId)
         claims["roles"] = roles
         claims["fp"] = fingerprint
-        val tokenIssuedAt = Utils().getCurrentTimeInMillisRounded()
+        val tokenIssuedAt = utils.getCurrentTimeInMillisRounded()
         val tokenExpiration = tokenIssuedAt + ACCESS_TOKEN_DURATION_IN_MILLIS
 
         return buildToken(claims, tokenIssuedAt, tokenExpiration)
     }
 
-    fun generateRefreshToken(userId: String, fingerprint: String): String {
-        val tokenIssuedAt = Utils().getCurrentTimeInMillisRounded()
+    fun generateRefreshToken(userId: String, fingerprint: String, utils: Utils = Utils()): String {
+        val tokenIssuedAt = utils.getCurrentTimeInMillisRounded()
         val tokenExpiration = tokenIssuedAt + REFRESH_TOKEN_DURATION_IN_MILLIS
         val refreshToken =
             refreshTokenRepository.save(

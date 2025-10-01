@@ -18,6 +18,8 @@ import org.mockito.InjectMocks
 import org.mockito.Mock
 import org.mockito.Mockito.mock
 import org.mockito.junit.jupiter.MockitoExtension
+import org.mockito.kotlin.any
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.slf4j.MDC
@@ -103,9 +105,16 @@ class AuthServiceTest {
             whenever(tokenService.verifyRefreshToken(refreshTokenFromRequest, userAgent))
                 .thenReturn(refreshTokenMock)
             whenever(userService.getCurrentUserRoles(userId)).thenReturn(userRoles)
-            whenever(tokenService.generateAccessToken(userId.toString(), userAgent, userRoles))
+            whenever(
+                    tokenService.generateAccessToken(
+                        eq(userId.toString()),
+                        eq(userAgent),
+                        eq(userRoles),
+                        any(),
+                    )
+                )
                 .thenReturn("newAccessToken")
-            whenever(tokenService.generateRefreshToken(userId.toString(), userAgent))
+            whenever(tokenService.generateRefreshToken(eq(userId.toString()), eq(userAgent), any()))
                 .thenReturn("newRefreshToken")
             whenever(environment.activeProfiles).thenReturn(arrayOf("test"))
 
