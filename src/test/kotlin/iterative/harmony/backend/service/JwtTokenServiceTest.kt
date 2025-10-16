@@ -89,6 +89,11 @@ class JwtTokenServiceTest {
 
         @Test
         fun `should generate a parseable access token`() {
+            val utils = mock<Utils>()
+            val staticIssuedTime = Utils().getCurrentTimeInMillisRounded()
+            val staticExpirationTime =
+                staticIssuedTime + JwtTokenService.ACCESS_TOKEN_DURATION_IN_MILLIS
+            whenever(utils.getCurrentTimeInMillisRounded()).thenReturn(staticIssuedTime)
             assertDoesNotThrow(
                 {
                     val accessToken =
@@ -96,8 +101,14 @@ class JwtTokenServiceTest {
                             testUuid,
                             userAgentFingerprint,
                             userRoles,
+                            utils,
                         )
-                    tokenParser.parseClaimsJws(accessToken)
+                    val claims = tokenParser.parseClaimsJws(accessToken).body
+                    assertEquals(testUuid, claims.subject)
+                    assertEquals(userAgentFingerprint, claims["fp"])
+                    assertEquals(userRoles, claims["roles"])
+                    assertEquals(staticIssuedTime, claims.issuedAt.time)
+                    assertEquals(staticExpirationTime, claims.expiration.time)
                 },
                 "should not throw an exception",
             )
@@ -117,10 +128,13 @@ class JwtTokenServiceTest {
             val mockRefreshToken =
                 RefreshToken(userId, userAgentFingerprint, issuedAt, expiration, userId)
             whenever(mockRefreshTokenRepository.save(any())).thenReturn(mockRefreshToken)
+            val utils = mock<Utils>()
+            whenever(utils.getCurrentTimeInMillisRounded()).thenReturn(staticIssuedTime)
 
             assertDoesNotThrow(
                 {
-                    val token = jwtTokenService.generateRefreshToken(testUuid, userAgentFingerprint)
+                    val token =
+                        jwtTokenService.generateRefreshToken(testUuid, userAgentFingerprint, utils)
                     val claims = tokenParser.parseClaimsJws(token).body
                     assertEquals(userId.toString(), claims.subject)
                     assertEquals(mockRefreshToken.jti.toString(), claims["jti"])
