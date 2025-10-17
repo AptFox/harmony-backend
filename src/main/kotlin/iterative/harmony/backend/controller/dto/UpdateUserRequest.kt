@@ -13,7 +13,10 @@ data class UpdateUserRequest(
     @field:Size(min = 2, max = 50, message = "displayName must be between 2 and 50 characters")
     val displayName: String,
     @field:NotBlank(message = "timeZoneId is required")
-    @field:Pattern(regexp = "^[0-9]+$")
-    @field:Size(min = 1, max = 2, message = "timeZoneId must be 1-2 characters")
+    @field:Pattern(regexp = "^[a-zA-Z0-9/\\-_]+$")
+    @field:Size(
+        min = 2,
+        message = "timeZoneId must be in a valid IANA format (e.g., 'America/New_York').",
+    )
     val timeZoneId: String,
 )
