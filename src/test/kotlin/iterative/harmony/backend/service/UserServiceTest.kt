@@ -35,7 +35,8 @@ class UserServiceTest {
     private val discordUser = DiscordOAuthUser("1", "username", "globalName", "123456")
     private val userRole = Role(1, RoleConstants.USER_ROLE, "The default role for a user")
     private val userRoles = listOf(userRole.name)
-    private val expectedUser = User(uuid, "username", "username", "1", "123456", 0, setOf(userRole))
+    private val expectedUser =
+        User(uuid, "username", "username", "1", "123456", null, setOf(userRole))
 
     @Nested
     @DisplayName("getOrCreateUser")
@@ -152,7 +153,7 @@ class UserServiceTest {
     @DisplayName("updateUser")
     inner class UpdateUser() {
 
-        private val updateUserRequest = UpdateUserRequest("newUsername", "2")
+        private val updateUserRequest = UpdateUserRequest("newUsername", "America/New_York")
 
         @Nested
         @DisplayName("when called with a pre-existing user")
@@ -162,7 +163,7 @@ class UserServiceTest {
                 val updatedUser =
                     expectedUser.apply {
                         displayName = updateUserRequest.displayName
-                        timeZoneId = updateUserRequest.timeZoneId.toInt()
+                        timeZoneId = updateUserRequest.timeZoneId
                     }
 
                 whenever(userRepositoryMock.findById(expectedUser.userId!!))
@@ -173,7 +174,7 @@ class UserServiceTest {
                     UserResponse(
                         expectedUser.userId!!,
                         updateUserRequest.displayName,
-                        updateUserRequest.timeZoneId.toInt(),
+                        updateUserRequest.timeZoneId,
                         expectedUser.discordId,
                         expectedUser.discordAvatarHash,
                     )
@@ -195,6 +196,21 @@ class UserServiceTest {
 
                 assertThrows(UserNotFoundException::class.java) {
                     userService.updateUser(updateUserRequest, expectedUser.userId.toString())
+                }
+            }
+        }
+
+        @Nested
+        @DisplayName("when called with an invalid timezone")
+        inner class InvalidTimeZone() {
+            @Test
+            fun `should throw IllegalArgumentException`() {
+                val updateRequestWithInvalidTimeZone = updateUserRequest.copy(timeZoneId = "test")
+                assertThrows(IllegalArgumentException::class.java) {
+                    userService.updateUser(
+                        updateRequestWithInvalidTimeZone,
+                        expectedUser.userId.toString(),
+                    )
                 }
             }
         }
