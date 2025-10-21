@@ -8,7 +8,7 @@ import iterative.harmony.backend.model.User
 import iterative.harmony.backend.repository.RoleRepository
 import iterative.harmony.backend.repository.UserRepository
 import iterative.harmony.backend.util.RoleConstants
-import java.time.ZoneId
+import iterative.harmony.backend.util.Utils
 import java.util.*
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
@@ -57,7 +57,7 @@ class UserService {
     }
 
     fun updateUser(updateUserRequest: UpdateUserRequest, userId: String): UserResponse {
-        verifyTimeZone(updateUserRequest.timeZoneId)
+        Utils().verifyTimeZone(updateUserRequest.timeZoneId)
         val userFromDB = userRepository.findById(UUID.fromString(userId))
 
         if (userFromDB.isPresent) {
@@ -70,14 +70,6 @@ class UserService {
         }
 
         throw UserNotFoundException(userId)
-    }
-
-    private fun verifyTimeZone(timeZone: String) {
-        try {
-            ZoneId.of(timeZone)
-        } catch (ex: Exception) {
-            throw IllegalArgumentException("Invalid timeZoneId supplied", ex)
-        }
     }
 
     private fun mapToUserResponse(user: User): UserResponse {

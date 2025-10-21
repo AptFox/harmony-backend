@@ -1,0 +1,72 @@
+package iterative.harmony.backend.controller
+
+import iterative.harmony.backend.controller.dto.AvailabilityExceptionRequest
+import iterative.harmony.backend.controller.dto.AvailabilityExceptionResponse
+import iterative.harmony.backend.controller.dto.AvailabilityResponse
+import iterative.harmony.backend.controller.dto.WeeklyAvailabilityResponse
+import iterative.harmony.backend.controller.dto.WeeklyAvailabilitySlotRequest
+import iterative.harmony.backend.service.AvailabilityService
+import iterative.harmony.backend.util.RoleConstants
+import iterative.harmony.backend.util.getLogger
+import jakarta.validation.Valid
+import java.security.Principal
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.http.HttpStatus
+import org.springframework.http.ResponseEntity
+import org.springframework.security.access.prepost.PreAuthorize
+import org.springframework.validation.annotation.Validated
+import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RestController
+
+@RestController
+@RequestMapping("/api/availability")
+@Validated
+class AvailabilityController {
+    private val log = getLogger()
+    @Autowired private lateinit var availabilityService: AvailabilityService
+
+    @PreAuthorize("hasRole('${RoleConstants.USER_ROLE}')")
+    @GetMapping("/@me")
+    fun getUser(principal: Principal): AvailabilityResponse {
+        log.info("getting availability and exceptions")
+
+        return availabilityService.getCurrentUserAvailability(principal.name)
+    }
+
+    @PreAuthorize("hasRole('${RoleConstants.USER_ROLE}')")
+    @PostMapping("/weekly")
+    fun addWeeklyAvailability(
+        @Valid @RequestBody slots: List<WeeklyAvailabilitySlotRequest>,
+        principal: Principal,
+    ): ResponseEntity<WeeklyAvailabilityResponse> {
+        log.info("setting weekly availability")
+        if (slots.isEmpty())
+            throw IllegalArgumentException("Request must contain at least 1 WeeklyAvailabilitySlot")
+        if (slots.size > 112)
+            throw IllegalArgumentException(
+                "Request must contain 112 or less WeeklyAvailabilitySlots"
+            )
+
+        val response = availabilityService.overwriteWeeklyAvailability(principal.name, slots)
+        val status = if (!response.errors.isNullOrEmpty()) HttpStatus.BAD_REQUEST else HttpStatus.OK
+
+        return ResponseEntity.status(status).body(response)
+    }
+
+    @PreAuthorize("hasRole('${RoleConstants.USER_ROLE}')")
+    @PostMapping("/exceptions")
+    fun addAvailabilityException(
+        @Valid @RequestBody exception: AvailabilityExceptionRequest,
+        principal: Principal,
+    ): ResponseEntity<AvailabilityExceptionResponse> {
+        log.info("setting availability exception")
+
+        val response = availabilityService.addAvailabilityException(principal.name, exception)
+        val status = if (!response.errors.isNullOrEmpty()) HttpStatus.BAD_REQUEST else HttpStatus.OK
+
+        return ResponseEntity.status(status).body(response)
+    }
+}

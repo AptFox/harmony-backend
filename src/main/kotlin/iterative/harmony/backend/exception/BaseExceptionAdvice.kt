@@ -3,9 +3,14 @@ package iterative.harmony.backend.exception
 import io.jsonwebtoken.JwtException
 import io.sentry.Sentry
 import iterative.harmony.backend.util.getLogger
+import jakarta.validation.ConstraintViolationException
+import kotlin.collections.mapOf
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.core.env.Environment
 import org.springframework.http.HttpStatus
+import org.springframework.http.ResponseEntity
+import org.springframework.http.converter.HttpMessageNotReadableException
+import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestControllerAdvice
@@ -63,6 +68,43 @@ class BaseExceptionAdvice {
     fun unauthorizedExceptionHandler(ex: RuntimeException): String? {
         logException(ex)
         return null
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException::class)
+    fun handleMethodArgumentNotValid(
+        ex: MethodArgumentNotValidException
+    ): ResponseEntity<Map<String, List<String?>>> {
+        val errors =
+            ex.bindingResult.allErrors.map { error ->
+                val field = error.code ?: error.objectName
+                "$field: ${error.defaultMessage}"
+            }
+        return ResponseEntity.badRequest().body(mapOf("errors" to errors))
+    }
+
+    @ExceptionHandler(ConstraintViolationException::class)
+    fun handleConstraintViolation(
+        ex: ConstraintViolationException
+    ): ResponseEntity<Map<String, List<String>>> {
+
+        val errors =
+            ex.constraintViolations.map { violation ->
+                val path = violation.propertyPath.toString()
+                val message = violation.message
+                val field = path.substringAfterLast('.')
+
+                "Input Validation Error: $field (${path}): $message"
+            }
+
+        return ResponseEntity.badRequest().body(mapOf("errors" to errors))
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException::class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    fun handleParsingError(
+        ex: HttpMessageNotReadableException
+    ): ResponseEntity<Map<String, String>?> {
+        return ResponseEntity.badRequest().body(mapOf("errorMsg" to ex.message.toString()))
     }
 
     @ExceptionHandler(Exception::class)
