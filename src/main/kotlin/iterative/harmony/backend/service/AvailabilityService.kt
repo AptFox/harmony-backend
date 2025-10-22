@@ -46,7 +46,11 @@ class AvailabilityService {
         return AvailabilityResponse(weeklyAvailabilitySlots, availabilityExceptions)
     }
 
-    // TODO: add method for deleting weeklyAvailability
+    fun deleteWeeklyAvailability(userId: String) {
+        log.info("Deleting weekly availability slots")
+        val uuid = UUID.fromString(userId)
+        weeklyAvailabilitySlotRepository.deleteAllByUserId(uuid)
+    }
 
     fun overwriteWeeklyAvailability(
         userId: String,
@@ -195,6 +199,9 @@ class AvailabilityService {
         if (duration >= ONE_DAY) errorMsg.add(MORE_THAN_24_HOURS)
     }
 
-    // TODO: add a method for deleting an availabilityException using ID
-
+    fun deleteAvailabilityException(userId: String, exceptionId: Long) {
+        log.info("Deleting availability exception: $exceptionId")
+        val uuid = UUID.fromString(userId)
+        availabilityExceptionRepository.deleteByIdAndUserId(exceptionId, uuid)
+    }
 }
