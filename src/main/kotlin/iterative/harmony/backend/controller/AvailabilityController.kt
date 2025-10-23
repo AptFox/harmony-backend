@@ -32,7 +32,7 @@ class AvailabilityController {
 
     @PreAuthorize("hasRole('${RoleConstants.USER_ROLE}')")
     @GetMapping("/@me")
-    fun getUser(principal: Principal): AvailabilityResponse {
+    fun getUserAvailability(principal: Principal): AvailabilityResponse {
         log.info("getting availability and exceptions")
 
         return availabilityService.getCurrentUserAvailability(principal.name)

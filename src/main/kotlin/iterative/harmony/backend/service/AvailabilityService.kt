@@ -104,45 +104,38 @@ class AvailabilityService {
         return slotErrors
     }
 
-    fun mergeOverlappingSlots(
+    private fun mergeOverlappingSlots(
         slots: List<WeeklyAvailabilitySlotRequest>
     ): List<WeeklyAvailabilitySlotRequest> {
-        val daysToSlotsMap = mutableMapOf<String, List<WeeklyAvailabilitySlotRequest>>()
-        for (day in DAYS_OF_WEEK) {
-            log.info("Collecting slots for: $day")
-            val slotsForDay = slots.filter { slot -> slot.dayOfWeek == day }
-            if (slotsForDay.isEmpty()) {
-                log.info("no slots found for $day")
-                continue
-            }
-            if (slotsForDay.size > 16) throw IllegalArgumentException("Too many slots supplied")
+        val mergedSlots =
+            slots
+                .groupBy { it.dayOfWeek }
+                .flatMap { (day, slotsForDay) ->
+                    log.info("Merging slots for: $day")
+                    if (slotsForDay.size > 16)
+                        throw IllegalArgumentException("Too many slots supplied")
+                    val sortedSlotsForDay = slotsForDay.sortedBy { slot -> slot.startTime }
+                    val mergedSlotsForDay = mutableListOf(slotsForDay.first())
+                    for (currentSlot in sortedSlotsForDay.drop(1)) {
+                        val lastMergedSlot = mergedSlotsForDay.last()
+                        if (currentSlot.startTime <= lastMergedSlot.endTime) {
+                            log.info("Overlapping slots detected for $day")
+                            val newEndTime =
+                                if (currentSlot.endTime.isAfter(lastMergedSlot.endTime)) {
+                                    currentSlot.endTime
+                                } else {
+                                    lastMergedSlot.endTime
+                                }
+                            val mergedSlot = lastMergedSlot.copy(endTime = newEndTime)
 
-            val sortedSlotsForDay = slotsForDay.sortedBy { slot -> slot.startTime }
-            daysToSlotsMap.put(day, sortedSlotsForDay)
-        }
-
-        return daysToSlotsMap.flatMap { (day, sortedSlotsForDay) ->
-            log.info("Merging slots for: $day")
-            val mergedSlotsForDay = mutableListOf(sortedSlotsForDay.first())
-            for (currentSlot in sortedSlotsForDay.drop(1)) {
-                val lastMergedSlot = mergedSlotsForDay.last()
-                if (currentSlot.startTime <= lastMergedSlot.endTime) {
-                    log.info("Overlapping slots detected for $day")
-                    val newEndTime =
-                        if (currentSlot.endTime.isAfter(lastMergedSlot.endTime)) {
-                            currentSlot.endTime
+                            mergedSlotsForDay[mergedSlotsForDay.lastIndex] = mergedSlot
                         } else {
-                            lastMergedSlot.endTime
+                            mergedSlotsForDay.add(currentSlot)
                         }
-                    val mergedSlot = lastMergedSlot.copy(endTime = newEndTime)
-
-                    mergedSlotsForDay[mergedSlotsForDay.lastIndex] = mergedSlot
-                } else {
-                    mergedSlotsForDay.add(currentSlot)
+                    }
+                    mergedSlotsForDay
                 }
-            }
-            mergedSlotsForDay
-        }
+        return mergedSlots
     }
 
     fun addAvailabilityException(
