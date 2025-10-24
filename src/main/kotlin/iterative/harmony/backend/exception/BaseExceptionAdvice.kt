@@ -77,7 +77,7 @@ class BaseExceptionAdvice {
         val errors =
             ex.bindingResult.allErrors.map { error ->
                 val field = error.code ?: error.objectName
-                "$field: ${error.defaultMessage}"
+                "Input Validation Error: $field: ${error.defaultMessage}"
             }
         return ResponseEntity.badRequest().body(mapOf("errors" to errors))
     }
@@ -104,7 +104,8 @@ class BaseExceptionAdvice {
     fun handleParsingError(
         ex: HttpMessageNotReadableException
     ): ResponseEntity<Map<String, String>?> {
-        return ResponseEntity.badRequest().body(mapOf("errorMsg" to ex.message.toString()))
+        val errorMsg = "Input Validation Error: ${ex.message.toString()}"
+        return ResponseEntity.badRequest().body(mapOf("errorMsg" to errorMsg))
     }
 
     @ExceptionHandler(Exception::class)
