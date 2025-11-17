@@ -113,7 +113,7 @@ class AvailabilityService {
                 log.info("Merging slots for: $day")
                 if (slotsForDay.size > 16) throw IllegalArgumentException("Too many slots supplied")
                 val sortedSlotsForDay = slotsForDay.sortedBy { slot -> slot.startTime }
-                val mergedSlotsForDay = mutableListOf(slotsForDay.first())
+                val mergedSlotsForDay = mutableListOf(sortedSlotsForDay.first())
                 for (currentSlot in sortedSlotsForDay.drop(1)) {
                     val lastMergedSlot = mergedSlotsForDay.last()
                     if (currentSlot.startTime <= lastMergedSlot.endTime) {

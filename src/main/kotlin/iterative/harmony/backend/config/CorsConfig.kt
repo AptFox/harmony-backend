@@ -14,10 +14,11 @@ class CorsConfig {
     fun corsConfigurationSource(): UrlBasedCorsConfigurationSource {
         val configuration = CorsConfiguration()
         configuration.allowedOrigins = listOf(frontEndBaseUrl)
-        configuration.allowedMethods = listOf("GET", "POST", "PUT")
+        configuration.allowedMethods = listOf("GET", "POST", "PUT", "DELETE")
         configuration.allowedHeaders =
             listOf("Authorization", "Content-Type", "Cookie", "User-Agent", "Initial-Login")
         configuration.allowCredentials = true
+        configuration.maxAge = 3600L
 
         val source = UrlBasedCorsConfigurationSource()
         source.registerCorsConfiguration("/**", configuration)
