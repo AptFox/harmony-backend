@@ -15,5 +15,5 @@ data class AvailabilityException(
     val playerId: Long? = null,
     val startTime: Instant,
     val endTime: Instant,
-    val comment: String,
+    val comment: String?,
 )

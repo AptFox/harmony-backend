@@ -14,9 +14,9 @@ data class AvailabilityExceptionRequest(
     @field:Future(message = "endTime must be in the future")
     val endTime: Instant,
     @field:Pattern(
-        regexp = "^[a-zA-Z0-9\\s.,]+$",
+        regexp = "^[a-zA-Z0-9\\s.,']+$",
         message = "comments can only be alpha-numeric with spaces",
     )
     @field:Size(max = 255, message = "comment must not exceed 255 characters")
-    val comment: String,
+    val comment: String?,
 )
