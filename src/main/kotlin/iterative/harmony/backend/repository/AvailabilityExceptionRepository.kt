@@ -10,9 +10,14 @@ import org.springframework.transaction.annotation.Transactional
 
 @Repository
 interface AvailabilityExceptionRepository : JpaRepository<AvailabilityException, Long> {
-    fun findAllByUserId(userId: UUID): List<AvailabilityException>
 
-    fun findAllByPlayerId(playerId: Long): List<AvailabilityException>
+    fun findAllByUserIdAndStartTimeIsAfterOrEndTimeIsAfter(
+        userId: UUID,
+        nowStart: Instant,
+        nowEnd: Instant,
+    ): List<AvailabilityException>
+
+    fun findAllByUserIdAndEndTimeIsBefore(userId: UUID, now: Instant): List<AvailabilityException>
 
     fun existsByUserIdAndStartTimeEquals(userId: UUID, startTime: Instant): Boolean
 

@@ -41,8 +41,14 @@ class AvailabilityService {
 
     fun getCurrentUserAvailability(userId: String): AvailabilityResponse {
         val uuid = UUID.fromString(userId)
+        val now = Instant.now()
         val weeklyAvailabilitySlots = weeklyAvailabilitySlotRepository.findAllByUserId(uuid)
-        val availabilityExceptions = availabilityExceptionRepository.findAllByUserId(uuid)
+        val availabilityExceptions =
+            availabilityExceptionRepository.findAllByUserIdAndStartTimeIsAfterOrEndTimeIsAfter(
+                uuid,
+                now,
+                now,
+            )
         return AvailabilityResponse(weeklyAvailabilitySlots, availabilityExceptions)
     }
 
@@ -144,6 +150,9 @@ class AvailabilityService {
         if (requestErrors.isNotEmpty())
             return AvailabilityExceptionResponse(errors = requestErrors.toString())
 
+        log.info("searching for old exceptions")
+        deleteExpiredExceptions(uuid)
+
         val exceptionToSave =
             AvailabilityException(
                 userId = uuid,
@@ -154,6 +163,18 @@ class AvailabilityService {
         log.info("Saving availability exception")
         val exceptionFromDb = availabilityExceptionRepository.save(exceptionToSave)
         return AvailabilityExceptionResponse(exceptionFromDb)
+    }
+
+    private fun deleteExpiredExceptions(userId: UUID) {
+        val now = Instant.now()
+        val expiredAvailabilityExceptions: List<AvailabilityException> =
+            availabilityExceptionRepository.findAllByUserIdAndEndTimeIsBefore(userId, now)
+        if (expiredAvailabilityExceptions.count() > 0) {
+            log.info(
+                "${expiredAvailabilityExceptions.count()} expired exceptions found. Deleting..."
+            )
+            availabilityExceptionRepository.deleteAll(expiredAvailabilityExceptions)
+        }
     }
 
     private fun verifyAvailabilityException(
