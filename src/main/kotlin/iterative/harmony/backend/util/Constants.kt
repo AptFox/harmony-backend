@@ -22,3 +22,16 @@ object SecurityConstants {
     const val ANON_USER_AGENT: String = "anonBrowser"
     const val ANON_REQUEST_IP: String = "0.0.0.0"
 }
+
+object AvailabilityConstants {
+    val DAYS_OF_WEEK = setOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+    val INVALID_DAY_OF_WEEK = "dayOfWeek is not one of $DAYS_OF_WEEK"
+    const val END_TIME_BEFORE_START = "endTime is before startTime"
+    const val SAME_START_AND_END_TIME = "startTime and endTime are the same"
+    const val INVALID_TIME_ZONE_ID = "Invalid timeZoneId"
+    const val LESS_THAN_ONE_HOUR = "availability changes must be >=60 min"
+    const val MORE_THAN_24_HOURS = "availability changes must be <= 24 hours"
+    const val MORE_THAN_90_DAYS_AWAY = "availability exceptions must be within 90 days"
+    const val EXCEPTION_ALREADY_EXISTS =
+        "An availability exception with this start time already exists"
+}

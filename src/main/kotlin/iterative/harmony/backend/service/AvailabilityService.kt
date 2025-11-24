@@ -9,6 +9,15 @@ import iterative.harmony.backend.model.AvailabilityException
 import iterative.harmony.backend.model.WeeklyAvailabilitySlot
 import iterative.harmony.backend.repository.AvailabilityExceptionRepository
 import iterative.harmony.backend.repository.WeeklyAvailabilitySlotRepository
+import iterative.harmony.backend.util.AvailabilityConstants.DAYS_OF_WEEK
+import iterative.harmony.backend.util.AvailabilityConstants.END_TIME_BEFORE_START
+import iterative.harmony.backend.util.AvailabilityConstants.EXCEPTION_ALREADY_EXISTS
+import iterative.harmony.backend.util.AvailabilityConstants.INVALID_DAY_OF_WEEK
+import iterative.harmony.backend.util.AvailabilityConstants.INVALID_TIME_ZONE_ID
+import iterative.harmony.backend.util.AvailabilityConstants.LESS_THAN_ONE_HOUR
+import iterative.harmony.backend.util.AvailabilityConstants.MORE_THAN_24_HOURS
+import iterative.harmony.backend.util.AvailabilityConstants.MORE_THAN_90_DAYS_AWAY
+import iterative.harmony.backend.util.AvailabilityConstants.SAME_START_AND_END_TIME
 import iterative.harmony.backend.util.Utils
 import iterative.harmony.backend.util.getLogger
 import java.time.Duration
@@ -28,16 +37,6 @@ class AvailabilityService {
     private val ONE_DAY = Duration.ofDays(1)
     private val ONE_HOUR = Duration.ofHours(1)
     private val THREE_MONTHS = Duration.ofDays(90)
-    private val DAYS_OF_WEEK = setOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
-    private val END_TIME_BEFORE_START = "endTime is before startTime"
-    private val SAME_START_AND_END_TIME = "startTime and endTime are the same"
-    private val INVALID_DAY_OF_WEEK = "dayOfWeek is not one of $DAYS_OF_WEEK"
-    private val INVALID_TIME_ZONE_ID = "Invalid timeZoneId"
-    private val LESS_THAN_ONE_HOUR = "availability changes must be >=60 min"
-    private val MORE_THAN_24_HOURS = "availability changes must be <= 24 hours"
-    private val MORE_THAN_90_DAYS_AWAY = "availability exceptions must be within 90 days"
-    private val EXCEPTION_ALREADY_EXISTS =
-        "An availability exception with this start time already exists"
 
     fun getCurrentUserAvailability(userId: String): AvailabilityResponse {
         val uuid = UUID.fromString(userId)
