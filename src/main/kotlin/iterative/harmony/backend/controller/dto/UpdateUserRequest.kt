@@ -22,4 +22,5 @@ data class UpdateUserRequest(
         message = "timeZoneId must be in a valid IANA format (e.g., 'America/New_York').",
     )
     val timeZoneId: String,
+    val twelveHourClock: Boolean = true,
 )

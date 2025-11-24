@@ -76,6 +76,7 @@ class UserService {
         return UserResponse(
             user.userId!!,
             user.displayName,
+            user.twelveHourClock,
             user.timeZoneId,
             user.discordId,
             user.discordAvatarHash,
