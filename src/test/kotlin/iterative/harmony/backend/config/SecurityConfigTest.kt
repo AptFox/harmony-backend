@@ -51,7 +51,7 @@ class SecurityConfigTest {
         val userId = UUID.fromString("306420e2-5f30-4070-a5c1-b9961bf10ef4")
         val accessTokenString = "valid JWT token"
         val expectedUser =
-            UserResponse(userId, "expectedUser", "America/New_York", "123456", "1234567")
+            UserResponse(userId, "expectedUser", true, "America/New_York", "123456", "1234567")
 
         whenever(userService.getCurrentUser(any())).thenReturn(expectedUser)
         val authorities = listOf(SimpleGrantedAuthority(USER_ROLE))

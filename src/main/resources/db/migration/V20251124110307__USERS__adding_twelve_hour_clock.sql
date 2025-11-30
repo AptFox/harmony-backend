@@ -1,0 +1,1 @@
+ALTER TABLE users ADD COLUMN twelve_hour_clock BOOLEAN DEFAULT TRUE;

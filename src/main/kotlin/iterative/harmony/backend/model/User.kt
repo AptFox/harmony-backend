@@ -13,6 +13,7 @@ data class User(
     val userId: UUID? = null,
     val username: String,
     var displayName: String,
+    var twelveHourClock: Boolean = true,
     val discordId: String,
     var discordAvatarHash: String,
     var timeZoneId: String?,

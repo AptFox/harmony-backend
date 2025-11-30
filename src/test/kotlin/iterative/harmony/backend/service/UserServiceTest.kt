@@ -36,7 +36,7 @@ class UserServiceTest {
     private val userRole = Role(1, RoleConstants.USER_ROLE, "The default role for a user")
     private val userRoles = listOf(userRole.name)
     private val expectedUser =
-        User(uuid, "username", "username", "1", "123456", null, setOf(userRole))
+        User(uuid, "username", "username", true, "1", "123456", null, setOf(userRole))
 
     @Nested
     @DisplayName("getOrCreateUser")
@@ -127,6 +127,7 @@ class UserServiceTest {
                 UserResponse(
                     uuid,
                     expectedUser.displayName,
+                    expectedUser.twelveHourClock,
                     expectedUser.timeZoneId,
                     expectedUser.discordId,
                     expectedUser.discordAvatarHash,
@@ -174,6 +175,7 @@ class UserServiceTest {
                     UserResponse(
                         expectedUser.userId!!,
                         updateUserRequest.displayName,
+                        updateUserRequest.twelveHourClock,
                         updateUserRequest.timeZoneId,
                         expectedUser.discordId,
                         expectedUser.discordAvatarHash,
