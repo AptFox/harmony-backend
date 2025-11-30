@@ -6,6 +6,7 @@ import iterative.harmony.backend.util.SecurityConstants.ANON_USER_ID
 import jakarta.servlet.http.HttpServletRequest
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
+import java.time.ZoneId
 import java.util.*
 import org.springframework.security.core.context.SecurityContextHolder
 
@@ -63,5 +64,13 @@ class Utils {
     fun generateUserAgentFingerprint(request: HttpServletRequest): String {
         val uniqueUserAgent = getUserAgentFromRequest(request)
         return generateFingerprint(uniqueUserAgent)
+    }
+
+    fun verifyTimeZone(timeZone: String) {
+        try {
+            ZoneId.of(timeZone)
+        } catch (ex: Exception) {
+            throw IllegalArgumentException("Invalid timeZone supplied", ex)
+        }
     }
 }

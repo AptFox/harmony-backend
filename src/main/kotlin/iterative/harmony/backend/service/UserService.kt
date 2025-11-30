@@ -8,6 +8,7 @@ import iterative.harmony.backend.model.User
 import iterative.harmony.backend.repository.RoleRepository
 import iterative.harmony.backend.repository.UserRepository
 import iterative.harmony.backend.util.RoleConstants
+import iterative.harmony.backend.util.Utils
 import java.util.*
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
@@ -28,7 +29,7 @@ class UserService {
                     displayName = discordUser.username,
                     discordId = discordUser.id,
                     discordAvatarHash = discordUser.avatarHash,
-                    timeZoneId = 0,
+                    timeZoneId = null,
                     roles = setOf(userRole),
                 )
             return userRepository.save(newUser)
@@ -56,13 +57,14 @@ class UserService {
     }
 
     fun updateUser(updateUserRequest: UpdateUserRequest, userId: String): UserResponse {
+        Utils().verifyTimeZone(updateUserRequest.timeZoneId)
         val userFromDB = userRepository.findById(UUID.fromString(userId))
 
         if (userFromDB.isPresent) {
             val userToUpdate =
                 userFromDB.get().apply {
                     displayName = updateUserRequest.displayName
-                    timeZoneId = updateUserRequest.timeZoneId.toInt()
+                    timeZoneId = updateUserRequest.timeZoneId
                 }
             return mapToUserResponse(userRepository.save(userToUpdate))
         }
@@ -74,6 +76,7 @@ class UserService {
         return UserResponse(
             user.userId!!,
             user.displayName,
+            user.twelveHourClock,
             user.timeZoneId,
             user.discordId,
             user.discordAvatarHash,

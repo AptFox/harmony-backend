@@ -92,4 +92,14 @@ class UtilsTest {
 
         assertEquals(expected, actual)
     }
+
+    @Test
+    fun `verifyTimeZone throws an exception if supplied an invalid time zone`() {
+        assertThrows(IllegalArgumentException::class.java, { Utils().verifyTimeZone("taco") })
+    }
+
+    @Test
+    fun `verifyTimeZone does not throw an exception if supplied a valid time zone`() {
+        assertDoesNotThrow({ Utils().verifyTimeZone("America/New_York") })
+    }
 }
