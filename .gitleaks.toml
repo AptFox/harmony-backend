@@ -1,0 +1,14 @@
+title = "harmony-backend gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "false positives"
+
+# false positives from test files
+commits = [
+    "a85cdb4f9b92d9bffb1378818ff2f2b280cc38a5",
+    "dcaa1f8efc43e6845d5da3e1fc76fcf09c327265",
+    "df7cd11a401ab5f2a51199679352e9ab4ed0d2cc",
+]
