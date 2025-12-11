@@ -13,6 +13,8 @@ jobs:
       # Step 1: Checkout the code
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
       # Step 2: Set up the environment
       - name: Set up Java
@@ -22,10 +24,13 @@ jobs:
           distribution: 'temurin'
 
       # Step 3: check for secret leaks
-      - name: Gitleaks
-        uses: gitleaks/gitleaks-action@v2.3.9
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download and install the gitleaks binary
+        run: |
+          curl -sL https://github.com/gitleaks/gitleaks/releases/download/v8.30.0/gitleaks_8.30.0_linux_x64.tar.gz | tar xz
+          sudo mv gitleaks /usr/local/bin/
+
+      - name: Run gitleaks scan
+        run: gitleaks detect --exit-code 1 --verbose
 
       # Step 4: Run linter (ktfmt)
       - name: Run ktfmt
