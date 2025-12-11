@@ -28,18 +28,13 @@
 							"type": "jwt",
 							"jwt": [
 								{
-									"key": "payload",
-									"value": "{\n  \"sub\": \"2a15d87d-99a3-4611-80f3-d7efd27e53a1\",\n  \"username\": \"SomeUser\",\n  \"roles\": [\"USER\"],\n  \"iat\": 1710000000,\n  \"exp\": 1710000600\n}",
-									"type": "string"
-								},
-								{
 									"key": "secret",
 									"value": "{{jwt_secret}}",
 									"type": "string"
 								},
 								{
-									"key": "algorithm",
-									"value": "HS256",
+									"key": "headerPrefix",
+									"value": "Bearer",
 									"type": "string"
 								},
 								{
@@ -53,8 +48,13 @@
 									"type": "string"
 								},
 								{
-									"key": "headerPrefix",
-									"value": "Bearer",
+									"key": "payload",
+									"value": "{\n  \"sub\": \"2a15d87d-99a3-4611-80f3-d7efd27e53a1\",\n  \"username\": \"SomeUser\",\n  \"roles\": [\"USER\"],\n  \"iat\": 1710000000,\n  \"exp\": 1710000600\n}",
+									"type": "string"
+								},
+								{
+									"key": "algorithm",
+									"value": "HS256",
 									"type": "string"
 								},
 								{
@@ -87,6 +87,18 @@
 				},
 				{
 					"name": "/favicon.ico",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
 					"request": {
 						"method": "GET",
 						"header": [],
@@ -101,107 +113,546 @@
 						}
 					},
 					"response": []
+				},
+				{
+					"name": "/.git",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{backend_url}}/.git",
+							"host": [
+								"{{backend_url}}"
+							],
+							"path": [
+								".git"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"type": "text/javascript",
+						"packages": {},
+						"exec": [
+							"pm.collectionVariables.set(\"skip\", true)"
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"packages": {},
+						"exec": [
+							""
+						]
+					}
 				}
 			]
 		},
 		{
-			"name": "trigger discord oauth redirect (doesn't work)",
-			"event": [
+			"name": "user endpoints",
+			"item": [
 				{
-					"listen": "test",
-					"script": {
-						"exec": [
-							""
-						],
-						"type": "text/javascript",
-						"packages": {}
-					}
-				}
-			],
-			"protocolProfileBehavior": {
-				"followRedirects": true
-			},
-			"request": {
-				"auth": {
-					"type": "noauth"
-				},
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "{{backend_url}}/oauth2/authorization/discord",
-					"host": [
-						"{{backend_url}}"
-					],
-					"path": [
-						"oauth2",
-						"authorization",
-						"discord"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "/api/user/@me",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"exec": [
-							""
-						],
-						"type": "text/javascript",
-						"packages": {}
-					}
-				}
-			],
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "{{backend_url}}/api/user/@me",
-					"host": [
-						"{{backend_url}}"
-					],
-					"path": [
-						"api",
-						"user",
-						"@me"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "/api/user/@me",
-			"request": {
-				"method": "PUT",
-				"header": [],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n    \"displayName\": \"SomeUser\",\n    \"timeZoneId\": 1\n}",
-					"options": {
-						"raw": {
-							"language": "json"
+					"name": "/api/user/@me",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var i = !pm.variables.get(\"i\") ? 1 : pm.variables.get(\"i\");",
+									"if (i < 5) {",
+									"    pm.variables.set(\"i\", ++i);",
+									"    pm.execution.setNextRequest(pm.info.requestName);",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
 						}
-					}
-				},
-				"url": {
-					"raw": "{{backend_url}}/api/user/@me",
-					"host": [
-						"{{backend_url}}"
 					],
-					"path": [
-						"api",
-						"user",
-						"@me"
-					]
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{backend_url}}/api/user/@me",
+							"host": [
+								"{{backend_url}}"
+							],
+							"path": [
+								"api",
+								"user",
+								"@me"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/api/user/@me",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"displayName\": \"AptFox\",\n    \"timeZoneId\": \"America/New_York\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{backend_url}}/api/user/@me",
+							"host": [
+								"{{backend_url}}"
+							],
+							"path": [
+								"api",
+								"user",
+								"@me"
+							]
+						}
+					},
+					"response": []
 				}
-			},
-			"response": []
+			]
 		},
 		{
-			"name": "/",
+			"name": "auth endpoints",
+			"item": [
+				{
+					"name": "trigger discord oauth redirect (doesn't work)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"followRedirects": true
+					},
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{backend_url}}/oauth2/authorization/discord",
+							"host": [
+								"{{backend_url}}"
+							],
+							"path": [
+								"oauth2",
+								"authorization",
+								"discord"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/auth/refresh_token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"updating tokens\", () => {",
+									"    var response = pm.response.json();",
+									"    var harmonyAccessToken = response.harmony_access_token;",
+									"",
+									"    console.log(\"setting new access token: \"+ harmonyAccessToken);",
+									"    pm.environment.set(\"access_token\", harmonyAccessToken);",
+									"",
+									"    ",
+									"    var refreshTokenCookie = pm.cookies.get(\"harmony_refresh_token\");",
+									"",
+									"    console.log(\"setting new refresh token: \"+ refreshTokenCookie);",
+									"    pm.environment.set(\"refresh_token\", refreshTokenCookie);",
+									"})"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Cookie",
+								"value": "harmony_refresh_token={{refresh_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{backend_url}}/auth/refresh_token",
+							"host": [
+								"{{backend_url}}"
+							],
+							"path": [
+								"auth",
+								"refresh_token"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/auth/logout",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Cookie",
+								"value": "harmony_refresh_token={{refresh_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{backend_url}}/auth/logout",
+							"host": [
+								"{{backend_url}}"
+							],
+							"path": [
+								"auth",
+								"logout"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "availability endpoints",
+			"item": [
+				{
+					"name": "api/availability/@me",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{backend_url}}/api/availability/@me",
+							"host": [
+								"{{backend_url}}"
+							],
+							"path": [
+								"api",
+								"availability",
+								"@me"
+							]
+						}
+					},
+					"response": [
+						{
+							"name": "api/availability/@me",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{backend_url}}/api/availability/@me",
+									"host": [
+										"{{backend_url}}"
+									],
+									"path": [
+										"api",
+										"availability",
+										"@me"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": null,
+							"header": [
+								{
+									"key": "Vary",
+									"value": "Origin"
+								},
+								{
+									"key": "Vary",
+									"value": "Access-Control-Request-Method"
+								},
+								{
+									"key": "Vary",
+									"value": "Access-Control-Request-Headers"
+								},
+								{
+									"key": "X-Content-Type-Options",
+									"value": "nosniff"
+								},
+								{
+									"key": "X-XSS-Protection",
+									"value": "0"
+								},
+								{
+									"key": "Cache-Control",
+									"value": "no-cache, no-store, max-age=0, must-revalidate"
+								},
+								{
+									"key": "Pragma",
+									"value": "no-cache"
+								},
+								{
+									"key": "Expires",
+									"value": "0"
+								},
+								{
+									"key": "X-Frame-Options",
+									"value": "DENY"
+								},
+								{
+									"key": "Content-Security-Policy",
+									"value": "default-src 'none'; connect-src 'self' http://localhost:3000;"
+								},
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								},
+								{
+									"key": "Transfer-Encoding",
+									"value": "chunked"
+								},
+								{
+									"key": "Date",
+									"value": "Fri, 31 Oct 2025 15:10:55 GMT"
+								},
+								{
+									"key": "Keep-Alive",
+									"value": "timeout=60"
+								},
+								{
+									"key": "Connection",
+									"value": "keep-alive"
+								}
+							],
+							"cookie": [],
+							"body": "{\n    \"weeklyAvailabilitySlots\": [\n        {\n            \"id\": 58,\n            \"userId\": \"2a15d87d-99a3-4611-80f3-d7efd27e53a1\",\n            \"playerId\": null,\n            \"dayOfWeek\": \"Mon\",\n            \"startTime\": \"13:45:30\",\n            \"endTime\": \"23:59:59\",\n            \"timeZoneId\": \"America/New_York\"\n        },\n        {\n            \"id\": 59,\n            \"userId\": \"2a15d87d-99a3-4611-80f3-d7efd27e53a1\",\n            \"playerId\": null,\n            \"dayOfWeek\": \"Sun\",\n            \"startTime\": \"09:00:00\",\n            \"endTime\": \"17:02:17\",\n            \"timeZoneId\": \"America/New_York\"\n        }\n    ],\n    \"availabilityExceptions\": [\n        {\n            \"id\": 2,\n            \"userId\": \"2a15d87d-99a3-4611-80f3-d7efd27e53a1\",\n            \"playerId\": null,\n            \"startTime\": \"2025-11-02T06:00:00.421Z\",\n            \"endTime\": \"2025-11-02T08:05:35.421Z\",\n            \"comment\": \"endTime is 8 hours after startTime\"\n        },\n        {\n            \"id\": 3,\n            \"userId\": \"2a15d87d-99a3-4611-80f3-d7efd27e53a1\",\n            \"playerId\": null,\n            \"startTime\": \"2025-10-27T17:00:00.421Z\",\n            \"endTime\": \"2025-10-27T23:30:35.421Z\",\n            \"comment\": \"endTime is 8 hours after startTime\"\n        },\n        {\n            \"id\": 4,\n            \"userId\": \"2a15d87d-99a3-4611-80f3-d7efd27e53a1\",\n            \"playerId\": null,\n            \"startTime\": \"2025-10-31T13:00:00.421Z\",\n            \"endTime\": \"2025-10-31T23:30:35.421Z\",\n            \"comment\": \"endTime is 8 hours after startTime\"\n        }\n    ]\n}"
+						}
+					]
+				},
+				{
+					"name": "api/availability/weekly",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "[\n    {\n        \"dayOfWeek\": \"Mon\",\n        \"startTime\": \"13:45:30\",\n        \"endTime\": \"23:59:59\",\n        \"timeZoneId\": \"America/New_York\"\n    },\n    {\n        \"dayOfWeek\": \"Tue\",\n        \"startTime\": \"17:45:30\",\n        \"endTime\": \"22:00:59\",\n        \"timeZoneId\": \"America/New_York\"\n    },\n    {\n        \"dayOfWeek\": \"Wed\",\n        \"startTime\": \"17:30:00\",\n        \"endTime\": \"22:00:00\",\n        \"timeZoneId\": \"America/New_York\"\n    },\n    {\n        \"dayOfWeek\": \"Wed\",\n        \"startTime\": \"11:30:00\",\n        \"endTime\": \"12:30:00\",\n        \"timeZoneId\": \"America/New_York\"\n    },\n    {\n        \"dayOfWeek\": \"Thu\",\n        \"startTime\": \"17:45:30\",\n        \"endTime\": \"22:00:59\",\n        \"timeZoneId\": \"America/New_York\"\n    },\n    {\n        \"dayOfWeek\": \"Sat\",\n        \"startTime\": \"11:00\",\n        \"endTime\": \"23:59:59\",\n        \"timeZoneId\": \"America/New_York\"\n    },\n    {\n        \"dayOfWeek\": \"Sun\",\n        \"startTime\": \"09:00\",\n        \"endTime\": \"10:59:59\",\n        \"timeZoneId\": \"America/New_York\"\n    },\n    {\n        \"dayOfWeek\": \"Sun\",\n        \"startTime\": \"12:00\",\n        \"endTime\": \"17:02:17\",\n        \"timeZoneId\": \"America/New_York\"\n    }\n]",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{backend_url}}/api/availability/weekly",
+							"host": [
+								"{{backend_url}}"
+							],
+							"path": [
+								"api",
+								"availability",
+								"weekly"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "api/availability/weekly",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{backend_url}}/api/availability/weekly",
+							"host": [
+								"{{backend_url}}"
+							],
+							"path": [
+								"api",
+								"availability",
+								"weekly"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "api/availability/weekly (overlapping)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "[\n    {\n        \"dayOfWeek\": \"Mon\",\n        \"startTime\": \"13:45:30\",\n        \"endTime\": \"23:59:59\",\n        \"timeZoneId\": \"America/New_York\"\n    },\n    {\n        \"dayOfWeek\": \"Mon\",\n        \"startTime\": \"13:45:30\",\n        \"endTime\": \"23:59:59\",\n        \"timeZoneId\": \"America/New_York\"\n    },\n    {\n        \"dayOfWeek\": \"Mon\",\n        \"startTime\": \"09:45:30\",\n        \"endTime\": \"23:59:59\",\n        \"timeZoneId\": \"America/New_York\"\n    },\n    {\n        \"dayOfWeek\": \"Mon\",\n        \"startTime\": \"06:45:30\",\n        \"endTime\": \"10:59:59\",\n        \"timeZoneId\": \"America/New_York\"\n    },\n    {\n        \"dayOfWeek\": \"Sun\",\n        \"startTime\": \"09:00\",\n        \"endTime\": \"12:59:59\",\n        \"timeZoneId\": \"America/New_York\"\n    },\n    {\n        \"dayOfWeek\": \"Sun\",\n        \"startTime\": \"12:00\",\n        \"endTime\": \"17:02:17\",\n        \"timeZoneId\": \"America/New_York\"\n    }\n]",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{backend_url}}/api/availability/weekly",
+							"host": [
+								"{{backend_url}}"
+							],
+							"path": [
+								"api",
+								"availability",
+								"weekly"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "api/availability/weekly (bad request)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "[\n    // Bad startTime format\n    // {\n    //     \"dayOfWeek\": \"Mon\",\n    //     \"startTime\": \"13:45,30\",\n    //     \"endTime\": \"23:59:59\",\n    //     \"timeZoneId\": \"America/New_York\"\n    // },\n    // Bad time zone\n    // {\n    //     \"dayOfWeek\": \"Tue\",\n    //     \"startTime\": \"17:45:30\",\n    //     \"endTime\": \"22:00:59\",\n    //     \"timeZoneId\": \"1America/New_York 1\"\n    // },\n    // bad startTime\n    // {\n    //     \"dayOfWeek\": \"Thu\",\n    //     \"startTime\": \"7:45:30\",\n    //     \"endTime\": \"22:00:59\",\n    //     \"timeZoneId\": \"America/New_York\"\n    // },\n    // Same startTime and endTime\n    // {\n    //     \"dayOfWeek\": \"Mon\",\n    //     \"startTime\": \"13:45:30\",\n    //     \"endTime\": \"13:45:30\",\n    //     \"timeZoneId\": \"America/New_York\"\n    // },\n    // // endTime before startTime\n    // {\n    //     \"dayOfWeek\": \"Mon\",\n    //     \"startTime\": \"13:45:30\",\n    //     \"endTime\": \"10:45:30\",\n    //     \"timeZoneId\": \"America/New_York\"\n    // },\n    // bad dayOfWeek\n    {\n        \"dayOfWeek\": \"XXX\",\n        \"startTime\": \"11:00\",\n        \"endTime\": \"23:59:59\",\n        \"timeZoneId\": \"America/New_York\"\n    },\n    {\n        \"dayOfWeek\": \"Sun\",\n        \"startTime\": \"09:00\",\n        \"endTime\": \"10:59:59\",\n        \"timeZoneId\": \"America/New_York\"\n    },\n    {\n        \"dayOfWeek\": \"Sun\",\n        \"startTime\": \"12:00\",\n        \"endTime\": \"17:02:17\",\n        \"timeZoneId\": \"America/New_York\"\n    }\n]",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{backend_url}}/api/availability/weekly",
+							"host": [
+								"{{backend_url}}"
+							],
+							"path": [
+								"api",
+								"availability",
+								"weekly"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "api/availability/exceptions (bad request)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "// {\n//     \"startTime\": \"2025-10-19T17:05:35.421Z\",\n//     \"endTime\": \"2025-10-19T17:05:35.421Z\",\n//     \"comment\": \"startTime and endTime are the same\"\n// }\n// {\n//     \"startTime\": \"2025-10-22T17:05:35.421Z\",\n//     \"endTime\": \"2025-10-23T17:05:35.421Z\",\n//     \"comment\": \"endTime is 24 hours after startTime\"\n// },\n// {\n//     \"startTime\": \"2025-11-01T17:05:35.421Z\",\n//     \"endTime\": \"2025-10-23T17:05:35.421Z\",\n//     \"comment\": \"startTime is before endTime\"\n// },\n// {\n//     \"startTime\": \"2025-11-1T17:05:35.421Z\",\n//     \"endTime\": \"2025-10-23T17:05:35.421Z\",\n//     \"comment\": \"startTime is invalid\"\n// },\n// {\n//     \"startTime\": \"2025-11-1T00:05:35.421Z\",\n//     \"endTime\": \"2025-11-1T08:05:35.421Z\",\n//     \"comment\": \"comment is invalid - /// ()123\"\n// },\n// {\n//     \"startTime\": \"2025-11-1T00:05:35.421Z\",\n//     \"endTime\": \"2025-11-1T08:05:35.421Z\",\n//     \"comment\": \"comment is valid.,\"\n// },\n// {\n//     \"startTime\": \"2025-10-22T17:05:35.421Z\",\n//     \"endTime\": \"2025-10-24T17:05:35.421Z\",\n//     \"comment\": \"endTime is 48 hours after startTime\"\n// },\n{\n    \"startTime\": \"2025-02-24T06:05:35.421Z\",\n    \"endTime\": \"2025-02-24T17:05:35.421Z\",\n    \"comment\": \"exceptions is in the past\"\n}\n// {\n//     \"startTime\": \"2026-02-24T06:05:35.421Z\",\n//     \"endTime\": \"2026-02-24T17:05:35.421Z\",\n//     \"comment\": \"exceptions is more than 3 months away\"\n// }",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{backend_url}}/api/availability/exceptions",
+							"host": [
+								"{{backend_url}}"
+							],
+							"path": [
+								"api",
+								"availability",
+								"exceptions"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "api/availability/exceptions",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"startTime\": \"2025-10-31T13:00:00.421Z\",\n    \"endTime\": \"2025-10-31T23:30:35.421Z\",\n    \"comment\": \"endTime is 8 hours after startTime\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{backend_url}}/api/availability/exceptions",
+							"host": [
+								"{{backend_url}}"
+							],
+							"path": [
+								"api",
+								"availability",
+								"exceptions"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "api/availability/exceptions",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{backend_url}}/api/availability/exceptions/1",
+							"host": [
+								"{{backend_url}}"
+							],
+							"path": [
+								"api",
+								"availability",
+								"exceptions",
+								"1"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "/ (root)",
 			"request": {
 				"auth": {
 					"type": "noauth"
@@ -215,85 +666,6 @@
 					],
 					"path": [
 						""
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "/auth/refresh_token",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"exec": [
-							"pm.test(\"updating tokens\", () => {",
-							"    var response = pm.response.json();",
-							"    var harmonyAccessToken = response.harmony_access_token;",
-							"",
-							"    console.log(\"setting new access token: \"+ harmonyAccessToken);",
-							"    pm.environment.set(\"access_token\", harmonyAccessToken);",
-							"",
-							"    ",
-							"    var refreshTokenCookie = pm.cookies.get(\"harmony_refresh_token\");",
-							"",
-							"    console.log(\"setting new refresh token: \"+ refreshTokenCookie);",
-							"    pm.environment.set(\"refresh_token\", refreshTokenCookie);",
-							"})"
-						],
-						"type": "text/javascript",
-						"packages": {}
-					}
-				},
-				{
-					"listen": "prerequest",
-					"script": {
-						"exec": [
-							""
-						],
-						"type": "text/javascript",
-						"packages": {}
-					}
-				}
-			],
-			"request": {
-				"method": "POST",
-				"header": [
-					{
-						"key": "Cookie",
-						"value": "harmony_refresh_token={{refresh_token}}",
-						"type": "text"
-					}
-				],
-				"url": {
-					"raw": "{{backend_url}}/auth/refresh_token",
-					"host": [
-						"{{backend_url}}"
-					],
-					"path": [
-						"auth",
-						"refresh_token"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "/auth/logout",
-			"request": {
-				"auth": {
-					"type": "noauth"
-				},
-				"method": "POST",
-				"header": [],
-				"url": {
-					"raw": "{{backend_url}}/auth/logout",
-					"host": [
-						"{{backend_url}}"
-					],
-					"path": [
-						"auth",
-						"logout"
 					]
 				}
 			},
@@ -317,7 +689,7 @@
 				"type": "text/javascript",
 				"packages": {},
 				"exec": [
-					""
+					"pm.collectionVariables.set(\"skip\", false)"
 				]
 			}
 		},
@@ -327,33 +699,54 @@
 				"type": "text/javascript",
 				"packages": {},
 				"exec": [
-					"const url = String(pm.response.url)",
-					"const isNotRefreshTokenUrl = !url.includes(\"/auth/refresh_token\")",
-					"if (pm.response.code === 401 && isNotRefreshTokenUrl) {",
-					"    console.log(\"Access token expired. Refreshing...\");",
-					"    const baseUrl = pm.environment.get(\"backend_url\")",
-					"    const harmony_refresh_token = pm.environment.get(\"refresh_token\");",
-					"    pm.sendRequest({",
-					"        url: baseUrl + \"/auth/refresh_token\",",
-					"        method: \"POST\",",
-					"        header: {",
-					"            \"Content-Type\": \"application/json\",",
-					"            \"Cookie\":`harmony_refresh_token=${harmony_refresh_token}`",
+					"if (!pm.collectionVariables.get(\"skip\")){",
+					"    const url = String(pm.response.url)",
+					"    const isNotRefreshTokenUrl = !url.includes(\"/auth/refresh_token\")",
+					"    if (pm.response.code === 401 && isNotRefreshTokenUrl) {",
+					"        console.log(\"Access token expired. Refreshing...\");",
+					"        const baseUrl = pm.environment.get(\"backend_url\")",
+					"        const harmony_refresh_token = pm.environment.get(\"refresh_token\");",
+					"        if (harmony_refresh_token === null) { ",
+					"            console.log(\"refresh token is null, exiting refresh flow...\")",
+					"            return ",
 					"        }",
-					"    }, (err, res) => {",
-					"        if (!err && res.json().harmony_access_token) {",
-					"            const access_token = res.json().harmony_access_token",
-					"            console.log(\"setting new access token: \"+ access_token);",
-					"            pm.environment.set(\"access_token\", access_token);",
+					"        console.log(`sending following refresh token: ${harmony_refresh_token}`)",
+					"        pm.sendRequest({",
+					"            url: baseUrl + \"/auth/refresh_token\",",
+					"            method: \"POST\",",
+					"            header: {",
+					"                \"Content-Type\": \"application/json\",",
+					"                \"Cookie\":`harmony_refresh_token=${harmony_refresh_token}`",
+					"            }",
+					"        }, (err, res) => {",
+					"            if (!err && res.json().harmony_access_token) {",
+					"                const access_token = res.json().harmony_access_token",
+					"                console.log(\"setting new access token: \"+ access_token);",
+					"                pm.environment.set(\"access_token\", access_token);",
 					"",
-					"            const refreshTokenCookie = pm.cookies.get(\"harmony_refresh_token\");",
-					"            console.log(\"setting new refresh token: \"+ refreshTokenCookie);",
-					"            pm.environment.set(\"refresh_token\", refreshTokenCookie);",
-					"        }",
-					"    });",
+					"                const refreshTokenCookie = pm.cookies.get(\"harmony_refresh_token\");",
+					"                if(refreshTokenCookie === undefined){",
+					"                    console.log(\"postman couldn't grab refresh token from cookie\")",
+					"                }",
+					"                else {",
+					"                    console.log(\"setting new refresh token: \"+ refreshTokenCookie);",
+					"                    pm.environment.set(\"refresh_token\", refreshTokenCookie);",
+					"                }",
+					"            } else {",
+					"                console.log(\"Token refresh failed!\")",
+					"                console.log(\"A new refresh_token needs to be set in the environment\")",
+					"            }",
+					"        });",
+					"    }",
 					"}"
 				]
 			}
+		}
+	],
+	"variable": [
+		{
+			"key": "skip",
+			"value": ""
 		}
 	]
 }
