@@ -16,7 +16,8 @@ import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
 
-val PUBLIC_URLS = arrayOf("/", LOGOUT_PATH, REFRESH_TOKEN_PATH, DISCORD_OAUTH_PATH, ERROR_PATH)
+val PUBLIC_URLS =
+    arrayOf("/", "/robots.txt", LOGOUT_PATH, REFRESH_TOKEN_PATH, DISCORD_OAUTH_PATH, ERROR_PATH)
 val INAPPROPRIATE_URLS = arrayOf(FAVICON_PATH, GIT_PATH)
 
 @Configuration
