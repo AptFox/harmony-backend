@@ -13,6 +13,7 @@ object SecurityConstants {
     const val ERROR_PATH = "/error"
     const val FAVICON_PATH = "/favicon.ico"
     const val GIT_PATH = "/.git"
+    const val ENV_PATH = "/.env"
     const val ACCESS_TOKEN_NAME = "harmony_access_token"
     const val REFRESH_TOKEN_NAME = "harmony_refresh_token"
     const val COOKIE_EXPIRATION_IN_SECONDS = 60 * 60 * 48 // 48 hours

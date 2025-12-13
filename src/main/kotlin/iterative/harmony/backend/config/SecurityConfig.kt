@@ -1,6 +1,7 @@
 package iterative.harmony.backend.config
 
 import iterative.harmony.backend.util.SecurityConstants.DISCORD_OAUTH_PATH
+import iterative.harmony.backend.util.SecurityConstants.ENV_PATH
 import iterative.harmony.backend.util.SecurityConstants.ERROR_PATH
 import iterative.harmony.backend.util.SecurityConstants.FAVICON_PATH
 import iterative.harmony.backend.util.SecurityConstants.GIT_PATH
@@ -18,7 +19,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 val PUBLIC_URLS =
     arrayOf("/", "/robots.txt", LOGOUT_PATH, REFRESH_TOKEN_PATH, DISCORD_OAUTH_PATH, ERROR_PATH)
-val INAPPROPRIATE_URLS = arrayOf(FAVICON_PATH, GIT_PATH)
+val INAPPROPRIATE_URLS = arrayOf(FAVICON_PATH, GIT_PATH, ENV_PATH)
 
 @Configuration
 @EnableWebSecurity
