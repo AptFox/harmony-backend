@@ -1,7 +1,7 @@
 package iterative.harmony.backend.repository
 
 import iterative.harmony.backend.model.RefreshToken
-import java.sql.Timestamp
+import java.time.Instant
 import java.util.*
 import org.springframework.data.domain.Limit
 import org.springframework.data.jpa.repository.JpaRepository
@@ -15,5 +15,5 @@ interface RefreshTokenRepository : JpaRepository<RefreshToken, UUID> {
 
     fun findAllByUserIdOrderByCreatedAtAsc(userId: UUID, limit: Limit): List<RefreshToken>
 
-    fun findAllByUserIdAndCreatedAtBefore(userId: UUID, timestamp: Timestamp): List<RefreshToken>
+    fun findAllByUserIdAndCreatedAtBefore(userId: UUID, instant: Instant): List<RefreshToken>
 }

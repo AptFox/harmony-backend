@@ -1,7 +1,7 @@
 package iterative.harmony.backend.model
 
+import iterative.harmony.backend.model.base.AuditableEntity
 import jakarta.persistence.*
-import java.sql.Timestamp
 import java.util.UUID
 
 @Entity
@@ -15,8 +15,4 @@ data class RefreshToken(
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(nullable = false, updatable = false, insertable = false)
     val jti: UUID? = null,
-    @Column(nullable = false, updatable = false, insertable = false)
-    val createdAt: Timestamp? = null,
-    @Column(nullable = false, updatable = false, insertable = false)
-    val updatedAt: Timestamp? = null,
-)
+) : AuditableEntity()
