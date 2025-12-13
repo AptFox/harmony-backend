@@ -574,7 +574,7 @@
 					"response": []
 				},
 				{
-					"name": "api/availability/exceptions (bad request)",
+					"name": "api/availability/time_off (bad request)",
 					"request": {
 						"method": "POST",
 						"header": [],
@@ -588,27 +588,27 @@
 							}
 						},
 						"url": {
-							"raw": "{{backend_url}}/api/availability/exceptions",
+							"raw": "{{backend_url}}/api/availability/time_off",
 							"host": [
 								"{{backend_url}}"
 							],
 							"path": [
 								"api",
 								"availability",
-								"exceptions"
+								"time_off"
 							]
 						}
 					},
 					"response": []
 				},
 				{
-					"name": "api/availability/exceptions",
+					"name": "api/availability/time_off",
 					"request": {
 						"method": "POST",
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"startTime\": \"2025-10-31T13:00:00.421Z\",\n    \"endTime\": \"2025-10-31T23:30:35.421Z\",\n    \"comment\": \"endTime is 8 hours after startTime\"\n}",
+							"raw": "{\n    \"startTime\": \"2025-12-31T13:00:00.421Z\",\n    \"endTime\": \"2025-12-31T23:30:35.421Z\",\n    \"comment\": \"endTime is 8 hours after startTime\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -616,34 +616,34 @@
 							}
 						},
 						"url": {
-							"raw": "{{backend_url}}/api/availability/exceptions",
+							"raw": "{{backend_url}}/api/availability/time_off",
 							"host": [
 								"{{backend_url}}"
 							],
 							"path": [
 								"api",
 								"availability",
-								"exceptions"
+								"time_off"
 							]
 						}
 					},
 					"response": []
 				},
 				{
-					"name": "api/availability/exceptions",
+					"name": "api/availability/time_off",
 					"request": {
 						"method": "DELETE",
 						"header": [],
 						"url": {
-							"raw": "{{backend_url}}/api/availability/exceptions/1",
+							"raw": "{{backend_url}}/api/availability/time_off/56",
 							"host": [
 								"{{backend_url}}"
 							],
 							"path": [
 								"api",
 								"availability",
-								"exceptions",
-								"1"
+								"time_off",
+								"56"
 							]
 						}
 					},
@@ -666,6 +666,23 @@
 					],
 					"path": [
 						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/robots.txt",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{backend_url}}/robots.txt",
+					"host": [
+						"{{backend_url}}"
+					],
+					"path": [
+						"robots.txt"
 					]
 				}
 			},
