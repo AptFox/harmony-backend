@@ -1,8 +1,8 @@
 package iterative.harmony.backend.controller
 
-import iterative.harmony.backend.controller.dto.AvailabilityExceptionRequest
-import iterative.harmony.backend.controller.dto.AvailabilityExceptionResponse
 import iterative.harmony.backend.controller.dto.AvailabilityResponse
+import iterative.harmony.backend.controller.dto.TimeOffRequest
+import iterative.harmony.backend.controller.dto.TimeOffResponse
 import iterative.harmony.backend.controller.dto.WeeklyAvailabilityResponse
 import iterative.harmony.backend.controller.dto.WeeklyAvailabilitySlotRequest
 import iterative.harmony.backend.service.AvailabilityService
@@ -33,7 +33,7 @@ class AvailabilityController {
     @PreAuthorize("hasRole('${RoleConstants.USER_ROLE}')")
     @GetMapping("/@me")
     fun getUserAvailability(principal: Principal): AvailabilityResponse {
-        log.info("getting availability and exceptions")
+        log.info("getting availability and timeOff")
 
         return availabilityService.getCurrentUserAvailability(principal.name)
     }
@@ -66,26 +66,23 @@ class AvailabilityController {
     }
 
     @PreAuthorize("hasRole('${RoleConstants.USER_ROLE}')")
-    @PostMapping("/exceptions")
-    fun addAvailabilityException(
-        @Valid @RequestBody exception: AvailabilityExceptionRequest,
+    @PostMapping("/time_off")
+    fun addTimeOff(
+        @Valid @RequestBody timeOff: TimeOffRequest,
         principal: Principal,
-    ): ResponseEntity<AvailabilityExceptionResponse> {
-        log.info("setting availability exception")
+    ): ResponseEntity<TimeOffResponse> {
+        log.info("setting timeOff")
 
-        val response = availabilityService.addAvailabilityException(principal.name, exception)
+        val response = availabilityService.addTimeOff(principal.name, timeOff)
         val status = if (!response.errors.isNullOrEmpty()) HttpStatus.BAD_REQUEST else HttpStatus.OK
 
         return ResponseEntity.status(status).body(response)
     }
 
     @PreAuthorize("hasRole('${RoleConstants.USER_ROLE}')")
-    @DeleteMapping("/exceptions/{exceptionId}")
-    fun deleteAvailabilityException(
-        principal: Principal,
-        @PathVariable exceptionId: Long,
-    ): ResponseEntity<Void> {
-        availabilityService.deleteAvailabilityException(principal.name, exceptionId)
+    @DeleteMapping("/time_off/{timeOffId}")
+    fun deleteTimeOff(principal: Principal, @PathVariable timeOffId: Long): ResponseEntity<Void> {
+        availabilityService.deleteTimeOff(principal.name, timeOffId)
         return ResponseEntity.ok().build()
     }
 }

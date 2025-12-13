@@ -13,6 +13,8 @@ jobs:
       # Step 1: Checkout the code
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
       # Step 2: Set up the environment
       - name: Set up Java
@@ -21,15 +23,24 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      # Step 3: Run linter (ktfmt)
+      # Step 3: check for secret leaks
+      - name: Download and install the gitleaks binary
+        run: |
+          curl -sL https://github.com/gitleaks/gitleaks/releases/download/v8.30.0/gitleaks_8.30.0_linux_x64.tar.gz | tar xz
+          sudo mv gitleaks /usr/local/bin/
+
+      - name: Run gitleaks scan
+        run: gitleaks detect --exit-code 1 --verbose
+
+      # Step 4: Run linter (ktfmt)
       - name: Run ktfmt
         run: ./gradlew ktfmtCheck
 
-      # Step 4: Run tests
+      # Step 5: Run tests
       - name: Run Tests
         run: ./gradlew clean test --continue -Dspring.profiles.active=test
 
-      #Step 5: Upload gradle test report
+      #Step 6: Upload gradle test report
       - name: Upload Gradle Test Reports
         uses: actions/upload-artifact@v4
         if: always()

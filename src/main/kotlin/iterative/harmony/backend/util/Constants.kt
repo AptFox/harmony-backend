@@ -13,6 +13,7 @@ object SecurityConstants {
     const val ERROR_PATH = "/error"
     const val FAVICON_PATH = "/favicon.ico"
     const val GIT_PATH = "/.git"
+    const val ENV_PATH = "/.env"
     const val ACCESS_TOKEN_NAME = "harmony_access_token"
     const val REFRESH_TOKEN_NAME = "harmony_refresh_token"
     const val COOKIE_EXPIRATION_IN_SECONDS = 60 * 60 * 48 // 48 hours
@@ -31,7 +32,6 @@ object AvailabilityConstants {
     const val INVALID_TIME_ZONE_ID = "Invalid timeZoneId"
     const val LESS_THAN_ONE_HOUR = "availability changes must be >=60 min"
     const val MORE_THAN_24_HOURS = "availability changes must be <= 24 hours"
-    const val MORE_THAN_90_DAYS_AWAY = "availability exceptions must be within 90 days"
-    const val EXCEPTION_ALREADY_EXISTS =
-        "An availability exception with this start time already exists"
+    const val MORE_THAN_90_DAYS_AWAY = "time off must be within 90 days"
+    const val TIME_OFF_ALREADY_EXISTS = "Time off with this start time already exists"
 }

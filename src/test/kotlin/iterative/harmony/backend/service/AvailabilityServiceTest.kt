@@ -1,11 +1,11 @@
 package iterative.harmony.backend.service
 
-import iterative.harmony.backend.controller.dto.AvailabilityExceptionRequest
 import iterative.harmony.backend.controller.dto.AvailabilityResponse
+import iterative.harmony.backend.controller.dto.TimeOffRequest
 import iterative.harmony.backend.controller.dto.WeeklyAvailabilitySlotRequest
-import iterative.harmony.backend.model.AvailabilityException
+import iterative.harmony.backend.model.TimeOff
 import iterative.harmony.backend.model.WeeklyAvailabilitySlot
-import iterative.harmony.backend.repository.AvailabilityExceptionRepository
+import iterative.harmony.backend.repository.TimeOffRepository
 import iterative.harmony.backend.repository.WeeklyAvailabilitySlotRepository
 import iterative.harmony.backend.util.AvailabilityConstants.DAYS_OF_WEEK
 import java.time.Duration
@@ -30,7 +30,7 @@ import org.mockito.kotlin.whenever
 class AvailabilityServiceTest {
     @Mock
     private lateinit var weeklyAvailabilitySlotRepositoryMock: WeeklyAvailabilitySlotRepository
-    @Mock private lateinit var availabilityExceptionRepositoryMock: AvailabilityExceptionRepository
+    @Mock private lateinit var timeOffRepositoryMock: TimeOffRepository
 
     @InjectMocks private lateinit var availabilityService: AvailabilityService
 
@@ -42,10 +42,9 @@ class AvailabilityServiceTest {
 
     @Test
     fun `getCurrentUserAvailability returns an AvailabilityResponse`() {
-        val availabilityExceptions: MutableList<AvailabilityException> =
+        val timeOffs: MutableList<TimeOff> =
             mutableListOf(
-                AvailabilityException(
-                    id,
+                TimeOff(
                     userId,
                     playerId,
                     startTime = Instant.now(),
@@ -56,7 +55,6 @@ class AvailabilityServiceTest {
         val weeklyAvailabilitySlots: MutableList<WeeklyAvailabilitySlot> =
             mutableListOf(
                 WeeklyAvailabilitySlot(
-                    id,
                     userId,
                     playerId,
                     dayOfWeek,
@@ -65,22 +63,25 @@ class AvailabilityServiceTest {
                     timeZoneId = "America/New_York",
                 )
             )
-        val expected = AvailabilityResponse(weeklyAvailabilitySlots, availabilityExceptions)
+        val expected = AvailabilityResponse(weeklyAvailabilitySlots, timeOffs)
 
         whenever(weeklyAvailabilitySlotRepositoryMock.findAllByUserId(userId))
             .thenReturn(weeklyAvailabilitySlots)
         whenever(
-                availabilityExceptionRepositoryMock
-                    .findAllByUserIdAndStartTimeIsAfterOrEndTimeIsAfter(any(), any(), any())
+                timeOffRepositoryMock.findAllByUserIdAndStartTimeIsAfterOrEndTimeIsAfter(
+                    any(),
+                    any(),
+                    any(),
+                )
             )
-            .thenReturn(availabilityExceptions)
+            .thenReturn(timeOffs)
 
         val actual = availabilityService.getCurrentUserAvailability(userId.toString())
         assertEquals(
             expected.weeklyAvailabilitySlots.first(),
             actual.weeklyAvailabilitySlots.first(),
         )
-        assertEquals(expected.availabilityExceptions.first(), actual.availabilityExceptions.first())
+        assertEquals(expected.timeOffs.first(), actual.timeOffs.first())
     }
 
     @Test
@@ -203,7 +204,6 @@ class AvailabilityServiceTest {
 
                 val expected =
                     WeeklyAvailabilitySlot(
-                        id = 1L,
                         userId,
                         2L,
                         dayOfWeek,
@@ -281,16 +281,16 @@ class AvailabilityServiceTest {
     }
 
     @Nested
-    @DisplayName("addAvailabilityException")
-    inner class AddAvailabilityException() {
+    @DisplayName("addTimeOff")
+    inner class AddTimeOff() {
         @Nested
-        @DisplayName("when called with invalid AvailabilityExceptions")
-        inner class InvalidExceptions() {
+        @DisplayName("when called with invalid TimeOffs")
+        inner class InvalidTimeOff() {
 
             fun generateExceptionRequest(
                 amountToAdd: Duration,
                 minus: Boolean = false,
-            ): AvailabilityExceptionRequest {
+            ): TimeOffRequest {
                 val expectedStartTime = Instant.now()
                 val expectedEndTime =
                     if (minus) {
@@ -299,7 +299,7 @@ class AvailabilityServiceTest {
                         expectedStartTime.plus(amountToAdd)
                     }
 
-                return AvailabilityExceptionRequest(
+                return TimeOffRequest(
                     startTime = expectedStartTime,
                     endTime = expectedEndTime,
                     comment = null,
@@ -311,20 +311,19 @@ class AvailabilityServiceTest {
                 val request = generateExceptionRequest(Duration.ofHours(0))
 
                 whenever(
-                        availabilityExceptionRepositoryMock.existsByUserIdAndStartTimeEquals(
+                        timeOffRepositoryMock.existsByUserIdAndStartTimeEquals(
                             userId,
                             request.startTime,
                         )
                     )
                     .thenReturn(false)
 
-                val response =
-                    availabilityService.addAvailabilityException(userId.toString(), request)
+                val response = availabilityService.addTimeOff(userId.toString(), request)
                 val expected =
                     "[startTime and endTime are the same, availability changes must be >=60 min]"
                 val actual = response.errors
                 assertEquals(expected, actual)
-                verify(availabilityExceptionRepositoryMock, Times(0)).save(any())
+                verify(timeOffRepositoryMock, Times(0)).save(any())
             }
 
             @Test
@@ -332,20 +331,19 @@ class AvailabilityServiceTest {
                 val request = generateExceptionRequest(Duration.ofHours(1), true)
 
                 whenever(
-                        availabilityExceptionRepositoryMock.existsByUserIdAndStartTimeEquals(
+                        timeOffRepositoryMock.existsByUserIdAndStartTimeEquals(
                             userId,
                             request.startTime,
                         )
                     )
                     .thenReturn(false)
 
-                val response =
-                    availabilityService.addAvailabilityException(userId.toString(), request)
+                val response = availabilityService.addTimeOff(userId.toString(), request)
                 val expected =
                     "[endTime is before startTime, availability changes must be >=60 min]"
                 val actual = response.errors
                 assertEquals(expected, actual)
-                verify(availabilityExceptionRepositoryMock, Times(0)).save(any())
+                verify(timeOffRepositoryMock, Times(0)).save(any())
             }
 
             @Test
@@ -353,19 +351,18 @@ class AvailabilityServiceTest {
                 val request = generateExceptionRequest(Duration.ofHours(25))
 
                 whenever(
-                        availabilityExceptionRepositoryMock.existsByUserIdAndStartTimeEquals(
+                        timeOffRepositoryMock.existsByUserIdAndStartTimeEquals(
                             userId,
                             request.startTime,
                         )
                     )
                     .thenReturn(false)
 
-                val response =
-                    availabilityService.addAvailabilityException(userId.toString(), request)
+                val response = availabilityService.addTimeOff(userId.toString(), request)
                 val expected = "[availability changes must be <= 24 hours]"
                 val actual = response.errors
                 assertEquals(expected, actual)
-                verify(availabilityExceptionRepositoryMock, Times(0)).save(any())
+                verify(timeOffRepositoryMock, Times(0)).save(any())
             }
 
             @Test
@@ -373,19 +370,18 @@ class AvailabilityServiceTest {
                 val request = generateExceptionRequest(Duration.ofMinutes(6))
 
                 whenever(
-                        availabilityExceptionRepositoryMock.existsByUserIdAndStartTimeEquals(
+                        timeOffRepositoryMock.existsByUserIdAndStartTimeEquals(
                             userId,
                             request.startTime,
                         )
                     )
                     .thenReturn(false)
 
-                val response =
-                    availabilityService.addAvailabilityException(userId.toString(), request)
+                val response = availabilityService.addTimeOff(userId.toString(), request)
                 val expected = "[availability changes must be >=60 min]"
                 val actual = response.errors
                 assertEquals(expected, actual)
-                verify(availabilityExceptionRepositoryMock, Times(0)).save(any())
+                verify(timeOffRepositoryMock, Times(0)).save(any())
             }
 
             @Test
@@ -393,20 +389,19 @@ class AvailabilityServiceTest {
                 val request = generateExceptionRequest(Duration.ofDays(91))
 
                 whenever(
-                        availabilityExceptionRepositoryMock.existsByUserIdAndStartTimeEquals(
+                        timeOffRepositoryMock.existsByUserIdAndStartTimeEquals(
                             userId,
                             request.startTime,
                         )
                     )
                     .thenReturn(false)
 
-                val response =
-                    availabilityService.addAvailabilityException(userId.toString(), request)
+                val response = availabilityService.addTimeOff(userId.toString(), request)
                 val expected =
-                    "[availability changes must be <= 24 hours, availability exceptions must be within 90 days]"
+                    "[availability changes must be <= 24 hours, time off must be within 90 days]"
                 val actual = response.errors
                 assertEquals(expected, actual)
-                verify(availabilityExceptionRepositoryMock, Times(0)).save(any())
+                verify(timeOffRepositoryMock, Times(0)).save(any())
             }
         }
 
@@ -419,44 +414,40 @@ class AvailabilityServiceTest {
                 val expectedEndTime = expectedStartTime.plus(Duration.ofHours(4))
 
                 val request =
-                    AvailabilityExceptionRequest(
+                    TimeOffRequest(
                         startTime = expectedStartTime,
                         endTime = expectedEndTime,
                         comment = null,
                     )
                 val expected =
-                    AvailabilityException(
-                        id = null,
+                    TimeOff(
                         userId = userId,
                         playerId = null,
                         startTime = request.startTime,
                         endTime = request.endTime,
                         comment = null,
                     )
-                whenever(availabilityExceptionRepositoryMock.save(expected)).thenReturn(expected)
+                whenever(timeOffRepositoryMock.save(expected)).thenReturn(expected)
                 whenever(
-                        availabilityExceptionRepositoryMock.existsByUserIdAndStartTimeEquals(
+                        timeOffRepositoryMock.existsByUserIdAndStartTimeEquals(
                             userId,
                             request.startTime,
                         )
                     )
                     .thenReturn(false)
 
-                val response =
-                    availabilityService.addAvailabilityException(userId.toString(), request)
-                val actual = response.exceptions
+                val response = availabilityService.addTimeOff(userId.toString(), request)
+                val actual = response.timeOff
                 assertEquals(expected, actual)
             }
         }
     }
 
     @Test
-    fun `deleteAvailabilityException deletes supplied AvailabilityException for user`() {
+    fun `deleteTimeOff deletes supplied TimeOff for user`() {
         val exceptionId = 1L
-        doNothing()
-            .whenever(availabilityExceptionRepositoryMock)
-            .deleteByIdAndUserId(exceptionId, userId)
-        availabilityService.deleteAvailabilityException(userId.toString(), exceptionId)
-        verify(availabilityExceptionRepositoryMock).deleteByIdAndUserId(exceptionId, userId)
+        doNothing().whenever(timeOffRepositoryMock).deleteByIdAndUserId(exceptionId, userId)
+        availabilityService.deleteTimeOff(userId.toString(), exceptionId)
+        verify(timeOffRepositoryMock).deleteByIdAndUserId(exceptionId, userId)
     }
 }
