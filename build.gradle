@@ -122,6 +122,10 @@ tasks.register('runDockerContainer', Exec) {
 }
 
 tasks.register('newMigration') {
+	def templateFile = file('src/main/resources/templates/migration_template.sql')
+
+	inputs.file(templateFile)
+
 	doLast {
 		def migrationsDir = file('src/main/resources/db/migration')
 		def version = new Date().format('yyyyMMddHHmmss') // Timestamp for versioning
@@ -133,7 +137,15 @@ tasks.register('newMigration') {
 			migrationsDir.mkdirs()
 		}
 
-		migrationFile.text = "-- Write your migration SQL here\n"
+		def templateContent
+		if (templateFile.exists()) {
+			templateContent = templateFile.text
+		} else {
+			println "Warning: Migration template not found at ${templateFile.path}. Using default content."
+			templateContent = "-- Write your migration SQL here\n"
+		}
+
+		migrationFile.text = templateContent
 		println "Created migration file: $migrationFile"
 	}
 }
