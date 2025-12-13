@@ -45,7 +45,6 @@ class AvailabilityServiceTest {
         val timeOffs: MutableList<TimeOff> =
             mutableListOf(
                 TimeOff(
-                    id,
                     userId,
                     playerId,
                     startTime = Instant.now(),
@@ -56,7 +55,6 @@ class AvailabilityServiceTest {
         val weeklyAvailabilitySlots: MutableList<WeeklyAvailabilitySlot> =
             mutableListOf(
                 WeeklyAvailabilitySlot(
-                    id,
                     userId,
                     playerId,
                     dayOfWeek,
@@ -206,7 +204,6 @@ class AvailabilityServiceTest {
 
                 val expected =
                     WeeklyAvailabilitySlot(
-                        id = 1L,
                         userId,
                         2L,
                         dayOfWeek,
@@ -424,7 +421,6 @@ class AvailabilityServiceTest {
                     )
                 val expected =
                     TimeOff(
-                        id = null,
                         userId = userId,
                         playerId = null,
                         startTime = request.startTime,

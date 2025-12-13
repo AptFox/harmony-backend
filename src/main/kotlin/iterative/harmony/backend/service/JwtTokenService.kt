@@ -17,7 +17,7 @@ import iterative.harmony.backend.repository.RefreshTokenRepository
 import iterative.harmony.backend.util.Utils
 import iterative.harmony.backend.util.getLogger
 import java.security.Key
-import java.sql.Timestamp
+import java.time.Instant
 import java.util.*
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
@@ -73,10 +73,9 @@ class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
 
     fun deleteExpiredRefreshTokensForUser(userId: UUID) {
         log.info("querying for expired refresh tokens")
-        val timestamp =
-            Timestamp(Utils().getCurrentTimeInMillisRounded() - REFRESH_TOKEN_DURATION_IN_MILLIS)
+        val instant: Instant = Instant.now().minusMillis(REFRESH_TOKEN_DURATION_IN_MILLIS)
         val expiredRefreshTokens: List<RefreshToken> =
-            refreshTokenRepository.findAllByUserIdAndCreatedAtBefore(userId, timestamp)
+            refreshTokenRepository.findAllByUserIdAndCreatedAtBefore(userId, instant)
 
         if (expiredRefreshTokens.count() > 0) {
             log.info("${expiredRefreshTokens.count()} expired tokens found. Deleting.")
