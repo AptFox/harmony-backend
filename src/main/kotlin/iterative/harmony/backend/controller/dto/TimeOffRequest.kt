@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Pattern
 import jakarta.validation.constraints.Size
 import java.time.Instant
 
-data class AvailabilityExceptionRequest(
+data class TimeOffRequest(
     @field:NotNull(message = "startTime is required")
     @field:Future(message = "startTime must be in future")
     val startTime: Instant,

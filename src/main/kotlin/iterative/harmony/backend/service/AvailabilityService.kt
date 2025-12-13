@@ -1,23 +1,23 @@
 package iterative.harmony.backend.service
 
-import iterative.harmony.backend.controller.dto.AvailabilityExceptionRequest
-import iterative.harmony.backend.controller.dto.AvailabilityExceptionResponse
 import iterative.harmony.backend.controller.dto.AvailabilityResponse
+import iterative.harmony.backend.controller.dto.TimeOffRequest
+import iterative.harmony.backend.controller.dto.TimeOffResponse
 import iterative.harmony.backend.controller.dto.WeeklyAvailabilityResponse
 import iterative.harmony.backend.controller.dto.WeeklyAvailabilitySlotRequest
-import iterative.harmony.backend.model.AvailabilityException
+import iterative.harmony.backend.model.TimeOff
 import iterative.harmony.backend.model.WeeklyAvailabilitySlot
-import iterative.harmony.backend.repository.AvailabilityExceptionRepository
+import iterative.harmony.backend.repository.TimeOffRepository
 import iterative.harmony.backend.repository.WeeklyAvailabilitySlotRepository
 import iterative.harmony.backend.util.AvailabilityConstants.DAYS_OF_WEEK
 import iterative.harmony.backend.util.AvailabilityConstants.END_TIME_BEFORE_START
-import iterative.harmony.backend.util.AvailabilityConstants.EXCEPTION_ALREADY_EXISTS
 import iterative.harmony.backend.util.AvailabilityConstants.INVALID_DAY_OF_WEEK
 import iterative.harmony.backend.util.AvailabilityConstants.INVALID_TIME_ZONE_ID
 import iterative.harmony.backend.util.AvailabilityConstants.LESS_THAN_ONE_HOUR
 import iterative.harmony.backend.util.AvailabilityConstants.MORE_THAN_24_HOURS
 import iterative.harmony.backend.util.AvailabilityConstants.MORE_THAN_90_DAYS_AWAY
 import iterative.harmony.backend.util.AvailabilityConstants.SAME_START_AND_END_TIME
+import iterative.harmony.backend.util.AvailabilityConstants.TIME_OFF_ALREADY_EXISTS
 import iterative.harmony.backend.util.Utils
 import iterative.harmony.backend.util.getLogger
 import java.time.Duration
@@ -31,7 +31,7 @@ import org.springframework.stereotype.Service
 class AvailabilityService {
     @Autowired
     private lateinit var weeklyAvailabilitySlotRepository: WeeklyAvailabilitySlotRepository
-    @Autowired private lateinit var availabilityExceptionRepository: AvailabilityExceptionRepository
+    @Autowired private lateinit var timeOffRepository: TimeOffRepository
 
     private val log = getLogger()
     private val ONE_DAY = Duration.ofDays(1)
@@ -42,13 +42,9 @@ class AvailabilityService {
         val uuid = UUID.fromString(userId)
         val now = Instant.now()
         val weeklyAvailabilitySlots = weeklyAvailabilitySlotRepository.findAllByUserId(uuid)
-        val availabilityExceptions =
-            availabilityExceptionRepository.findAllByUserIdAndStartTimeIsAfterOrEndTimeIsAfter(
-                uuid,
-                now,
-                now,
-            )
-        return AvailabilityResponse(weeklyAvailabilitySlots, availabilityExceptions)
+        val timeOffs =
+            timeOffRepository.findAllByUserIdAndStartTimeIsAfterOrEndTimeIsAfter(uuid, now, now)
+        return AvailabilityResponse(weeklyAvailabilitySlots, timeOffs)
     }
 
     fun deleteWeeklyAvailability(userId: String) {
@@ -140,47 +136,38 @@ class AvailabilityService {
             }
     }
 
-    fun addAvailabilityException(
-        userId: String,
-        request: AvailabilityExceptionRequest,
-    ): AvailabilityExceptionResponse {
+    fun addTimeOff(userId: String, request: TimeOffRequest): TimeOffResponse {
         val uuid = UUID.fromString(userId)
-        val requestErrors = verifyAvailabilityException(uuid, request)
-        if (requestErrors.isNotEmpty())
-            return AvailabilityExceptionResponse(errors = requestErrors.toString())
+        val requestErrors = verifyTimeOff(uuid, request)
+        if (requestErrors.isNotEmpty()) return TimeOffResponse(errors = requestErrors.toString())
 
-        log.info("searching for old exceptions")
+        log.info("searching for old timeOff")
         deleteExpiredExceptions(uuid)
 
         val exceptionToSave =
-            AvailabilityException(
+            TimeOff(
                 userId = uuid,
                 startTime = request.startTime,
                 endTime = request.endTime,
                 comment = request.comment,
             )
-        log.info("Saving availability exception")
-        val exceptionFromDb = availabilityExceptionRepository.save(exceptionToSave)
-        return AvailabilityExceptionResponse(exceptionFromDb)
+        log.info("Saving timeOff")
+        val exceptionFromDb = timeOffRepository.save(exceptionToSave)
+        return TimeOffResponse(exceptionFromDb)
     }
 
     private fun deleteExpiredExceptions(userId: UUID) {
         val now = Instant.now()
-        val expiredAvailabilityExceptions: List<AvailabilityException> =
-            availabilityExceptionRepository.findAllByUserIdAndEndTimeIsBefore(userId, now)
-        if (expiredAvailabilityExceptions.count() > 0) {
-            log.info(
-                "${expiredAvailabilityExceptions.count()} expired exceptions found. Deleting..."
-            )
-            availabilityExceptionRepository.deleteAll(expiredAvailabilityExceptions)
+        val expiredTimeOffs: List<TimeOff> =
+            timeOffRepository.findAllByUserIdAndEndTimeIsBefore(userId, now)
+        if (expiredTimeOffs.count() > 0) {
+            log.info("${expiredTimeOffs.count()} expired exceptions found. Deleting...")
+            timeOffRepository.deleteAll(expiredTimeOffs)
         }
     }
 
-    private fun verifyAvailabilityException(
-        userId: UUID,
-        request: AvailabilityExceptionRequest,
-    ): MutableList<String> {
-        log.info("Verifying availability exceptions")
+    private fun verifyTimeOff(userId: UUID, request: TimeOffRequest): MutableList<String> {
+        log.info("Verifying timeOff request")
 
         val errorMsg = mutableListOf<String>()
         val startTime = request.startTime
@@ -191,8 +178,8 @@ class AvailabilityService {
         if (endTime.isAfter(threeMonthsInTheFuture)) errorMsg.add(MORE_THAN_90_DAYS_AWAY)
 
         val exceptionAlreadyExists =
-            availabilityExceptionRepository.existsByUserIdAndStartTimeEquals(userId, startTime)
-        if (exceptionAlreadyExists) errorMsg.add(EXCEPTION_ALREADY_EXISTS)
+            timeOffRepository.existsByUserIdAndStartTimeEquals(userId, startTime)
+        if (exceptionAlreadyExists) errorMsg.add(TIME_OFF_ALREADY_EXISTS)
 
         return errorMsg
     }
@@ -209,9 +196,9 @@ class AvailabilityService {
         if (duration >= ONE_DAY) errorMsg.add(MORE_THAN_24_HOURS)
     }
 
-    fun deleteAvailabilityException(userId: String, exceptionId: Long) {
-        log.info("Deleting availability exception: $exceptionId")
+    fun deleteTimeOff(userId: String, timeOffId: Long) {
+        log.info("Deleting timeOff: $timeOffId")
         val uuid = UUID.fromString(userId)
-        availabilityExceptionRepository.deleteByIdAndUserId(exceptionId, uuid)
+        timeOffRepository.deleteByIdAndUserId(timeOffId, uuid)
     }
 }
