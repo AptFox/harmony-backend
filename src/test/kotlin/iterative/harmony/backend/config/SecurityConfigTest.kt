@@ -1,6 +1,6 @@
 package iterative.harmony.backend.config
 
-import iterative.harmony.backend.controller.dto.UserResponse
+import iterative.harmony.backend.controller.responses.UserResponse
 import iterative.harmony.backend.service.AuthService
 import iterative.harmony.backend.service.JwtTokenService
 import iterative.harmony.backend.service.UserService

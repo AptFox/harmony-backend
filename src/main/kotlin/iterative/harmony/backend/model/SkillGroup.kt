@@ -8,10 +8,11 @@ import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 
 @Entity
-@Table(name = "data_sources")
-data class DataSource(
+@Table(name = "skill_groups")
+data class SkillGroup(
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "org_id") val organization: Organization,
-    val destinationTable: String,
-    val url: String,
-    val dataFormat: String,
+    val name: String,
+    val acronym: String,
+    val colorHex: String,
+    val imageUrl: String,
 ) : LongEntity()

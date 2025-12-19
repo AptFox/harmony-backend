@@ -1,10 +1,10 @@
 package iterative.harmony.backend.controller
 
-import iterative.harmony.backend.controller.dto.AvailabilityResponse
-import iterative.harmony.backend.controller.dto.TimeOffRequest
-import iterative.harmony.backend.controller.dto.TimeOffResponse
-import iterative.harmony.backend.controller.dto.WeeklyAvailabilityResponse
-import iterative.harmony.backend.controller.dto.WeeklyAvailabilitySlotRequest
+import iterative.harmony.backend.controller.requests.TimeOffRequest
+import iterative.harmony.backend.controller.requests.WeeklyAvailabilitySlotRequest
+import iterative.harmony.backend.controller.responses.AvailabilityResponse
+import iterative.harmony.backend.controller.responses.TimeOffResponse
+import iterative.harmony.backend.controller.responses.WeeklyAvailabilityResponse
 import iterative.harmony.backend.service.AvailabilityService
 import iterative.harmony.backend.util.RoleConstants
 import iterative.harmony.backend.util.getLogger

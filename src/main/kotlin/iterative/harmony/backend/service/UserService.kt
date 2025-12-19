@@ -1,10 +1,10 @@
 package iterative.harmony.backend.service
 
-import iterative.harmony.backend.controller.dto.DiscordOAuthUser
-import iterative.harmony.backend.controller.dto.UpdateUserRequest
-import iterative.harmony.backend.controller.dto.UserResponse
+import iterative.harmony.backend.controller.requests.UpdateUserRequest
+import iterative.harmony.backend.controller.responses.UserResponse
 import iterative.harmony.backend.exception.UserNotFoundException
 import iterative.harmony.backend.model.User
+import iterative.harmony.backend.model.dto.DiscordOAuthUser
 import iterative.harmony.backend.repository.RoleRepository
 import iterative.harmony.backend.repository.UserRepository
 import iterative.harmony.backend.util.RoleConstants
@@ -53,7 +53,7 @@ class UserService {
         if (!user.isPresent) {
             throw UserNotFoundException(userId)
         }
-        return mapToUserResponse(user.get())
+        return UserResponse.fromUser(user.get())
     }
 
     fun updateUser(updateUserRequest: UpdateUserRequest, userId: String): UserResponse {
@@ -66,20 +66,9 @@ class UserService {
                     displayName = updateUserRequest.displayName
                     timeZoneId = updateUserRequest.timeZoneId
                 }
-            return mapToUserResponse(userRepository.save(userToUpdate))
+            return UserResponse.fromUser(userRepository.save(userToUpdate))
         }
 
         throw UserNotFoundException(userId)
-    }
-
-    private fun mapToUserResponse(user: User): UserResponse {
-        return UserResponse(
-            user.userId!!,
-            user.displayName,
-            user.twelveHourClock,
-            user.timeZoneId,
-            user.discordId,
-            user.discordAvatarHash,
-        )
     }
 }

@@ -1,7 +1,7 @@
 package iterative.harmony.backend.controller
 
-import iterative.harmony.backend.controller.dto.UpdateUserRequest
-import iterative.harmony.backend.controller.dto.UserResponse
+import iterative.harmony.backend.controller.requests.UpdateUserRequest
+import iterative.harmony.backend.controller.responses.UserResponse
 import iterative.harmony.backend.service.UserService
 import iterative.harmony.backend.util.RoleConstants
 import iterative.harmony.backend.util.getLogger
