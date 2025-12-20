@@ -12,6 +12,7 @@ import iterative.harmony.backend.util.Utils
 import java.util.*
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 
 @Service
 class UserService {
@@ -19,6 +20,7 @@ class UserService {
     @Autowired private lateinit var userRepository: UserRepository
     @Autowired private lateinit var roleRepository: RoleRepository
 
+    @Transactional
     fun getOrCreateUser(discordUser: DiscordOAuthUser): User {
         val user = userRepository.findByDiscordId(discordUser.id)
         if (!user.isPresent) {
@@ -56,6 +58,7 @@ class UserService {
         return UserResponse.fromUser(user.get())
     }
 
+    @Transactional
     fun updateUser(updateUserRequest: UpdateUserRequest, userId: String): UserResponse {
         Utils().verifyTimeZone(updateUserRequest.timeZoneId)
         val userFromDB = userRepository.findById(UUID.fromString(userId))

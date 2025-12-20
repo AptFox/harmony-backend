@@ -28,6 +28,7 @@ import java.time.temporal.Temporal
 import java.util.UUID
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 
 @Service
 class AvailabilityService {
@@ -58,12 +59,14 @@ class AvailabilityService {
         )
     }
 
+    @Transactional
     fun deleteWeeklyAvailability(userId: String) {
         log.info("Deleting weekly availability slots")
         val user = getUserProxyFromUuidString(userId)
         weeklyAvailabilitySlotRepository.deleteAllByUser(user)
     }
 
+    @Transactional
     fun overwriteWeeklyAvailability(
         userId: String,
         slots: List<WeeklyAvailabilitySlotRequest>,
@@ -147,6 +150,7 @@ class AvailabilityService {
             }
     }
 
+    @Transactional
     fun addTimeOff(userId: String, request: TimeOffRequest): TimeOffResponse {
         val userProxy = getUserProxyFromUuidString(userId)
         val requestErrors = verifyTimeOff(userProxy, request)
@@ -167,7 +171,8 @@ class AvailabilityService {
         return TimeOffResponse.fromTimeOff(timeOffFromDb)
     }
 
-    private fun deleteExpiredExceptions(user: User) {
+    @Transactional
+    fun deleteExpiredExceptions(user: User) {
         val now = Instant.now()
         val expiredTimeOffs: List<TimeOff> =
             timeOffRepository.findAllByUserAndEndTimeIsBefore(user, now)
@@ -207,6 +212,7 @@ class AvailabilityService {
         if (duration >= ONE_DAY) errorMsg.add(MORE_THAN_24_HOURS)
     }
 
+    @Transactional
     fun deleteTimeOff(userId: String, timeOffId: Long) {
         log.info("Deleting timeOff: $timeOffId")
         val userProxy = getUserProxyFromUuidString(userId)
