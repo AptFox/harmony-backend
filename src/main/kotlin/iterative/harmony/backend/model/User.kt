@@ -2,6 +2,7 @@ package iterative.harmony.backend.model
 
 import iterative.harmony.backend.model.base.AuditableEntity
 import jakarta.persistence.*
+import java.time.Instant
 import java.util.UUID
 
 @Entity
@@ -24,4 +25,6 @@ data class User(
         inverseJoinColumns = [JoinColumn(name = "role_id")],
     )
     val roles: Set<Role>,
+    val lastLoginAt: Instant? = null,
+    val importId: String? = null,
 ) : AuditableEntity()
