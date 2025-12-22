@@ -11,7 +11,10 @@ import jakarta.persistence.Table
 @Table(name = "data_sources")
 data class DataSource(
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "org_id") val organization: Organization,
-    val destinationTable: String,
-    val url: String,
-    val dataFormat: String,
+    var name: String,
+    var destinationTable: String,
+    var url: String,
+    var dataFormat: String,
+    var comment: String?,
+    var enabled: Boolean,
 ) : LongEntity()

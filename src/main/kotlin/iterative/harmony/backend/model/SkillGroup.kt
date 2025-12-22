@@ -11,8 +11,8 @@ import jakarta.persistence.Table
 @Table(name = "skill_groups")
 data class SkillGroup(
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "org_id") val organization: Organization,
-    val name: String,
-    val acronym: String,
-    val colorHex: String,
-    val imageUrl: String,
+    var name: String,
+    var acronym: String,
+    var imageUrl: String,
+    var colorHex: String?,
 ) : LongEntity()
