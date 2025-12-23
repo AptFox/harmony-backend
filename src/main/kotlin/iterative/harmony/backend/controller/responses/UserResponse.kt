@@ -19,7 +19,7 @@ data class UserResponse(
                 user.twelveHourClock,
                 user.timeZoneId,
                 user.discordId,
-                user.discordAvatarHash,
+                user.discordAvatarHash!!,
             )
     }
 }

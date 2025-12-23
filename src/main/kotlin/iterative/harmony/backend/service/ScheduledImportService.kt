@@ -4,6 +4,7 @@ import iterative.harmony.backend.exception.ScheduledTaskException
 import iterative.harmony.backend.model.Organization
 import iterative.harmony.backend.model.SkillGroup
 import iterative.harmony.backend.model.Team
+import iterative.harmony.backend.model.User
 import iterative.harmony.backend.repository.DataSourceRepository
 import iterative.harmony.backend.repository.OrganizationRepository
 import iterative.harmony.backend.util.getLogger
@@ -28,7 +29,8 @@ class ScheduledImportService {
     @Autowired private lateinit var dataSourceRepository: DataSourceRepository
     @Autowired private lateinit var csvParsingService: CsvParsingService
     @Autowired private lateinit var skillGroupService: SkillGroupService
-    @Autowired private lateinit var teamService: TeamsService
+    @Autowired private lateinit var teamService: TeamService
+    @Autowired private lateinit var userService: UserService
     private val webClient = WebClient.builder().build()
     private val BATCH_SIZE = 100
     // TODO: Figure out how to store these headers in the DB alongside data_sources
@@ -75,7 +77,7 @@ class ScheduledImportService {
         log.info("Hourly - Scheduled Import started")
         runBlocking {
             importUsers()
-            //            importPlayers()
+            importPlayers()
         }
         log.info("Hourly - Scheduled Import stopped")
     }
@@ -111,7 +113,7 @@ class ScheduledImportService {
         org: Organization,
         destinationTable: String,
         csvHeaders: List<String>,
-        saveBatch: suspend (batch: MutableList<T>) -> Unit,
+        saveBatch: (suspend (batch: MutableList<T>) -> Unit)? = null,
         importCode: suspend (batch: MutableList<T>, csvRow: Map<String, String>) -> Unit,
     ) {
         val dataSources =
@@ -141,11 +143,11 @@ class ScheduledImportService {
                 csvParsingService.parseCsvStream(tempFile, csvHeaders) { csvRow ->
                     importCode(batch, csvRow)
                     if (batch.size >= BATCH_SIZE) {
-                        saveBatch(batch)
+                        if (saveBatch != null) saveBatch(batch)
                         batch.clear()
                     }
                 }
-                if (batch.isNotEmpty()) saveBatch(batch)
+                if (saveBatch != null && batch.isNotEmpty()) saveBatch(batch)
                 log.info("$logPrefix - succeeded")
             } catch (ex: Exception) {
                 log.error("$logPrefix - failed: ${ex.message}")
@@ -187,19 +189,20 @@ class ScheduledImportService {
         }
     }
 
+    // Hits the DB for each row but should be fine as it's one thread
     suspend fun importUsers() {
-        // TODO: figure out how to parse without loading all pre-existing users in memory at once
-        throw NotImplementedError()
-        //        val organizations = orgRepository.findAll()
-        //        organizations.forEach{ org ->
-        //            // maybe don't persist users
-        //        }
+        val organizations = orgRepository.findAll()
+        organizations.forEach { org ->
+            downloadAndImport<User>(org, "users", MLE_MEMBERS_HEADERS) { batch, csvRow ->
+                userService.import(csvRow)
+            }
+        }
     }
 
     suspend fun importPlayers() {
-        // TODO: figure out how to parse without loading all pre-existing players in memory at once
-        // Maybe use BATCH_SIZE somehow?
         throw NotImplementedError()
+        // look up exact user by import_id and save one at a time
+
         //        val organizations = orgRepository.findAll()
         //        organizations.forEach{ org ->
         //            // maybe don't persist users

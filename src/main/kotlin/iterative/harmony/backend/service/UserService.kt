@@ -74,4 +74,37 @@ class UserService {
 
         throw UserNotFoundException(userId)
     }
+
+    @Transactional
+    suspend fun import(row: Map<String, String>) {
+        val discordId = row["discord_id"].toString()
+        val memberId = row["member_id"].toString()
+        val name = row["name"].toString()
+        if (discordId.isEmpty() || memberId.isEmpty() || name.isEmpty()) return
+
+        val userRole = roleRepository.findByName(RoleConstants.USER_ROLE).get()
+        val preExistingUser = userRepository.findByDiscordId(discordId)
+        if (preExistingUser.isPresent) {
+            val updatedUser =
+                preExistingUser.get().apply {
+                    displayName = name
+                    importId = memberId
+                }
+            userRepository.save(updatedUser)
+        } else {
+            val importedUser =
+                User(
+                    userId = null,
+                    username = name,
+                    displayName = name,
+                    twelveHourClock = true,
+                    discordId = discordId,
+                    discordAvatarHash = null,
+                    timeZoneId = null,
+                    roles = setOf(userRole),
+                    importId = memberId,
+                )
+            userRepository.save(importedUser)
+        }
+    }
 }

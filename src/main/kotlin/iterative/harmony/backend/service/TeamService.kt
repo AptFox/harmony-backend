@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 @Service
-class TeamsService {
+class TeamService {
     @Autowired private lateinit var teamRepository: TeamRepository
 
     suspend fun import(

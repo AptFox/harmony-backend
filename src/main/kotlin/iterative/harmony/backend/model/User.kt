@@ -16,7 +16,7 @@ data class User(
     var displayName: String,
     var twelveHourClock: Boolean = true,
     val discordId: String,
-    var discordAvatarHash: String,
+    var discordAvatarHash: String?,
     var timeZoneId: String?,
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
@@ -26,5 +26,5 @@ data class User(
     )
     val roles: Set<Role>,
     val lastLoginAt: Instant? = null,
-    val importId: String? = null,
+    var importId: String? = null,
 ) : AuditableEntity()
