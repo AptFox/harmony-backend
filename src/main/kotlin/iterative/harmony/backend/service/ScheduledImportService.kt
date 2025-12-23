@@ -3,7 +3,9 @@ package iterative.harmony.backend.service
 import iterative.harmony.backend.exception.ScheduledTaskException
 import iterative.harmony.backend.model.Organization
 import iterative.harmony.backend.model.SkillGroup
+import iterative.harmony.backend.model.Team
 import iterative.harmony.backend.repository.DataSourceRepository
+import iterative.harmony.backend.repository.OrganizationRepository
 import iterative.harmony.backend.util.getLogger
 import java.io.File
 import java.nio.file.StandardOpenOption
@@ -22,13 +24,15 @@ import org.springframework.web.reactive.function.client.WebClient
 @Service
 class ScheduledImportService {
     private val log = getLogger()
+    @Autowired private lateinit var orgRepository: OrganizationRepository
     @Autowired private lateinit var dataSourceRepository: DataSourceRepository
-    @Autowired private lateinit var skillGroupService: SkillGroupService
     @Autowired private lateinit var csvParsingService: CsvParsingService
+    @Autowired private lateinit var skillGroupService: SkillGroupService
+    @Autowired private lateinit var teamService: TeamsService
     private val webClient = WebClient.builder().build()
-
-    // TODO: consider storing these headers in the DB alongside data_sources somehow
-    val MLE_SKILL_GROUP_HEADERS =
+    private val BATCH_SIZE = 100
+    // TODO: Figure out how to store these headers in the DB alongside data_sources
+    private val MLE_SKILL_GROUP_HEADERS =
         listOf(
             "skill_group_id",
             "league_code",
@@ -38,15 +42,41 @@ class ScheduledImportService {
             "discord_emoji",
             "max_salary",
         )
-    private val BATCH_SIZE = 100
+    private val MLE_TEAMS_HEADERS =
+        listOf(
+            "Conference",
+            "Super Division",
+            "Division",
+            "Franchise",
+            "Code",
+            "Primary Color",
+            "Secondary Color",
+            "Photo URL",
+        )
+    private val MLE_MEMBERS_HEADERS =
+        listOf("member_id", "name", "mle_id", "mle_player_id", "discord_id")
+    private val MLE_PLAYERS_HEADERS =
+        listOf(
+            "name",
+            "salary",
+            "sprocket_player_id",
+            "member_id",
+            "skill_group",
+            "franchise",
+            "Franchise Staff Position",
+            "slot",
+            "current_scrim_points",
+            "Eligible Until",
+        )
 
     // Runs every hour
     @Scheduled(fixedRate = 1, timeUnit = TimeUnit.HOURS)
     fun hourlyImports() {
         log.info("Hourly - Scheduled Import started")
-        //        runBlocking {
-        //            importPlayers()
-        //        }
+        runBlocking {
+            importUsers()
+            //            importPlayers()
+        }
         log.info("Hourly - Scheduled Import stopped")
     }
 
@@ -56,7 +86,7 @@ class ScheduledImportService {
         log.info("Daily - Scheduled Import started")
         runBlocking {
             importSkillGroups()
-            // importTeams()
+            importTeams()
         }
         log.info("Daily - Scheduled Import stopped")
     }
@@ -78,27 +108,24 @@ class ScheduledImportService {
     }
 
     suspend fun <T> downloadAndImport(
+        org: Organization,
         destinationTable: String,
         csvHeaders: List<String>,
-        getPreExistingRecords: suspend (org: Organization) -> List<T>,
         saveBatch: suspend (batch: MutableList<T>) -> Unit,
-        importCode:
-            suspend (
-                org: Organization,
-                preExisting: List<T>,
-                batch: MutableList<T>,
-                csvRow: Map<String, String>,
-            ) -> Unit,
+        importCode: suspend (batch: MutableList<T>, csvRow: Map<String, String>) -> Unit,
     ) {
         val dataSources =
-            dataSourceRepository.findAllByDestinationTableAndEnabled(destinationTable, true)
+            dataSourceRepository.findAllByOrganizationAndDestinationTableAndEnabled(
+                org,
+                destinationTable,
+                true,
+            )
         dataSources.forEach { dataSource ->
             val dataFormat = dataSource.dataFormat
             if (dataFormat != "csv")
                 throw ScheduledTaskException(
                     "Only CSV import is supported, import called with $dataFormat"
                 )
-            val org = dataSource.organization
             val orgAcronym = org.acronym
             val logPrefix = "$orgAcronym - $destinationTable import - "
             log.info("$logPrefix started")
@@ -110,10 +137,9 @@ class ScheduledImportService {
                     suffix = ".${dataFormat}",
                 )
             try {
-                val preExisting = getPreExistingRecords(org)
                 val batch = mutableListOf<T>()
                 csvParsingService.parseCsvStream(tempFile, csvHeaders) { csvRow ->
-                    importCode(org, preExisting, batch, csvRow)
+                    importCode(batch, csvRow)
                     if (batch.size >= BATCH_SIZE) {
                         saveBatch(batch)
                         batch.clear()
@@ -131,29 +157,52 @@ class ScheduledImportService {
     }
 
     suspend fun importSkillGroups() {
-        val getPreExistingRecords: suspend (org: Organization) -> List<SkillGroup> = { org ->
-            skillGroupService.getPreExistingSkillGroupsByOrg(org)
-        }
-        val saveBatch: suspend (batch: List<SkillGroup>) -> Unit = { batch ->
-            skillGroupService.saveBatch(batch)
-        }
-        downloadAndImport(
-            "skill_groups",
-            MLE_SKILL_GROUP_HEADERS,
-            getPreExistingRecords,
-            saveBatch,
-        ) { org, preExisting, batch, csvRow ->
-            skillGroupService.import(org, preExisting, batch, csvRow)
+        val organizations = orgRepository.findAll()
+        organizations.forEach { org ->
+            val preExistingSkillGroups = skillGroupService.getPreExistingSkillGroupsByOrg(org)
+            val saveBatch: suspend (batch: List<SkillGroup>) -> Unit = { batch ->
+                skillGroupService.saveBatch(batch)
+            }
+            downloadAndImport(org, "skill_groups", MLE_SKILL_GROUP_HEADERS, saveBatch) {
+                batch,
+                csvRow ->
+                skillGroupService.import(org, batch, csvRow, preExistingSkillGroups)
+            }
         }
     }
 
     suspend fun importTeams() {
+        val organizations = orgRepository.findAll()
+        organizations.forEach { org ->
+            val preExistingSkillGroups = skillGroupService.getPreExistingSkillGroupsByOrg(org)
+            val preExistingTeams = teamService.getPreExistingTeamsByOrg(org)
+
+            val saveBatch: suspend (batch: List<Team>) -> Unit = { batch ->
+                teamService.saveBatch(batch)
+            }
+
+            downloadAndImport(org, "teams", MLE_TEAMS_HEADERS, saveBatch) { batch, csvRow ->
+                teamService.import(org, batch, csvRow, preExistingSkillGroups, preExistingTeams)
+            }
+        }
+    }
+
+    suspend fun importUsers() {
+        // TODO: figure out how to parse without loading all pre-existing users in memory at once
         throw NotImplementedError()
+        //        val organizations = orgRepository.findAll()
+        //        organizations.forEach{ org ->
+        //            // maybe don't persist users
+        //        }
     }
 
     suspend fun importPlayers() {
         // TODO: figure out how to parse without loading all pre-existing players in memory at once
         // Maybe use BATCH_SIZE somehow?
         throw NotImplementedError()
+        //        val organizations = orgRepository.findAll()
+        //        organizations.forEach{ org ->
+        //            // maybe don't persist users
+        //        }
     }
 }

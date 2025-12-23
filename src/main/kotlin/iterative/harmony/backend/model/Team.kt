@@ -14,7 +14,7 @@ data class Team(
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "skill_group_id")
     val skillGroup: SkillGroup,
-    val name: String,
-    val acronym: String,
-    val imageUrl: String,
+    var name: String,
+    var acronym: String,
+    var imageUrl: String,
 ) : LongEntity()

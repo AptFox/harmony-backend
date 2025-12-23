@@ -13,9 +13,9 @@ class SkillGroupService {
 
     suspend fun import(
         org: Organization,
-        preExistingSkillGroups: List<SkillGroup>,
         batch: MutableList<SkillGroup>,
         row: Map<String, String>,
+        preExistingSkillGroups: List<SkillGroup>,
     ) {
         val importedSq =
             SkillGroup(
