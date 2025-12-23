@@ -45,8 +45,7 @@ class SkillGroupService {
     }
 
     @Transactional
-    suspend fun flushBatch(batch: MutableList<SkillGroup>) {
+    suspend fun saveBatch(batch: List<SkillGroup>) {
         skillGroupRepository.saveAll(batch)
-        batch.clear()
     }
 }

@@ -56,7 +56,7 @@ class ScheduledImportService {
         log.info("Daily - Scheduled Import started")
         runBlocking {
             importSkillGroups()
-            //            importTeams()
+            // importTeams()
         }
         log.info("Daily - Scheduled Import stopped")
     }
@@ -80,12 +80,12 @@ class ScheduledImportService {
     suspend fun <T> downloadAndImport(
         destinationTable: String,
         csvHeaders: List<String>,
-        preExistingRecordsFn: suspend (org: Organization) -> List<SkillGroup>,
-        flushBatchFn: suspend (batch: MutableList<T>) -> Unit,
+        getPreExistingRecords: suspend (org: Organization) -> List<T>,
+        saveBatch: suspend (batch: MutableList<T>) -> Unit,
         importCode:
             suspend (
                 org: Organization,
-                preExisting: List<SkillGroup>,
+                preExisting: List<T>,
                 batch: MutableList<T>,
                 csvRow: Map<String, String>,
             ) -> Unit,
@@ -109,36 +109,39 @@ class ScheduledImportService {
                     prefix = "${orgAcronym}-${dataSourceName}",
                     suffix = ".${dataFormat}",
                 )
-            runCatching {
-                    val preExisting = preExistingRecordsFn(org)
-                    val batch = mutableListOf<T>()
-                    csvParsingService.parseCsvStream(tempFile, csvHeaders) { csvRow ->
-                        importCode(org, preExisting, batch, csvRow)
-                        if (batch.size >= BATCH_SIZE) flushBatchFn(batch)
+            try {
+                val preExisting = getPreExistingRecords(org)
+                val batch = mutableListOf<T>()
+                csvParsingService.parseCsvStream(tempFile, csvHeaders) { csvRow ->
+                    importCode(org, preExisting, batch, csvRow)
+                    if (batch.size >= BATCH_SIZE) {
+                        saveBatch(batch)
+                        batch.clear()
                     }
-                    if (batch.isNotEmpty()) flushBatchFn(batch)
                 }
-                .onSuccess { log.info("$logPrefix - succeeded") }
-                .onFailure { ex ->
-                    log.error("$logPrefix - failed: ${ex.message}")
-                    throw ScheduledTaskException("$logPrefix failed", ex)
-                }
-            if (tempFile.exists()) tempFile.delete()
+                if (batch.isNotEmpty()) saveBatch(batch)
+                log.info("$logPrefix - succeeded")
+            } catch (ex: Exception) {
+                log.error("$logPrefix - failed: ${ex.message}")
+                throw ScheduledTaskException("$logPrefix failed", ex)
+            } finally {
+                if (tempFile.exists()) tempFile.delete()
+            }
         }
     }
 
     suspend fun importSkillGroups() {
-        val preExistingRecordsFn: suspend (org: Organization) -> List<SkillGroup> = { org ->
+        val getPreExistingRecords: suspend (org: Organization) -> List<SkillGroup> = { org ->
             skillGroupService.getPreExistingSkillGroupsByOrg(org)
         }
-        val flushBatchFn: suspend (batch: MutableList<SkillGroup>) -> Unit = { batch ->
-            skillGroupService.flushBatch(batch)
+        val saveBatch: suspend (batch: List<SkillGroup>) -> Unit = { batch ->
+            skillGroupService.saveBatch(batch)
         }
         downloadAndImport(
             "skill_groups",
             MLE_SKILL_GROUP_HEADERS,
-            preExistingRecordsFn,
-            flushBatchFn,
+            getPreExistingRecords,
+            saveBatch,
         ) { org, preExisting, batch, csvRow ->
             skillGroupService.import(org, preExisting, batch, csvRow)
         }
@@ -149,6 +152,8 @@ class ScheduledImportService {
     }
 
     suspend fun importPlayers() {
+        // TODO: figure out how to parse without loading all pre-existing players in memory at once
+        // Maybe use BATCH_SIZE somehow?
         throw NotImplementedError()
     }
 }
