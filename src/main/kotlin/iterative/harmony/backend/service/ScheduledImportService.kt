@@ -17,6 +17,7 @@ import kotlinx.coroutines.runBlocking
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.core.io.buffer.DataBuffer
 import org.springframework.core.io.buffer.DataBufferUtils
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.http.MediaType
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
@@ -34,7 +35,7 @@ class ScheduledImportService {
     private val webClient = WebClient.builder().build()
     private val BATCH_SIZE = 100
     // TODO: Figure out how to store these headers in the DB alongside data_sources
-    private val MLE_SKILL_GROUP_HEADERS =
+    private val MLE_LEAGUES_HEADERS =
         listOf(
             "skill_group_id",
             "league_code",
@@ -149,8 +150,8 @@ class ScheduledImportService {
                 }
                 if (saveBatch != null && batch.isNotEmpty()) saveBatch(batch)
                 log.info("$logPrefix - succeeded")
-            } catch (ex: Exception) {
-                log.error("$logPrefix - failed: ${ex.message}")
+            } catch (ex: DataIntegrityViolationException) {
+                log.error("$logPrefix - error saving to DB: ${ex.message}")
                 throw ScheduledTaskException("$logPrefix failed", ex)
             } finally {
                 if (tempFile.exists()) tempFile.delete()
@@ -159,53 +160,68 @@ class ScheduledImportService {
     }
 
     suspend fun importSkillGroups() {
-        val organizations = orgRepository.findAll()
-        organizations.forEach { org ->
-            val preExistingSkillGroups = skillGroupService.getPreExistingSkillGroupsByOrg(org)
-            val saveBatch: suspend (batch: List<SkillGroup>) -> Unit = { batch ->
-                skillGroupService.saveBatch(batch)
+        try {
+            orgRepository.findAll().forEach { org ->
+                val preExistingSkillGroups = skillGroupService.getPreExistingSkillGroupsByOrg(org)
+                val saveBatch: suspend (batch: List<SkillGroup>) -> Unit = { batch ->
+                    skillGroupService.saveBatch(batch)
+                }
+                downloadAndImport(org, "skill_groups", MLE_LEAGUES_HEADERS, saveBatch) {
+                    batch,
+                    csvRow ->
+                    skillGroupService.import(org, batch, csvRow, preExistingSkillGroups)
+                }
             }
-            downloadAndImport(org, "skill_groups", MLE_SKILL_GROUP_HEADERS, saveBatch) {
-                batch,
-                csvRow ->
-                skillGroupService.import(org, batch, csvRow, preExistingSkillGroups)
-            }
+        } catch (ex: Exception) {
+            log.error("SkillGroup import failed")
+            throw ex
         }
     }
 
     suspend fun importTeams() {
-        val organizations = orgRepository.findAll()
-        organizations.forEach { org ->
-            val preExistingSkillGroups = skillGroupService.getPreExistingSkillGroupsByOrg(org)
-            val preExistingTeams = teamService.getPreExistingTeamsByOrg(org)
+        // TODO:
+        // Somehow hibernate is getting confused and trying to add the teams as new instead of
+        // updating them
+        try {
+            orgRepository.findAll().forEach { org ->
+                val preExistingSkillGroups = skillGroupService.getPreExistingSkillGroupsByOrg(org)
+                val preExistingTeams = teamService.getPreExistingTeamsByOrg(org)
 
-            val saveBatch: suspend (batch: List<Team>) -> Unit = { batch ->
-                teamService.saveBatch(batch)
-            }
+                val saveBatch: suspend (batch: List<Team>) -> Unit = { batch ->
+                    teamService.saveBatch(batch)
+                }
 
-            downloadAndImport(org, "teams", MLE_TEAMS_HEADERS, saveBatch) { batch, csvRow ->
-                teamService.import(org, batch, csvRow, preExistingSkillGroups, preExistingTeams)
+                downloadAndImport(org, "teams", MLE_TEAMS_HEADERS, saveBatch) { batch, csvRow ->
+                    teamService.import(org, batch, csvRow, preExistingSkillGroups, preExistingTeams)
+                }
             }
+        } catch (ex: Exception) {
+            log.error("Team import failed")
+            throw ex
         }
     }
 
     // Hits the DB for each row but should be fine as it's one thread
     suspend fun importUsers() {
-        val organizations = orgRepository.findAll()
-        organizations.forEach { org ->
-            downloadAndImport<User>(org, "users", MLE_MEMBERS_HEADERS) { batch, csvRow ->
-                userService.import(csvRow)
+        try {
+            orgRepository.findAll().forEach { org ->
+                downloadAndImport<User>(org, "users", MLE_MEMBERS_HEADERS) { batch, csvRow ->
+                    userService.import(csvRow)
+                }
             }
+        } catch (ex: Exception) {
+            log.error("User import failed")
+            throw ex
         }
     }
 
     suspend fun importPlayers() {
         throw NotImplementedError()
-        // look up exact user by import_id and save one at a time
-
-        //        val organizations = orgRepository.findAll()
-        //        organizations.forEach{ org ->
-        //            // maybe don't persist users
+        //        try {
+        //
+        //        }
+        //        catch (ex: Exception) {
+        //
         //        }
     }
 }

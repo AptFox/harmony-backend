@@ -1,5 +1,6 @@
 package iterative.harmony.backend.service
 
+import iterative.harmony.backend.exception.ImportException
 import iterative.harmony.backend.model.Organization
 import iterative.harmony.backend.model.SkillGroup
 import iterative.harmony.backend.model.Team
@@ -19,30 +20,35 @@ class TeamService {
         preExistingSkillGroups: List<SkillGroup>,
         preExistingTeams: List<Team>,
     ) {
+        val importedName = row["Franchise"].toString()
+        val importedAcronym = row["Code"].toString()
+        val importedImageUrl = row["Photo URL"].toString()
+        if (importedName.isEmpty() || importedAcronym.isEmpty() || importedImageUrl.isEmpty())
+            throw ImportException("Required field is missing")
         preExistingSkillGroups.forEach { skillGroup ->
-            val importedTeam =
-                Team(
-                    organization = org,
-                    skillGroup = skillGroup,
-                    name = "${skillGroup.acronym} ${row["Franchise"].toString()}",
-                    acronym = row["Code"].toString(),
-                    imageUrl = row["Photo URL"].toString(),
-                )
+            val acronymAndName = "${skillGroup.acronym} $importedName"
             val preExistingTeam =
                 preExistingTeams.find { team ->
-                    team.organization == importedTeam.organization &&
-                        team.skillGroup == importedTeam.skillGroup
+                    team.organization.id == org.id && team.skillGroup.id == skillGroup.id
                 }
             if (preExistingTeam != null) {
-                val updatedTeam =
+                batch.add(
                     preExistingTeam.apply {
-                        name = importedTeam.name
-                        acronym = importedTeam.acronym
-                        imageUrl = importedTeam.imageUrl
+                        name = acronymAndName
+                        acronym = importedAcronym
+                        imageUrl = importedImageUrl
                     }
-                batch.add(updatedTeam)
+                )
             } else {
-                batch.add(importedTeam)
+                batch.add(
+                    Team(
+                        organization = org,
+                        skillGroup = skillGroup,
+                        name = acronymAndName,
+                        acronym = importedAcronym,
+                        imageUrl = importedImageUrl,
+                    )
+                )
             }
         }
     }

@@ -18,7 +18,7 @@ class SchedulingConfig {
     @Bean
     fun taskScheduler(): TaskScheduler {
         val scheduler = ThreadPoolTaskScheduler()
-        scheduler.poolSize = 5
+        scheduler.poolSize = 1
         scheduler.setThreadNamePrefix("harmony-scheduled-task-")
         scheduler.setErrorHandler { ex -> reportErrorToSentry(ex) }
         scheduler.setWaitForTasksToCompleteOnShutdown(true)

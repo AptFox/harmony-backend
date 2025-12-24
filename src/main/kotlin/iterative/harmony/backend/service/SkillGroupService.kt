@@ -1,5 +1,6 @@
 package iterative.harmony.backend.service
 
+import iterative.harmony.backend.exception.ImportException
 import iterative.harmony.backend.model.Organization
 import iterative.harmony.backend.model.SkillGroup
 import iterative.harmony.backend.repository.SkillGroupRepository
@@ -17,6 +18,17 @@ class SkillGroupService {
         row: Map<String, String>,
         preExistingSkillGroups: List<SkillGroup>,
     ) {
+        val importedName = row["league_name"].toString()
+        val importedAcronym = row["league_code"].toString()
+        val importedImageUrl = row["league_photo_url"].toString()
+        val importedColor = row["color"].toString()
+        if (
+            importedName.isEmpty() ||
+                importedAcronym.isEmpty() ||
+                importedImageUrl.isEmpty() ||
+                importedColor.isEmpty()
+        )
+            throw ImportException("Required field is missing")
         val importedSq =
             SkillGroup(
                 organization = org,

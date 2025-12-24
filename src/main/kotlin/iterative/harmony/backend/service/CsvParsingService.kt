@@ -2,8 +2,10 @@ package iterative.harmony.backend.service
 
 import com.fasterxml.jackson.dataformat.csv.CsvMapper
 import com.fasterxml.jackson.dataformat.csv.CsvSchema
+import iterative.harmony.backend.exception.ImportException
 import iterative.harmony.backend.util.getLogger
 import java.io.File
+import java.io.IOException
 import org.springframework.stereotype.Service
 
 @Service
@@ -36,13 +38,15 @@ class CsvParsingService {
                     try {
                         parsingCode(row)
                         rowIndex++
-                    } catch (ex: Exception) {
+                    } catch (ex: ImportException) {
                         log.warn("Row $rowIndex failed: ${ex.message}")
+                    } finally {
+                        rowIndex++
                     }
                 }
                 log.info("$rowIndex rows processed")
             }
-        } catch (e: Exception) {
+        } catch (e: IOException) {
             throw RuntimeException("Error parsing CSV: ${e.message}")
         }
     }

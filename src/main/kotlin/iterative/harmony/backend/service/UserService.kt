@@ -2,6 +2,7 @@ package iterative.harmony.backend.service
 
 import iterative.harmony.backend.controller.requests.UpdateUserRequest
 import iterative.harmony.backend.controller.responses.UserResponse
+import iterative.harmony.backend.exception.ImportException
 import iterative.harmony.backend.exception.UserNotFoundException
 import iterative.harmony.backend.model.User
 import iterative.harmony.backend.model.dto.DiscordOAuthUser
@@ -80,7 +81,8 @@ class UserService {
         val discordId = row["discord_id"].toString()
         val memberId = row["member_id"].toString()
         val name = row["name"].toString()
-        if (discordId.isEmpty() || memberId.isEmpty() || name.isEmpty()) return
+        if (discordId.isEmpty() || memberId.isEmpty() || name.isEmpty())
+            throw ImportException("Required field is missing")
 
         val userRole = roleRepository.findByName(RoleConstants.USER_ROLE).get()
         val preExistingUser = userRepository.findByDiscordId(discordId)
