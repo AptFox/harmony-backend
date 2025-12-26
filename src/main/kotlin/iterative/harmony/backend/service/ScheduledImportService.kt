@@ -8,6 +8,8 @@ import iterative.harmony.backend.model.Team
 import iterative.harmony.backend.model.User
 import iterative.harmony.backend.repository.DataSourceRepository
 import iterative.harmony.backend.repository.OrganizationRepository
+import iterative.harmony.backend.repository.RoleRepository
+import iterative.harmony.backend.util.RoleConstants
 import iterative.harmony.backend.util.getLogger
 import java.io.File
 import java.nio.file.StandardOpenOption
@@ -29,10 +31,12 @@ class ScheduledImportService {
     private val log = getLogger()
     @Autowired private lateinit var orgRepository: OrganizationRepository
     @Autowired private lateinit var dataSourceRepository: DataSourceRepository
+    @Autowired private lateinit var roleRepository: RoleRepository
     @Autowired private lateinit var csvParsingService: CsvParsingService
     @Autowired private lateinit var skillGroupService: SkillGroupService
     @Autowired private lateinit var teamService: TeamService
     @Autowired private lateinit var userService: UserService
+    @Autowired private lateinit var playerService: PlayerService
     private val webClient = WebClient.builder().build()
     private val BATCH_SIZE = 100
     // TODO: Figure out how to store these headers in the DB alongside data_sources
@@ -115,7 +119,7 @@ class ScheduledImportService {
         org: Organization,
         destinationTable: String,
         csvHeaders: List<String>,
-        saveBatch: (suspend (batch: MutableList<T>) -> Unit)? = null,
+        saveBatch: suspend (batch: MutableList<T>) -> Unit,
         importCode: suspend (batch: MutableList<T>, csvRow: Map<String, String>) -> Unit,
     ) {
         val dataSources =
@@ -145,11 +149,11 @@ class ScheduledImportService {
                 csvParsingService.parseCsvStream(tempFile, csvHeaders) { csvRow ->
                     importCode(batch, csvRow)
                     if (batch.size >= BATCH_SIZE) {
-                        if (saveBatch != null) saveBatch(batch)
+                        saveBatch(batch)
                         batch.clear()
                     }
                 }
-                if (saveBatch != null && batch.isNotEmpty()) saveBatch(batch)
+                if (batch.isNotEmpty()) saveBatch(batch)
                 log.info("$logPrefix - succeeded")
             } catch (ex: DataIntegrityViolationException) {
                 log.error("$logPrefix - error saving to DB: ${ex.message}")
@@ -161,69 +165,81 @@ class ScheduledImportService {
     }
 
     suspend fun importSkillGroups() {
-        try {
-            orgRepository.findAll().forEach { org ->
+        val saveBatch: suspend (batch: List<SkillGroup>) -> Unit = { batch ->
+            skillGroupService.saveBatch(batch)
+        }
+        orgRepository.findAll().forEach { org ->
+            try {
                 val preExistingSkillGroups = skillGroupService.getPreExistingSkillGroupsByOrg(org)
-                val saveBatch: suspend (batch: List<SkillGroup>) -> Unit = { batch ->
-                    skillGroupService.saveBatch(batch)
-                }
                 downloadAndImport(org, "skill_groups", MLE_LEAGUES_HEADERS, saveBatch) {
                     batch,
                     csvRow ->
                     skillGroupService.import(org, batch, csvRow, preExistingSkillGroups)
                 }
+            } catch (ex: Exception) {
+                log.error("SkillGroup import failed")
+                throw ex
             }
-        } catch (ex: Exception) {
-            log.error("SkillGroup import failed")
-            throw ex
         }
     }
 
     suspend fun importTeams() {
-        try {
-            orgRepository.findAll().forEach { org ->
+        val saveBatch: suspend (batch: List<Team>) -> Unit = { batch ->
+            teamService.saveBatch(batch)
+        }
+        orgRepository.findAll().forEach { org ->
+            try {
                 val preExistingSkillGroups = skillGroupService.getPreExistingSkillGroupsByOrg(org)
                 val preExistingTeams = teamService.getPreExistingTeamsByOrg(org)
-
-                val saveBatch: suspend (batch: List<Team>) -> Unit = { batch ->
-                    teamService.saveBatch(batch)
-                }
 
                 downloadAndImport(org, "teams", MLE_TEAMS_HEADERS, saveBatch) { batch, csvRow ->
                     teamService.import(org, batch, csvRow, preExistingSkillGroups, preExistingTeams)
                 }
+            } catch (ex: Exception) {
+                log.error("${org.acronym} Team import failed")
+                throw ex
             }
-        } catch (ex: Exception) {
-            log.error("Team import failed")
-            throw ex
         }
     }
 
-    // Hits the DB for each row but should be fine as it's one thread
     suspend fun importUsers() {
-        try {
-            orgRepository.findAll().forEach { org ->
-                downloadAndImport<User>(org, "users", MLE_MEMBERS_HEADERS) { batch, csvRow ->
-                    userService.import(csvRow)
+        val saveBatch: suspend (batch: List<User>) -> Unit = { batch ->
+            userService.saveBatch(batch)
+        }
+        val defaultUserRole = roleRepository.findByName(RoleConstants.USER_ROLE).get()
+        orgRepository.findAll().forEach { org ->
+            try {
+                downloadAndImport(org, "users", MLE_MEMBERS_HEADERS, saveBatch) { batch, csvRow ->
+                    userService.import(batch, csvRow, defaultUserRole)
                 }
+            } catch (ex: Exception) {
+                log.error("${org.acronym} User import failed")
+                throw ex
             }
-        } catch (ex: Exception) {
-            log.error("User import failed")
-            throw ex
         }
     }
 
     suspend fun importPlayers() {
-        try {
-            throw NotImplementedError()
-            orgRepository.findAll().forEach { org ->
-                downloadAndImport<Player>(org, "players", MLE_PLAYERS_HEADERS) { batch, csvRow ->
-                    //                    playerService.import(csvRow)
+        val saveBatch: suspend (batch: List<Player>) -> Unit = { batch ->
+            playerService.saveBatch(batch)
+        }
+        orgRepository.findAll().forEach { org ->
+            try {
+                val preExistingTeams = teamService.getPreExistingTeamsByOrg(org)
+                val preExistingSkillGroups = skillGroupService.getPreExistingSkillGroupsByOrg(org)
+                downloadAndImport(org, "players", MLE_PLAYERS_HEADERS, saveBatch) { batch, csvRow ->
+                    playerService.import(
+                        org,
+                        preExistingTeams,
+                        preExistingSkillGroups,
+                        batch,
+                        csvRow,
+                    )
                 }
+            } catch (ex: Exception) {
+                log.error("${org.acronym} Player import failed")
+                throw ex
             }
-        } catch (ex: Exception) {
-            log.error("Player import failed")
-            throw ex
         }
     }
 }

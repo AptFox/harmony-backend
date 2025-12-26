@@ -4,6 +4,7 @@ import iterative.harmony.backend.controller.requests.UpdateUserRequest
 import iterative.harmony.backend.controller.responses.UserResponse
 import iterative.harmony.backend.exception.ImportException
 import iterative.harmony.backend.exception.UserNotFoundException
+import iterative.harmony.backend.model.Role
 import iterative.harmony.backend.model.User
 import iterative.harmony.backend.model.dto.DiscordOAuthUser
 import iterative.harmony.backend.repository.RoleRepository
@@ -77,22 +78,21 @@ class UserService {
     }
 
     @Transactional
-    suspend fun import(row: Map<String, String>) {
+    suspend fun import(batch: MutableList<User>, row: Map<String, String>, defaultUserRole: Role) {
         val discordId = row["discord_id"].toString()
         val memberId = row["member_id"].toString()
         val name = row["name"].toString()
         if (discordId.isEmpty() || memberId.isEmpty() || name.isEmpty())
             throw ImportException("Required field is missing")
 
-        val userRole = roleRepository.findByName(RoleConstants.USER_ROLE).get()
         val preExistingUser = userRepository.findByDiscordId(discordId)
         if (preExistingUser.isPresent) {
             val updatedUser =
                 preExistingUser.get().apply {
-                    displayName = name
-                    importId = memberId
+                    this.displayName = name
+                    this.importId = memberId
                 }
-            userRepository.save(updatedUser)
+            batch.add(updatedUser)
         } else {
             val importedUser =
                 User(
@@ -103,10 +103,15 @@ class UserService {
                     discordId = discordId,
                     discordAvatarHash = null,
                     timeZoneId = null,
-                    roles = setOf(userRole),
+                    roles = setOf(defaultUserRole),
                     importId = memberId,
                 )
-            userRepository.save(importedUser)
+            batch.add(importedUser)
         }
+    }
+
+    @Transactional
+    suspend fun saveBatch(batch: List<User>) {
+        userRepository.saveAll(batch)
     }
 }

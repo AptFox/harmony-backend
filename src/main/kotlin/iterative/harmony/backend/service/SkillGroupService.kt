@@ -41,10 +41,10 @@ class SkillGroupService {
         if (preExistingSg != null) {
             val updatedSg =
                 preExistingSg.apply {
-                    name = importedSq.name
-                    acronym = importedSq.acronym
-                    imageUrl = importedSq.imageUrl
-                    colorHex = importedSq.colorHex
+                    this.name = importedSq.name
+                    this.acronym = importedSq.acronym
+                    this.imageUrl = importedSq.imageUrl
+                    this.colorHex = importedSq.colorHex
                 }
             batch.add(updatedSg)
         } else {

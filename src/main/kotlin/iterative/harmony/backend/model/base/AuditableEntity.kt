@@ -12,5 +12,5 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener
 @EntityListeners(AuditingEntityListener::class)
 abstract class AuditableEntity(
     @CreatedDate @Column(nullable = false, updatable = false) var createdAt: Instant? = null,
-    @LastModifiedDate @Column(nullable = false, insertable = false) var updatedAt: Instant? = null,
+    @LastModifiedDate @Column(nullable = false) var updatedAt: Instant? = null,
 )

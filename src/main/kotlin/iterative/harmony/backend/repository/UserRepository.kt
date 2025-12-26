@@ -12,6 +12,8 @@ import org.springframework.stereotype.Repository
 interface UserRepository : JpaRepository<User, UUID> {
     fun findByDiscordId(discordId: String): Optional<User>
 
+    fun findByImportId(importId: String): Optional<User>
+
     @Modifying
     @Query("UPDATE User u SET u.lastLoginAt = :lastLogin WHERE u.userId = :userId")
     fun updateLastLogin(userId: UUID, lastLogin: Instant = Instant.now())

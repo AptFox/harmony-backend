@@ -13,8 +13,8 @@ data class Player(
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "org_id") val organization: Organization,
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "skill_group_id")
-    val skillGroup: SkillGroup,
-    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "team_id") val team: Team,
+    var skillGroup: SkillGroup,
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "team_id") var team: Team,
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "user_id") val user: User,
-    val teamRole: String,
+    var teamRole: String?,
 ) : LongEntity()
