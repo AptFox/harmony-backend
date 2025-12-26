@@ -29,7 +29,9 @@ class TeamService {
             val acronymAndName = "${skillGroup.acronym} $importedName"
             val preExistingTeam =
                 preExistingTeams.find { team ->
-                    team.organization.id == org.id && team.skillGroup.id == skillGroup.id
+                    team.name == acronymAndName &&
+                        team.organization.id == org.id &&
+                        team.skillGroup.id == skillGroup.id
                 }
             if (preExistingTeam != null) {
                 batch.add(

@@ -2,6 +2,7 @@ package iterative.harmony.backend.service
 
 import iterative.harmony.backend.exception.ScheduledTaskException
 import iterative.harmony.backend.model.Organization
+import iterative.harmony.backend.model.Player
 import iterative.harmony.backend.model.SkillGroup
 import iterative.harmony.backend.model.Team
 import iterative.harmony.backend.model.User
@@ -179,9 +180,6 @@ class ScheduledImportService {
     }
 
     suspend fun importTeams() {
-        // TODO:
-        // Somehow hibernate is getting confused and trying to add the teams as new instead of
-        // updating them
         try {
             orgRepository.findAll().forEach { org ->
                 val preExistingSkillGroups = skillGroupService.getPreExistingSkillGroupsByOrg(org)
@@ -216,12 +214,16 @@ class ScheduledImportService {
     }
 
     suspend fun importPlayers() {
-        throw NotImplementedError()
-        //        try {
-        //
-        //        }
-        //        catch (ex: Exception) {
-        //
-        //        }
+        try {
+            throw NotImplementedError()
+            orgRepository.findAll().forEach { org ->
+                downloadAndImport<Player>(org, "players", MLE_PLAYERS_HEADERS) { batch, csvRow ->
+                    //                    playerService.import(csvRow)
+                }
+            }
+        } catch (ex: Exception) {
+            log.error("Player import failed")
+            throw ex
+        }
     }
 }
