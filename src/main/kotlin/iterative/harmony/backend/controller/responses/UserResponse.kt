@@ -9,7 +9,7 @@ data class UserResponse(
     val twelveHourClock: Boolean,
     val timeZoneId: String?,
     val discordId: String,
-    val discordAvatarHash: String,
+    val discordAvatarHash: String?,
 ) {
     companion object {
         fun fromUser(user: User) =
