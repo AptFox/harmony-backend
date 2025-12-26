@@ -39,8 +39,12 @@ class UserService {
             return userRepository.save(newUser)
         }
 
-        // Update user avatar
-        val updatedUser = user.get().apply { discordAvatarHash = discordUser.avatarHash }
+        // Update user
+        val updatedUser =
+            user.get().apply {
+                this.username = discordUser.username
+                this.discordAvatarHash = discordUser.avatarHash
+            }
         return userRepository.save(updatedUser)
     }
 
@@ -97,7 +101,7 @@ class UserService {
             val importedUser =
                 User(
                     userId = null,
-                    username = name,
+                    username = null,
                     displayName = name,
                     twelveHourClock = true,
                     discordId = discordId,

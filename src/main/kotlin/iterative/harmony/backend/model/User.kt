@@ -12,7 +12,7 @@ data class User(
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(nullable = false, updatable = false, insertable = false)
     val userId: UUID? = null,
-    val username: String,
+    var username: String?,
     var displayName: String,
     var twelveHourClock: Boolean = true,
     val discordId: String,

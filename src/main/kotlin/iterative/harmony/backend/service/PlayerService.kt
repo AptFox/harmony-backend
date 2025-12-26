@@ -24,9 +24,10 @@ class PlayerService {
     val FA = "FA"
     val FP = "FP"
     val WAIVERS = "Waivers"
+    val RFA = "RFA"
 
     val STAFF_POSITIONS_TO_IGNORE = listOf(NA, PEND)
-    val FRANCHISES_TO_IGNORE = listOf(FA, FP, WAIVERS, PEND)
+    val FRANCHISES_TO_IGNORE = listOf(FA, FP, WAIVERS, PEND, RFA)
 
     suspend fun import(
         org: Organization,

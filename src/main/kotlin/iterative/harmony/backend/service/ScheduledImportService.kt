@@ -135,7 +135,7 @@ class ScheduledImportService {
                     "Only CSV import is supported, import called with $dataFormat"
                 )
             val orgAcronym = org.acronym
-            val logPrefix = "$orgAcronym - $destinationTable import - "
+            val logPrefix = "$orgAcronym - $destinationTable import"
             log.info("$logPrefix started")
             val dataSourceName = dataSource.name.replace(" ", "-")
             val tempFile =
@@ -149,11 +149,15 @@ class ScheduledImportService {
                 csvParsingService.parseCsvStream(tempFile, csvHeaders) { csvRow ->
                     importCode(batch, csvRow)
                     if (batch.size >= BATCH_SIZE) {
+                        log.info("$logPrefix - Saving batch of $BATCH_SIZE")
                         saveBatch(batch)
                         batch.clear()
                     }
                 }
-                if (batch.isNotEmpty()) saveBatch(batch)
+                if (batch.isNotEmpty()) {
+                    log.info("$logPrefix - Saving batch of ${batch.size}")
+                    saveBatch(batch)
+                }
                 log.info("$logPrefix - succeeded")
             } catch (ex: DataIntegrityViolationException) {
                 log.error("$logPrefix - error saving to DB: ${ex.message}")

@@ -8,6 +8,11 @@ import java.io.File
 import java.io.IOException
 import org.springframework.stereotype.Service
 
+data class CsvParsingErrorSummary(
+    var count: Int = 0,
+    val rowPositions: MutableList<Int> = mutableListOf(),
+)
+
 @Service
 class CsvParsingService {
     private val log = getLogger()
@@ -26,6 +31,7 @@ class CsvParsingService {
                 .build()
 
         try {
+            val errorCollector = mutableMapOf<String, CsvParsingErrorSummary>()
             val mappingIterator =
                 csvMapper
                     .readerFor(Map::class.java)
@@ -37,14 +43,23 @@ class CsvParsingService {
                 csvStream.forEach { row ->
                     try {
                         parsingCode(row)
-                        rowIndex++
                     } catch (ex: ImportException) {
-                        log.warn("Row $rowIndex failed: ${ex.message}")
+                        val summary =
+                            errorCollector.getOrPut(ex.message!!) { CsvParsingErrorSummary() }
+                        summary.count++
+                        summary.rowPositions.add(rowIndex)
                     } finally {
                         rowIndex++
                     }
                 }
                 log.info("$rowIndex rows processed")
+                val totalErrorsEncountered = errorCollector.values.sumOf { it.count }
+                log.info(
+                    "Processing complete. Encountered ${errorCollector.size} unique errors across $totalErrorsEncountered rows."
+                )
+                errorCollector.forEach { (errorMsg, summary) ->
+                    log.info("$errorMsg received for following rows ${summary.rowPositions}")
+                }
             }
         } catch (e: IOException) {
             throw RuntimeException("Error parsing CSV: ${e.message}")
