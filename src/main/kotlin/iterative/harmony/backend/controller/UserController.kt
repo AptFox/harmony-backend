@@ -23,7 +23,7 @@ class UserController {
     @PreAuthorize("hasRole('${RoleConstants.USER_ROLE}')")
     @GetMapping("/user/@me")
     fun getUser(principal: Principal): UserResponse {
-        log.info("getting user")
+        log.debug("getting user")
 
         return userService.getCurrentUser(principal.name)
     }
@@ -34,7 +34,7 @@ class UserController {
         @Valid @RequestBody request: UpdateUserRequest,
         principal: Principal,
     ): UserResponse {
-        log.info("updating user")
+        log.debug("updating user")
         return userService.updateUser(request, principal.name)
     }
 }

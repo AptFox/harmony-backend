@@ -79,23 +79,23 @@ class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
 
     @Transactional
     fun deleteExpiredRefreshTokensForUser(userId: UUID) {
-        log.info("querying for expired refresh tokens")
+        log.debug("querying for expired refresh tokens")
         val instant: Instant = Instant.now().minusMillis(REFRESH_TOKEN_DURATION_IN_MILLIS)
         val expiredRefreshTokens: List<RefreshToken> =
             refreshTokenRepository.findAllByUserIdAndCreatedAtBefore(userId, instant)
 
         if (expiredRefreshTokens.count() > 0) {
-            log.info("${expiredRefreshTokens.count()} expired tokens found. Deleting.")
+            log.debug("${expiredRefreshTokens.count()} expired tokens found. Deleting...")
             refreshTokenRepository.deleteAll(expiredRefreshTokens)
         }
     }
 
     @Transactional
     fun deleteExcessRefreshTokensForUser(userId: UUID) {
-        log.info("querying for excess refresh tokens")
+        log.debug("querying for excess refresh tokens")
         val refreshTokenCountForUser = refreshTokenRepository.countByUserId(userId)
         if (refreshTokenCountForUser > 2) {
-            log.info(
+            log.debug(
                 "$refreshTokenCountForUser active refresh tokens found. Deleting all but the 2 most recently issued tokens..."
             )
             val limit = Limit.of(refreshTokenCountForUser - 2)

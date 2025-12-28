@@ -33,7 +33,7 @@ class AvailabilityController {
     @PreAuthorize("hasRole('${RoleConstants.USER_ROLE}')")
     @GetMapping("/@me")
     fun getUserAvailability(principal: Principal): AvailabilityResponse {
-        log.info("getting availability and timeOff")
+        log.debug("getting availability and timeOff")
 
         return availabilityService.getCurrentUserAvailability(principal.name)
     }
@@ -44,7 +44,7 @@ class AvailabilityController {
         @Valid @RequestBody slots: List<WeeklyAvailabilitySlotRequest>,
         principal: Principal,
     ): ResponseEntity<WeeklyAvailabilityResponse> {
-        log.info("setting weekly availability")
+        log.debug("setting weekly availability")
         if (slots.isEmpty())
             throw IllegalArgumentException("Request must contain at least 1 WeeklyAvailabilitySlot")
         if (slots.size > 112)
@@ -71,7 +71,7 @@ class AvailabilityController {
         @Valid @RequestBody timeOff: TimeOffRequest,
         principal: Principal,
     ): ResponseEntity<TimeOffResponse> {
-        log.info("setting timeOff")
+        log.debug("setting timeOff")
 
         val response = availabilityService.addTimeOff(principal.name, timeOff)
         val status = if (!response.errors.isNullOrEmpty()) HttpStatus.BAD_REQUEST else HttpStatus.OK
