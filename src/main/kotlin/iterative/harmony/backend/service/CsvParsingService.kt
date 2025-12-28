@@ -58,7 +58,7 @@ class CsvParsingService {
                     "Processing complete. Encountered ${errorCollector.size} unique errors across $totalErrorsEncountered rows."
                 )
                 errorCollector.forEach { (errorMsg, summary) ->
-                    log.info("$errorMsg received for following rows ${summary.rowPositions}")
+                    log.error("Error: '$errorMsg', received for rows ${summary.rowPositions}")
                 }
             }
         } catch (e: IOException) {

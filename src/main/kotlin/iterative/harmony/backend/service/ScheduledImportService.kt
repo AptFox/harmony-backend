@@ -18,6 +18,7 @@ import kotlin.collections.isNotEmpty
 import kotlinx.coroutines.reactor.awaitSingleOrNull
 import kotlinx.coroutines.runBlocking
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.core.io.buffer.DataBuffer
 import org.springframework.core.io.buffer.DataBufferUtils
 import org.springframework.dao.DataIntegrityViolationException
@@ -27,6 +28,11 @@ import org.springframework.stereotype.Service
 import org.springframework.web.reactive.function.client.WebClient
 
 @Service
+@ConditionalOnProperty(
+    prefix = "feature.scheduled.import",
+    name = ["enabled"],
+    havingValue = "true",
+)
 class ScheduledImportService {
     private val log = getLogger()
     @Autowired private lateinit var orgRepository: OrganizationRepository
@@ -149,13 +155,13 @@ class ScheduledImportService {
                 csvParsingService.parseCsvStream(tempFile, csvHeaders) { csvRow ->
                     importCode(batch, csvRow)
                     if (batch.size >= BATCH_SIZE) {
-                        log.info("$logPrefix - Saving batch of $BATCH_SIZE")
+                        log.debug("$logPrefix - Saving batch of $BATCH_SIZE")
                         saveBatch(batch)
                         batch.clear()
                     }
                 }
                 if (batch.isNotEmpty()) {
-                    log.info("$logPrefix - Saving batch of ${batch.size}")
+                    log.debug("$logPrefix - Saving batch of ${batch.size}")
                     saveBatch(batch)
                 }
                 log.info("$logPrefix - succeeded")
