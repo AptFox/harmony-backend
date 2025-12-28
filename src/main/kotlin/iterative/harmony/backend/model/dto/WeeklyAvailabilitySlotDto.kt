@@ -18,7 +18,7 @@ data class WeeklyAvailabilitySlotDto(
             WeeklyAvailabilitySlotDto(
                 was.id,
                 was.user.userId,
-                was.playerId,
+                was.player?.id,
                 was.dayOfWeek,
                 was.startTime,
                 was.endTime,

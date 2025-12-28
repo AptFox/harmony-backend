@@ -3,6 +3,7 @@ package iterative.harmony.backend.controller
 import iterative.harmony.backend.controller.requests.TimeOffRequest
 import iterative.harmony.backend.controller.requests.WeeklyAvailabilitySlotRequest
 import iterative.harmony.backend.controller.responses.AvailabilityResponse
+import iterative.harmony.backend.controller.responses.TeamScheduleResponse
 import iterative.harmony.backend.controller.responses.TimeOffResponse
 import iterative.harmony.backend.controller.responses.WeeklyAvailabilityResponse
 import iterative.harmony.backend.service.AvailabilityService
@@ -54,6 +55,18 @@ class AvailabilityController {
 
         val response = availabilityService.overwriteWeeklyAvailability(principal.name, slots)
         val status = if (!response.errors.isNullOrEmpty()) HttpStatus.BAD_REQUEST else HttpStatus.OK
+
+        return ResponseEntity.status(status).body(response)
+    }
+
+    @PreAuthorize("hasRole('${RoleConstants.USER_ROLE}')")
+    @GetMapping("/weekly/team/{orgId}")
+    fun getTeamSchedule(
+        principal: Principal,
+        @PathVariable orgId: Long,
+    ): ResponseEntity<TeamScheduleResponse> {
+        val response = availabilityService.getTeamSchedule(principal.name, orgId)
+        val status = if (!response.error.isNullOrEmpty()) HttpStatus.BAD_REQUEST else HttpStatus.OK
 
         return ResponseEntity.status(status).body(response)
     }

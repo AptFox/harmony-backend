@@ -17,7 +17,7 @@ data class TimeOffDto(
             TimeOffDto(
                 timeOff.id,
                 timeOff.user.userId,
-                timeOff.playerId,
+                timeOff.player?.id,
                 timeOff.startTime,
                 timeOff.endTime,
                 timeOff.comment,

@@ -17,6 +17,13 @@ interface TimeOffRepository : JpaRepository<TimeOff, Long> {
         nowEnd: Instant,
     ): List<TimeOff>
 
+    // TODO: limit this query to timeOffs within the next 7 days
+    fun findAllByPlayerIdAndStartTimeIsAfterOrEndTimeIsAfter(
+        playerId: Long,
+        nowStart: Instant,
+        nowEnd: Instant,
+    ): List<TimeOff>
+
     fun findAllByUserAndEndTimeIsBefore(user: User, now: Instant): List<TimeOff>
 
     fun existsByUserAndStartTimeEquals(user: User, startTime: Instant): Boolean
