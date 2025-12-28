@@ -1,4 +1,4 @@
-package iterative.harmony.backend.controller.dto
+package iterative.harmony.backend.controller.requests
 
 import jakarta.validation.constraints.Future
 import jakarta.validation.constraints.NotNull

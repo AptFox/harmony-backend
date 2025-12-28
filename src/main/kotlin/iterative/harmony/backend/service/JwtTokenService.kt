@@ -14,6 +14,7 @@ import iterative.harmony.backend.exception.UnexpectedRefreshTokenVerificationExc
 import iterative.harmony.backend.exception.UnparseableTokenException
 import iterative.harmony.backend.model.RefreshToken
 import iterative.harmony.backend.repository.RefreshTokenRepository
+import iterative.harmony.backend.repository.UserRepository
 import iterative.harmony.backend.util.Utils
 import iterative.harmony.backend.util.getLogger
 import java.security.Key
@@ -27,10 +28,12 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 
 @Service
 class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
     @Autowired private lateinit var refreshTokenRepository: RefreshTokenRepository
+    @Autowired private lateinit var userRepository: UserRepository
     private val key: Key = Keys.hmacShaKeyFor(secretKey.toByteArray())
     private val tokenParser = Jwts.parserBuilder().setSigningKey(key).build()
     private val log = getLogger()
@@ -50,7 +53,9 @@ class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
         return buildToken(claims, tokenIssuedAt, tokenExpiration)
     }
 
+    @Transactional
     fun generateRefreshToken(userId: String, fingerprint: String, utils: Utils = Utils()): String {
+        userRepository.updateLastLogin(UUID.fromString(userId))
         val tokenIssuedAt = utils.getCurrentTimeInMillisRounded()
         val tokenExpiration = tokenIssuedAt + REFRESH_TOKEN_DURATION_IN_MILLIS
         val refreshToken =
@@ -63,6 +68,7 @@ class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
         return buildToken(claims, tokenIssuedAt, tokenExpiration)
     }
 
+    @Transactional
     fun deleteRefreshToken(refreshToken: RefreshToken) {
         try {
             refreshTokenRepository.delete(refreshToken)
@@ -71,23 +77,25 @@ class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
         }
     }
 
+    @Transactional
     fun deleteExpiredRefreshTokensForUser(userId: UUID) {
-        log.info("querying for expired refresh tokens")
+        log.debug("querying for expired refresh tokens")
         val instant: Instant = Instant.now().minusMillis(REFRESH_TOKEN_DURATION_IN_MILLIS)
         val expiredRefreshTokens: List<RefreshToken> =
             refreshTokenRepository.findAllByUserIdAndCreatedAtBefore(userId, instant)
 
         if (expiredRefreshTokens.count() > 0) {
-            log.info("${expiredRefreshTokens.count()} expired tokens found. Deleting.")
+            log.debug("${expiredRefreshTokens.count()} expired tokens found. Deleting...")
             refreshTokenRepository.deleteAll(expiredRefreshTokens)
         }
     }
 
+    @Transactional
     fun deleteExcessRefreshTokensForUser(userId: UUID) {
-        log.info("querying for excess refresh tokens")
+        log.debug("querying for excess refresh tokens")
         val refreshTokenCountForUser = refreshTokenRepository.countByUserId(userId)
         if (refreshTokenCountForUser > 2) {
-            log.info(
+            log.debug(
                 "$refreshTokenCountForUser active refresh tokens found. Deleting all but the 2 most recently issued tokens..."
             )
             val limit = Limit.of(refreshTokenCountForUser - 2)

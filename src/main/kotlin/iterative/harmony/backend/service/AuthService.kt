@@ -36,7 +36,7 @@ class AuthService {
     fun deleteRefreshToken(refreshToken: String, userAgentFingerprint: String) {
         val refreshTokenFromDb = tokenService.verifyRefreshToken(refreshToken, userAgentFingerprint)
         setUserIdInLogs(refreshTokenFromDb.userId)
-        log.info("Logging out")
+        log.debug("Logging out")
         tokenService.deleteRefreshToken(refreshTokenFromDb)
     }
 
@@ -59,7 +59,7 @@ class AuthService {
         tokenService.deleteExpiredRefreshTokensForUser(userId)
         tokenService.deleteExcessRefreshTokensForUser(userId)
 
-        log.info("Issuing new access and refresh tokens")
+        log.debug("Issuing new access and refresh tokens")
         val roles = userService.getCurrentUserRoles(userId)
         val newAccessToken =
             tokenService.generateAccessToken(userId.toString(), userAgentFingerprint, roles)

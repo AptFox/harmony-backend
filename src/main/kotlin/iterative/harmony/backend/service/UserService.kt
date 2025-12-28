@@ -1,10 +1,12 @@
 package iterative.harmony.backend.service
 
-import iterative.harmony.backend.controller.dto.DiscordOAuthUser
-import iterative.harmony.backend.controller.dto.UpdateUserRequest
-import iterative.harmony.backend.controller.dto.UserResponse
+import iterative.harmony.backend.controller.requests.UpdateUserRequest
+import iterative.harmony.backend.controller.responses.UserResponse
+import iterative.harmony.backend.exception.ImportException
 import iterative.harmony.backend.exception.UserNotFoundException
+import iterative.harmony.backend.model.Role
 import iterative.harmony.backend.model.User
+import iterative.harmony.backend.model.dto.DiscordOAuthUser
 import iterative.harmony.backend.repository.RoleRepository
 import iterative.harmony.backend.repository.UserRepository
 import iterative.harmony.backend.util.RoleConstants
@@ -12,6 +14,7 @@ import iterative.harmony.backend.util.Utils
 import java.util.*
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 
 @Service
 class UserService {
@@ -19,6 +22,7 @@ class UserService {
     @Autowired private lateinit var userRepository: UserRepository
     @Autowired private lateinit var roleRepository: RoleRepository
 
+    @Transactional
     fun getOrCreateUser(discordUser: DiscordOAuthUser): User {
         val user = userRepository.findByDiscordId(discordUser.id)
         if (!user.isPresent) {
@@ -35,8 +39,12 @@ class UserService {
             return userRepository.save(newUser)
         }
 
-        // Update user avatar
-        val updatedUser = user.get().apply { discordAvatarHash = discordUser.avatarHash }
+        // Update user
+        val updatedUser =
+            user.get().apply {
+                this.username = discordUser.username
+                this.discordAvatarHash = discordUser.avatarHash
+            }
         return userRepository.save(updatedUser)
     }
 
@@ -53,9 +61,10 @@ class UserService {
         if (!user.isPresent) {
             throw UserNotFoundException(userId)
         }
-        return mapToUserResponse(user.get())
+        return UserResponse.fromUser(user.get())
     }
 
+    @Transactional
     fun updateUser(updateUserRequest: UpdateUserRequest, userId: String): UserResponse {
         Utils().verifyTimeZone(updateUserRequest.timeZoneId)
         val userFromDB = userRepository.findById(UUID.fromString(userId))
@@ -66,20 +75,47 @@ class UserService {
                     displayName = updateUserRequest.displayName
                     timeZoneId = updateUserRequest.timeZoneId
                 }
-            return mapToUserResponse(userRepository.save(userToUpdate))
+            return UserResponse.fromUser(userRepository.save(userToUpdate))
         }
 
         throw UserNotFoundException(userId)
     }
 
-    private fun mapToUserResponse(user: User): UserResponse {
-        return UserResponse(
-            user.userId!!,
-            user.displayName,
-            user.twelveHourClock,
-            user.timeZoneId,
-            user.discordId,
-            user.discordAvatarHash,
-        )
+    @Transactional
+    suspend fun import(batch: MutableList<User>, row: Map<String, String>, defaultUserRole: Role) {
+        val discordId = row["discord_id"].toString()
+        val memberId = row["member_id"].toString()
+        val name = row["name"].toString()
+        if (discordId.isEmpty() || memberId.isEmpty() || name.isEmpty())
+            throw ImportException("Required field is missing")
+
+        val preExistingUser = userRepository.findByDiscordId(discordId)
+        if (preExistingUser.isPresent) {
+            val updatedUser =
+                preExistingUser.get().apply {
+                    this.displayName = name
+                    this.importId = memberId
+                }
+            batch.add(updatedUser)
+        } else {
+            val importedUser =
+                User(
+                    userId = null,
+                    username = null,
+                    displayName = name,
+                    twelveHourClock = true,
+                    discordId = discordId,
+                    discordAvatarHash = null,
+                    timeZoneId = null,
+                    roles = setOf(defaultUserRole),
+                    importId = memberId,
+                )
+            batch.add(importedUser)
+        }
+    }
+
+    @Transactional
+    suspend fun saveBatch(batch: List<User>) {
+        userRepository.saveAll(batch)
     }
 }

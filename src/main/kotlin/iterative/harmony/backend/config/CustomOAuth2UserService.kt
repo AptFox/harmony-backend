@@ -1,6 +1,6 @@
 package iterative.harmony.backend.config
 
-import iterative.harmony.backend.controller.dto.DiscordOAuthUser
+import iterative.harmony.backend.model.dto.DiscordOAuthUser
 import iterative.harmony.backend.service.UserService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.security.core.authority.SimpleGrantedAuthority

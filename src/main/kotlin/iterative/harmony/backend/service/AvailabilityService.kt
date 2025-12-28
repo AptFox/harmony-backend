@@ -1,13 +1,15 @@
 package iterative.harmony.backend.service
 
-import iterative.harmony.backend.controller.dto.AvailabilityResponse
-import iterative.harmony.backend.controller.dto.TimeOffRequest
-import iterative.harmony.backend.controller.dto.TimeOffResponse
-import iterative.harmony.backend.controller.dto.WeeklyAvailabilityResponse
-import iterative.harmony.backend.controller.dto.WeeklyAvailabilitySlotRequest
+import iterative.harmony.backend.controller.requests.TimeOffRequest
+import iterative.harmony.backend.controller.requests.WeeklyAvailabilitySlotRequest
+import iterative.harmony.backend.controller.responses.AvailabilityResponse
+import iterative.harmony.backend.controller.responses.TimeOffResponse
+import iterative.harmony.backend.controller.responses.WeeklyAvailabilityResponse
 import iterative.harmony.backend.model.TimeOff
+import iterative.harmony.backend.model.User
 import iterative.harmony.backend.model.WeeklyAvailabilitySlot
 import iterative.harmony.backend.repository.TimeOffRepository
+import iterative.harmony.backend.repository.UserRepository
 import iterative.harmony.backend.repository.WeeklyAvailabilitySlotRepository
 import iterative.harmony.backend.util.AvailabilityConstants.DAYS_OF_WEEK
 import iterative.harmony.backend.util.AvailabilityConstants.END_TIME_BEFORE_START
@@ -26,33 +28,45 @@ import java.time.temporal.Temporal
 import java.util.UUID
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 
 @Service
 class AvailabilityService {
     @Autowired
     private lateinit var weeklyAvailabilitySlotRepository: WeeklyAvailabilitySlotRepository
     @Autowired private lateinit var timeOffRepository: TimeOffRepository
+    @Autowired private lateinit var userRepository: UserRepository
 
     private val log = getLogger()
     private val ONE_DAY = Duration.ofDays(1)
     private val ONE_HOUR = Duration.ofHours(1)
     private val THREE_MONTHS = Duration.ofDays(90)
 
-    fun getCurrentUserAvailability(userId: String): AvailabilityResponse {
+    fun getUserProxyFromUuidString(userId: String): User {
         val uuid = UUID.fromString(userId)
-        val now = Instant.now()
-        val weeklyAvailabilitySlots = weeklyAvailabilitySlotRepository.findAllByUserId(uuid)
-        val timeOffs =
-            timeOffRepository.findAllByUserIdAndStartTimeIsAfterOrEndTimeIsAfter(uuid, now, now)
-        return AvailabilityResponse(weeklyAvailabilitySlots, timeOffs)
+        return userRepository.getReferenceById(uuid)
     }
 
+    fun getCurrentUserAvailability(userId: String): AvailabilityResponse {
+        val user = getUserProxyFromUuidString(userId)
+        val now = Instant.now()
+        val weeklyAvailabilitySlots = weeklyAvailabilitySlotRepository.findAllByUser(user)
+        val timeOffs =
+            timeOffRepository.findAllByUserAndStartTimeIsAfterOrEndTimeIsAfter(user, now, now)
+        return AvailabilityResponse.fromWeeklyAvailabilitySlotsAndTimeOffs(
+            weeklyAvailabilitySlots,
+            timeOffs,
+        )
+    }
+
+    @Transactional
     fun deleteWeeklyAvailability(userId: String) {
         log.info("Deleting weekly availability slots")
-        val uuid = UUID.fromString(userId)
-        weeklyAvailabilitySlotRepository.deleteAllByUserId(uuid)
+        val user = getUserProxyFromUuidString(userId)
+        weeklyAvailabilitySlotRepository.deleteAllByUser(user)
     }
 
+    @Transactional
     fun overwriteWeeklyAvailability(
         userId: String,
         slots: List<WeeklyAvailabilitySlotRequest>,
@@ -62,15 +76,15 @@ class AvailabilityService {
 
         val mergedSlots = mergeOverlappingSlots(slots)
 
-        val uuid = UUID.fromString(userId)
-        log.info("Deleting old weekly availability slots")
-        weeklyAvailabilitySlotRepository.deleteAllByUserId(uuid)
+        val userProxy = getUserProxyFromUuidString(userId)
+        log.debug("Deleting old weekly availability slots")
+        weeklyAvailabilitySlotRepository.deleteAllByUser(userProxy)
 
-        log.info("Saving weekly availability slots")
+        log.debug("Saving weekly availability slots")
         val slotsToSave =
             mergedSlots.map {
                 WeeklyAvailabilitySlot(
-                    userId = uuid,
+                    user = userProxy,
                     dayOfWeek = it.dayOfWeek,
                     startTime = it.startTime,
                     endTime = it.endTime,
@@ -78,13 +92,13 @@ class AvailabilityService {
                 )
             }
         val slotsFromDb = weeklyAvailabilitySlotRepository.saveAll(slotsToSave)
-        return WeeklyAvailabilityResponse(slotsFromDb)
+        return WeeklyAvailabilityResponse.fromWeeklyAvailabilitySlots(slotsFromDb)
     }
 
     private fun verifyWeeklyAvailabilitySlots(
         slots: List<WeeklyAvailabilitySlotRequest>
     ): MutableList<Map<String, String>> {
-        log.info("Verifying weekly availability slots")
+        log.debug("Verifying weekly availability slots")
         val slotErrors = mutableListOf<Map<String, String>>()
 
         for (slot in slots) {
@@ -111,14 +125,14 @@ class AvailabilityService {
         return slots
             .groupBy { it.dayOfWeek }
             .flatMap { (day, slotsForDay) ->
-                log.info("Merging slots for: $day")
+                log.debug("Merging slots for: $day")
                 if (slotsForDay.size > 16) throw IllegalArgumentException("Too many slots supplied")
                 val sortedSlotsForDay = slotsForDay.sortedBy { slot -> slot.startTime }
                 val mergedSlotsForDay = mutableListOf(sortedSlotsForDay.first())
                 for (currentSlot in sortedSlotsForDay.drop(1)) {
                     val lastMergedSlot = mergedSlotsForDay.last()
                     if (currentSlot.startTime <= lastMergedSlot.endTime) {
-                        log.info("Overlapping slots detected for $day")
+                        log.debug("Overlapping slots detected for $day")
                         val newEndTime =
                             if (currentSlot.endTime.isAfter(lastMergedSlot.endTime)) {
                                 currentSlot.endTime
@@ -136,38 +150,40 @@ class AvailabilityService {
             }
     }
 
+    @Transactional
     fun addTimeOff(userId: String, request: TimeOffRequest): TimeOffResponse {
-        val uuid = UUID.fromString(userId)
-        val requestErrors = verifyTimeOff(uuid, request)
+        val userProxy = getUserProxyFromUuidString(userId)
+        val requestErrors = verifyTimeOff(userProxy, request)
         if (requestErrors.isNotEmpty()) return TimeOffResponse(errors = requestErrors.toString())
 
-        log.info("searching for old timeOff")
-        deleteExpiredExceptions(uuid)
+        log.debug("searching for old timeOff")
+        deleteExpiredExceptions(userProxy)
 
-        val exceptionToSave =
+        val timeOffToSave =
             TimeOff(
-                userId = uuid,
+                user = userProxy,
                 startTime = request.startTime,
                 endTime = request.endTime,
                 comment = request.comment,
             )
-        log.info("Saving timeOff")
-        val exceptionFromDb = timeOffRepository.save(exceptionToSave)
-        return TimeOffResponse(exceptionFromDb)
+        log.debug("Saving timeOff")
+        val timeOffFromDb = timeOffRepository.save(timeOffToSave)
+        return TimeOffResponse.fromTimeOff(timeOffFromDb)
     }
 
-    private fun deleteExpiredExceptions(userId: UUID) {
+    @Transactional
+    fun deleteExpiredExceptions(user: User) {
         val now = Instant.now()
         val expiredTimeOffs: List<TimeOff> =
-            timeOffRepository.findAllByUserIdAndEndTimeIsBefore(userId, now)
+            timeOffRepository.findAllByUserAndEndTimeIsBefore(user, now)
         if (expiredTimeOffs.count() > 0) {
-            log.info("${expiredTimeOffs.count()} expired exceptions found. Deleting...")
+            log.debug("${expiredTimeOffs.count()} expired exceptions found. Deleting...")
             timeOffRepository.deleteAll(expiredTimeOffs)
         }
     }
 
-    private fun verifyTimeOff(userId: UUID, request: TimeOffRequest): MutableList<String> {
-        log.info("Verifying timeOff request")
+    private fun verifyTimeOff(user: User, request: TimeOffRequest): MutableList<String> {
+        log.debug("Verifying timeOff request")
 
         val errorMsg = mutableListOf<String>()
         val startTime = request.startTime
@@ -178,7 +194,7 @@ class AvailabilityService {
         if (endTime.isAfter(threeMonthsInTheFuture)) errorMsg.add(MORE_THAN_90_DAYS_AWAY)
 
         val exceptionAlreadyExists =
-            timeOffRepository.existsByUserIdAndStartTimeEquals(userId, startTime)
+            timeOffRepository.existsByUserAndStartTimeEquals(user, startTime)
         if (exceptionAlreadyExists) errorMsg.add(TIME_OFF_ALREADY_EXISTS)
 
         return errorMsg
@@ -196,9 +212,10 @@ class AvailabilityService {
         if (duration >= ONE_DAY) errorMsg.add(MORE_THAN_24_HOURS)
     }
 
+    @Transactional
     fun deleteTimeOff(userId: String, timeOffId: Long) {
         log.info("Deleting timeOff: $timeOffId")
-        val uuid = UUID.fromString(userId)
-        timeOffRepository.deleteByIdAndUserId(timeOffId, uuid)
+        val userProxy = getUserProxyFromUuidString(userId)
+        timeOffRepository.deleteByIdAndUser(timeOffId, userProxy)
     }
 }
