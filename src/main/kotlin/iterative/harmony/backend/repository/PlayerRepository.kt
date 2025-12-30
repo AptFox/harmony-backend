@@ -13,6 +13,8 @@ import org.springframework.stereotype.Repository
 interface PlayerRepository : JpaRepository<Player, Long>, CrudRepository<Player, Long> {
     fun findByUser(user: User): Optional<Player>
 
+    fun findAllByUser(user: User): List<Player>
+
     fun findByUserAndOrganization(user: User, org: Organization): Optional<Player>
 
     fun findAllByTeam(team: Team): List<Player>

@@ -1,12 +1,14 @@
 package iterative.harmony.backend.controller.responses
 
-import iterative.harmony.backend.model.TimeOff
-import iterative.harmony.backend.model.dto.TimeOffDto
+import java.time.Instant
+import java.util.UUID
 
-data class TimeOffResponse(val timeOff: TimeOffDto? = null, val errors: String? = null) {
-    companion object {
-        fun fromTimeOff(timeOff: TimeOff): TimeOffResponse {
-            return TimeOffResponse(timeOff = TimeOffDto.Companion.fromTimeOff(timeOff))
-        }
-    }
-}
+data class TimeOffResponse(
+    var id: Long? = null,
+    var userId: UUID? = null,
+    var playerId: Long? = null,
+    var startTime: Instant? = null,
+    var endTime: Instant? = null,
+    var comment: String? = null,
+    var errors: String? = null,
+)

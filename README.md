@@ -6,9 +6,6 @@
     - The language that gradle uses.
 - What is flyaway
     - A tool for DB migrations
-- What is lombok
-    - A library of annotations to reduce boilerplate code (like getters and setters)
-        - annotations - code shortcuts that facilitate framework "magic"
 - Linter?
     - ktfmt - https://github.com/cortinico/ktfmt-gradle/tree/main
 

@@ -1,6 +1,7 @@
 package iterative.harmony.backend.service
 
 import iterative.harmony.backend.controller.requests.UpdateUserRequest
+import iterative.harmony.backend.controller.responses.UserMapper
 import iterative.harmony.backend.controller.responses.UserResponse
 import iterative.harmony.backend.exception.ImportException
 import iterative.harmony.backend.exception.UserNotFoundException
@@ -21,6 +22,7 @@ class UserService {
 
     @Autowired private lateinit var userRepository: UserRepository
     @Autowired private lateinit var roleRepository: RoleRepository
+    @Autowired private lateinit var userMapper: UserMapper
 
     @Transactional
     fun getOrCreateUser(discordUser: DiscordOAuthUser): User {
@@ -61,7 +63,7 @@ class UserService {
         if (!user.isPresent) {
             throw UserNotFoundException(userId)
         }
-        return UserResponse.fromUser(user.get())
+        return userMapper.toUserResponse(user.get())
     }
 
     @Transactional
@@ -75,7 +77,7 @@ class UserService {
                     displayName = updateUserRequest.displayName
                     timeZoneId = updateUserRequest.timeZoneId
                 }
-            return UserResponse.fromUser(userRepository.save(userToUpdate))
+            return userMapper.toUserResponse(userRepository.save(userToUpdate))
         }
 
         throw UserNotFoundException(userId)

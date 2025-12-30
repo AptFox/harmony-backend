@@ -1,5 +1,7 @@
 package iterative.harmony.backend.service
 
+import iterative.harmony.backend.controller.responses.PlayerMapper
+import iterative.harmony.backend.controller.responses.PlayerResponse
 import iterative.harmony.backend.exception.ImportException
 import iterative.harmony.backend.model.Organization
 import iterative.harmony.backend.model.Player
@@ -9,6 +11,7 @@ import iterative.harmony.backend.model.User
 import iterative.harmony.backend.repository.PlayerRepository
 import iterative.harmony.backend.repository.UserRepository
 import java.util.Optional
+import java.util.UUID
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.dao.IncorrectResultSizeDataAccessException
 import org.springframework.stereotype.Service
@@ -18,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional
 class PlayerService {
     @Autowired private lateinit var userRepository: UserRepository
     @Autowired private lateinit var playerRepository: PlayerRepository
+    @Autowired private lateinit var playerMapper: PlayerMapper
 
     val NA = "NA"
     val PEND = "Pend"
@@ -28,6 +32,12 @@ class PlayerService {
 
     val STAFF_POSITIONS_TO_IGNORE = listOf(NA, PEND)
     val FRANCHISES_TO_IGNORE = listOf(FA, FP, WAIVERS, PEND, RFA)
+
+    fun getPlayersForCurrentUser(userId: String): List<PlayerResponse> {
+        val userProxy = userRepository.getReferenceById(UUID.fromString(userId))
+        val players = playerRepository.findAllByUser(userProxy)
+        return players.map(playerMapper::toPlayerResponse)
+    }
 
     suspend fun import(
         org: Organization,

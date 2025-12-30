@@ -3,6 +3,7 @@ package iterative.harmony.backend.config
 import io.jsonwebtoken.JwtException
 import io.sentry.Sentry
 import iterative.harmony.backend.exception.AccessTokenMissingOrMalformedInRequestException
+import iterative.harmony.backend.exception.RefreshTokenNotInRequestException
 import iterative.harmony.backend.service.JwtTokenService
 import iterative.harmony.backend.util.Utils
 import jakarta.servlet.FilterChain
@@ -40,7 +41,7 @@ class JwtAuthenticationFilter : OncePerRequestFilter() {
             SecurityContextHolder.getContext().authentication = auth
             filterChain.doFilter(request, response)
         } catch (ex: Exception) {
-            if (ex !is JwtException) {
+            if (ex !is JwtException && ex !is RefreshTokenNotInRequestException) {
                 Sentry.captureException(ex)
             }
             SecurityContextHolder.clearContext()

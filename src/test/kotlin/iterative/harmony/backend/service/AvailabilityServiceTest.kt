@@ -3,13 +3,12 @@ package iterative.harmony.backend.service
 import iterative.harmony.backend.controller.requests.TimeOffRequest
 import iterative.harmony.backend.controller.requests.WeeklyAvailabilitySlotRequest
 import iterative.harmony.backend.controller.responses.AvailabilityResponse
+import iterative.harmony.backend.controller.responses.WeeklyAvailabilitySlotResponse
 import iterative.harmony.backend.model.Organization
 import iterative.harmony.backend.model.Player
 import iterative.harmony.backend.model.TimeOff
 import iterative.harmony.backend.model.User
 import iterative.harmony.backend.model.WeeklyAvailabilitySlot
-import iterative.harmony.backend.model.dto.TimeOffDto
-import iterative.harmony.backend.model.dto.WeeklyAvailabilitySlotDto
 import iterative.harmony.backend.repository.OrganizationRepository
 import iterative.harmony.backend.repository.PlayerRepository
 import iterative.harmony.backend.repository.TimeOffRepository
@@ -53,21 +52,23 @@ class AvailabilityServiceTest {
     val userMock = mock<User> { on { userId } doReturn userId }
     val playerMock: Player = mock<Player> { on { id } doReturn 2L }
     val orgMock: Organization = mock<Organization>()
-    val comment = "test comment"
+    val testComment = "test comment"
     val dayOfWeek = "Mon"
+    val newYorkTimeZoneId = "America/New_York"
 
     @Test
     fun `getCurrentUserAvailability returns an AvailabilityResponse`() {
-        val timeOffs: List<TimeOff> =
-            mutableListOf(
-                TimeOff(
-                    userMock,
-                    playerMock,
-                    startTime = Instant.now(),
-                    endTime = Instant.now().plus(Duration.ofHours(1)),
-                    comment,
-                )
-            )
+        val now = Instant.now()
+        val nowPlusOneHour = Instant.now().plus(Duration.ofHours(1))
+        val timeOffMock =
+            mock<TimeOff> {
+                on { user } doReturn userMock
+                on { player } doReturn playerMock
+                on { startTime } doReturn now
+                on { endTime } doReturn nowPlusOneHour
+                on { comment } doReturn testComment
+            }
+        val timeOffs: List<TimeOff> = mutableListOf(timeOffMock)
         val weeklyAvailabilitySlots: List<WeeklyAvailabilitySlot> =
             mutableListOf(
                 WeeklyAvailabilitySlot(
@@ -76,14 +77,12 @@ class AvailabilityServiceTest {
                     dayOfWeek,
                     startTime = LocalTime.NOON,
                     endTime = LocalTime.NOON.plus(Duration.ofHours(1)),
-                    timeZoneId = "America/New_York",
+                    timeZoneId = newYorkTimeZoneId,
                 )
             )
+        val weeklyAvailabilitySlotResponse = mock<WeeklyAvailabilitySlotResponse>(userId)
         val expected =
-            AvailabilityResponse.fromWeeklyAvailabilitySlotsAndTimeOffs(
-                weeklyAvailabilitySlots,
-                timeOffs,
-            )
+            AvailabilityResponse(listOf(weeklyAvailabilitySlotResponse), listOf(timeOffs))
 
         whenever(weeklyAvailabilitySlotRepositoryMock.findAllByUser(userMock))
             .thenReturn(weeklyAvailabilitySlots)
@@ -235,7 +234,7 @@ class AvailabilityServiceTest {
                     )
 
                 val expected =
-                    WeeklyAvailabilitySlotDto.fromWeeklyAvailabilitySlot(
+                    WeeklyAvailabilitySlotResponse.fromWeeklyAvailabilitySlot(
                         expectedWeeklyAvailabilitySlot
                     )
 
@@ -305,7 +304,7 @@ class AvailabilityServiceTest {
                 for (i in 0..6) {
                     val actualSlot = actual?.get(i)
                     val expectedSlot =
-                        WeeklyAvailabilitySlotDto.fromWeeklyAvailabilitySlot(
+                        WeeklyAvailabilitySlotResponse.fromWeeklyAvailabilitySlot(
                             expectedUnmergedSlots[i]
                         )
                     assertEquals(expectedSlot, actualSlot)
@@ -482,7 +481,7 @@ class AvailabilityServiceTest {
 
                 val response = availabilityService.addTimeOff(userId.toString(), request)
                 val actual = response.timeOff
-                assertEquals(TimeOffDto.fromTimeOff(expected), actual)
+                assertEquals(TimeOffResponse.fromTimeOff(expected), actual)
             }
         }
     }

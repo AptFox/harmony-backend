@@ -3,6 +3,7 @@ package iterative.harmony.backend.repository
 import iterative.harmony.backend.model.TimeOff
 import iterative.harmony.backend.model.User
 import java.time.Instant
+import java.util.Optional
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.stereotype.Repository
@@ -17,7 +18,6 @@ interface TimeOffRepository : JpaRepository<TimeOff, Long> {
         nowEnd: Instant,
     ): List<TimeOff>
 
-    // TODO: limit this query to timeOffs within the next 7 days
     fun findAllByPlayerIdAndStartTimeIsAfterOrEndTimeIsAfter(
         playerId: Long,
         nowStart: Instant,
@@ -27,6 +27,8 @@ interface TimeOffRepository : JpaRepository<TimeOff, Long> {
     fun findAllByUserAndEndTimeIsBefore(user: User, now: Instant): List<TimeOff>
 
     fun existsByUserAndStartTimeEquals(user: User, startTime: Instant): Boolean
+
+    fun findByIdAndUser(id: Long, user: User): Optional<TimeOff>
 
     @Modifying @Transactional fun deleteByIdAndUser(id: Long, user: User)
 }
