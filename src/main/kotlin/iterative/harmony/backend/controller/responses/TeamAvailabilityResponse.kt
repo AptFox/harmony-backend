@@ -1,6 +1,12 @@
 package iterative.harmony.backend.controller.responses
 
+data class PlayerAvailabilityResponse(
+    val playerId: Long,
+    val playerName: String,
+    val availability: AvailabilityResponse,
+)
+
 data class TeamAvailabilityResponse(
-    var playerSchedules: MutableMap<PlayerResponse, AvailabilityResponse> = mutableMapOf(),
+    var playerSchedules: MutableList<PlayerAvailabilityResponse> = mutableListOf(),
     var error: String? = null,
 )

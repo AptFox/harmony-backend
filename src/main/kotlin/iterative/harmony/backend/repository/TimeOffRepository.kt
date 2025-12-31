@@ -4,24 +4,39 @@ import iterative.harmony.backend.model.TimeOff
 import iterative.harmony.backend.model.User
 import java.time.Instant
 import java.util.Optional
+import java.util.UUID
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying
+import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
 import org.springframework.transaction.annotation.Transactional
 
 @Repository
 interface TimeOffRepository : JpaRepository<TimeOff, Long> {
 
-    fun findAllByUserAndStartTimeIsAfterOrEndTimeIsAfter(
-        user: User,
-        nowStart: Instant,
-        nowEnd: Instant,
+    @Query(
+        """
+        SELECT t FROM TimeOff t 
+        WHERE t.user.userId = :userId 
+        AND (t.startTime > :now OR t.endTime > :now)
+    """
+    )
+    fun findFutureTimeOffForUser(
+        @Param("userId") userId: UUID,
+        @Param("now") now: Instant,
     ): List<TimeOff>
 
-    fun findAllByPlayerIdAndStartTimeIsAfterOrEndTimeIsAfter(
-        playerId: Long,
-        nowStart: Instant,
-        nowEnd: Instant,
+    @Query(
+        """
+        SELECT t FROM TimeOff t 
+        WHERE t.player.id = :playerId 
+        AND (t.startTime > :now OR t.endTime > :now)
+    """
+    )
+    fun findFutureTimeOffForPlayer(
+        @Param("playerId") playerId: Long,
+        @Param("now") now: Instant,
     ): List<TimeOff>
 
     fun findAllByUserAndEndTimeIsBefore(user: User, now: Instant): List<TimeOff>

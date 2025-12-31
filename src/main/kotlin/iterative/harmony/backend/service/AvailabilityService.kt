@@ -3,6 +3,7 @@ package iterative.harmony.backend.service
 import iterative.harmony.backend.controller.requests.TimeOffRequest
 import iterative.harmony.backend.controller.requests.WeeklyAvailabilitySlotRequest
 import iterative.harmony.backend.controller.responses.AvailabilityResponse
+import iterative.harmony.backend.controller.responses.PlayerAvailabilityResponse
 import iterative.harmony.backend.controller.responses.PlayerMapper
 import iterative.harmony.backend.controller.responses.TeamAvailabilityResponse
 import iterative.harmony.backend.controller.responses.TimeOffMapper
@@ -82,7 +83,7 @@ class AvailabilityService {
 
     private fun getFutureTimeOffs(user: User): List<TimeOff> {
         val now = Instant.now()
-        return timeOffRepository.findAllByUserAndStartTimeIsAfterOrEndTimeIsAfter(user, now, now)
+        return timeOffRepository.findFutureTimeOffForUser(user.userId!!, now)
     }
 
     @Transactional
@@ -229,12 +230,7 @@ class AvailabilityService {
             log.debug("generating schedule for: ${player.name}")
             val weeklyAvailabilitySlots =
                 weeklyAvailabilitySlotRepository.findAllByPlayerId(player.id!!)
-            val timeOffs =
-                timeOffRepository.findAllByPlayerIdAndStartTimeIsAfterOrEndTimeIsAfter(
-                    player.id!!,
-                    now,
-                    now,
-                )
+            val timeOffs = timeOffRepository.findFutureTimeOffForPlayer(player.id!!, now)
             val availability =
                 AvailabilityResponse(
                     weeklyAvailabilitySlotMapper.toWeeklyAvailabilitySlotResponseList(
@@ -242,7 +238,9 @@ class AvailabilityService {
                     ),
                     timeOffMapper.toTimeOffResponseList(timeOffs),
                 )
-            avails.playerSchedules.put(playerMapper.toPlayerResponse(player), availability)
+            avails.playerSchedules.add(
+                PlayerAvailabilityResponse(player.id!!, player.name, availability)
+            )
         }
         return avails
     }
