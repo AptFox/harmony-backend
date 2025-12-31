@@ -3,7 +3,7 @@ package iterative.harmony.backend.controller.responses
 import java.util.UUID
 
 data class UserResponse(
-    var id: UUID,
+    var userId: UUID,
     var displayName: String,
     var twelveHourClock: Boolean,
     var timeZoneId: String?,
