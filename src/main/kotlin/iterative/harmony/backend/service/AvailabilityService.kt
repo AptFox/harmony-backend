@@ -224,19 +224,25 @@ class AvailabilityService {
         val teamPlayers = playerRepository.findAllByTeam(team.get())
         log.debug("Found players: {}", teamPlayers.map { p -> p.name })
         val now = Instant.now()
+        val sevenDaysFromNow = now.plus(Duration.ofDays(7))
 
         val avails = TeamAvailabilityResponse()
         teamPlayers.forEach { player ->
             log.debug("generating schedule for: ${player.name}")
             val weeklyAvailabilitySlots =
                 weeklyAvailabilitySlotRepository.findAllByPlayerId(player.id!!)
-            val timeOffs = timeOffRepository.findFutureTimeOffForPlayer(player.id!!, now)
+            val timeOffsInTheNextWeek =
+                timeOffRepository.findTimeOffWithinNextWeekForPlayer(
+                    player.id!!,
+                    now,
+                    sevenDaysFromNow,
+                )
             val availability =
                 AvailabilityResponse(
                     weeklyAvailabilitySlotMapper.toWeeklyAvailabilitySlotResponseList(
                         weeklyAvailabilitySlots
                     ),
-                    timeOffMapper.toTimeOffResponseList(timeOffs),
+                    timeOffMapper.toTimeOffResponseList(timeOffsInTheNextWeek),
                 )
             avails.playerSchedules.add(
                 PlayerAvailabilityResponse(player.id!!, player.name, availability)

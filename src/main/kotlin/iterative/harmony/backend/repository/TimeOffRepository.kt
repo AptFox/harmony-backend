@@ -32,11 +32,13 @@ interface TimeOffRepository : JpaRepository<TimeOff, Long> {
         SELECT t FROM TimeOff t 
         WHERE t.player.id = :playerId 
         AND (t.startTime > :now OR t.endTime > :now)
+        AND (t.startTime < :sevenDaysFromNow OR t.endTime < :sevenDaysFromNow)
     """
     )
-    fun findFutureTimeOffForPlayer(
+    fun findTimeOffWithinNextWeekForPlayer(
         @Param("playerId") playerId: Long,
         @Param("now") now: Instant,
+        @Param("sevenDaysFromNow") sevenDaysFromNow: Instant,
     ): List<TimeOff>
 
     fun findAllByUserAndEndTimeIsBefore(user: User, now: Instant): List<TimeOff>
