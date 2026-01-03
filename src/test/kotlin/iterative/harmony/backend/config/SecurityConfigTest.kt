@@ -82,7 +82,7 @@ class SecurityConfigTest {
                     .json(
                         """
                     {
-                        "id": "${expectedUser.id}",
+                        "userId": "${expectedUser.userId}",
                         "displayName": "${expectedUser.displayName}",
                         "timeZoneId": "${expectedUser.timeZoneId}",
                         "discordId": "${expectedUser.discordId}",

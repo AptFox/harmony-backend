@@ -3,6 +3,7 @@ package iterative.harmony.backend.controller
 import iterative.harmony.backend.controller.requests.TimeOffRequest
 import iterative.harmony.backend.controller.requests.WeeklyAvailabilitySlotRequest
 import iterative.harmony.backend.controller.responses.AvailabilityResponse
+import iterative.harmony.backend.controller.responses.TeamAvailabilityResponse
 import iterative.harmony.backend.controller.responses.TimeOffResponse
 import iterative.harmony.backend.controller.responses.WeeklyAvailabilityResponse
 import iterative.harmony.backend.service.AvailabilityService
@@ -59,6 +60,15 @@ class AvailabilityController {
     }
 
     @PreAuthorize("hasRole('${RoleConstants.USER_ROLE}')")
+    @GetMapping("/weekly/team/{teamId}")
+    fun getTeamAvailability(@PathVariable teamId: Long): ResponseEntity<TeamAvailabilityResponse> {
+        val response = availabilityService.getTeamAvailability(teamId)
+        val status = if (!response.error.isNullOrEmpty()) HttpStatus.BAD_REQUEST else HttpStatus.OK
+
+        return ResponseEntity.status(status).body(response)
+    }
+
+    @PreAuthorize("hasRole('${RoleConstants.USER_ROLE}')")
     @DeleteMapping("/weekly")
     fun deleteWeeklyAvailability(principal: Principal): ResponseEntity<Void> {
         availabilityService.deleteWeeklyAvailability(principal.name)
@@ -81,8 +91,15 @@ class AvailabilityController {
 
     @PreAuthorize("hasRole('${RoleConstants.USER_ROLE}')")
     @DeleteMapping("/time_off/{timeOffId}")
-    fun deleteTimeOff(principal: Principal, @PathVariable timeOffId: Long): ResponseEntity<Void> {
-        availabilityService.deleteTimeOff(principal.name, timeOffId)
+    fun deleteTimeOff(
+        principal: Principal,
+        @PathVariable timeOffId: Long,
+    ): ResponseEntity<String?> {
+        try {
+            availabilityService.deleteTimeOff(principal.name, timeOffId)
+        } catch (ex: IllegalArgumentException) {
+            return ResponseEntity.badRequest().body(ex.message)
+        }
         return ResponseEntity.ok().build()
     }
 }

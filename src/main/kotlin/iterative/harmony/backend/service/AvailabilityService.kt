@@ -3,11 +3,17 @@ package iterative.harmony.backend.service
 import iterative.harmony.backend.controller.requests.TimeOffRequest
 import iterative.harmony.backend.controller.requests.WeeklyAvailabilitySlotRequest
 import iterative.harmony.backend.controller.responses.AvailabilityResponse
+import iterative.harmony.backend.controller.responses.PlayerAvailabilityResponse
+import iterative.harmony.backend.controller.responses.TeamAvailabilityResponse
+import iterative.harmony.backend.controller.responses.TimeOffMapper
 import iterative.harmony.backend.controller.responses.TimeOffResponse
 import iterative.harmony.backend.controller.responses.WeeklyAvailabilityResponse
+import iterative.harmony.backend.controller.responses.WeeklyAvailabilitySlotMapper
 import iterative.harmony.backend.model.TimeOff
 import iterative.harmony.backend.model.User
 import iterative.harmony.backend.model.WeeklyAvailabilitySlot
+import iterative.harmony.backend.repository.PlayerRepository
+import iterative.harmony.backend.repository.TeamRepository
 import iterative.harmony.backend.repository.TimeOffRepository
 import iterative.harmony.backend.repository.UserRepository
 import iterative.harmony.backend.repository.WeeklyAvailabilitySlotRepository
@@ -26,16 +32,22 @@ import java.time.Duration
 import java.time.Instant
 import java.time.temporal.Temporal
 import java.util.UUID
+import kotlin.jvm.optionals.getOrNull
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 @Service
 class AvailabilityService {
+    @Autowired private lateinit var teamRepository: TeamRepository
+
     @Autowired
     private lateinit var weeklyAvailabilitySlotRepository: WeeklyAvailabilitySlotRepository
     @Autowired private lateinit var timeOffRepository: TimeOffRepository
     @Autowired private lateinit var userRepository: UserRepository
+    @Autowired private lateinit var playerRepository: PlayerRepository
+    @Autowired private lateinit var timeOffMapper: TimeOffMapper
+    @Autowired private lateinit var weeklyAvailabilitySlotMapper: WeeklyAvailabilitySlotMapper
 
     private val log = getLogger()
     private val ONE_DAY = Duration.ofDays(1)
@@ -49,14 +61,20 @@ class AvailabilityService {
 
     fun getCurrentUserAvailability(userId: String): AvailabilityResponse {
         val user = getUserProxyFromUuidString(userId)
-        val now = Instant.now()
+
         val weeklyAvailabilitySlots = weeklyAvailabilitySlotRepository.findAllByUser(user)
-        val timeOffs =
-            timeOffRepository.findAllByUserAndStartTimeIsAfterOrEndTimeIsAfter(user, now, now)
-        return AvailabilityResponse.fromWeeklyAvailabilitySlotsAndTimeOffs(
-            weeklyAvailabilitySlots,
-            timeOffs,
+        val timeOffs = getFutureTimeOffs(user)
+        return AvailabilityResponse(
+            weeklyAvailabilitySlotMapper.toWeeklyAvailabilitySlotResponseList(
+                weeklyAvailabilitySlots
+            ),
+            timeOffMapper.toTimeOffResponseList(timeOffs),
         )
+    }
+
+    private fun getFutureTimeOffs(user: User): List<TimeOff> {
+        val now = Instant.now()
+        return timeOffRepository.findFutureTimeOffForUser(user.userId!!, now)
     }
 
     @Transactional
@@ -77,6 +95,8 @@ class AvailabilityService {
         val mergedSlots = mergeOverlappingSlots(slots)
 
         val userProxy = getUserProxyFromUuidString(userId)
+        val playerProxy = playerRepository.findByUser(userProxy).getOrNull()
+
         log.debug("Deleting old weekly availability slots")
         weeklyAvailabilitySlotRepository.deleteAllByUser(userProxy)
 
@@ -85,6 +105,7 @@ class AvailabilityService {
             mergedSlots.map {
                 WeeklyAvailabilitySlot(
                     user = userProxy,
+                    player = playerProxy,
                     dayOfWeek = it.dayOfWeek,
                     startTime = it.startTime,
                     endTime = it.endTime,
@@ -92,7 +113,9 @@ class AvailabilityService {
                 )
             }
         val slotsFromDb = weeklyAvailabilitySlotRepository.saveAll(slotsToSave)
-        return WeeklyAvailabilityResponse.fromWeeklyAvailabilitySlots(slotsFromDb)
+        return WeeklyAvailabilityResponse(
+            weeklyAvailabilitySlotMapper.toWeeklyAvailabilitySlotResponseList(slotsFromDb)
+        )
     }
 
     private fun verifyWeeklyAvailabilitySlots(
@@ -158,17 +181,19 @@ class AvailabilityService {
 
         log.debug("searching for old timeOff")
         deleteExpiredExceptions(userProxy)
+        val playerProxy = playerRepository.findByUser(userProxy).getOrNull()
 
         val timeOffToSave =
             TimeOff(
                 user = userProxy,
+                player = playerProxy,
                 startTime = request.startTime,
                 endTime = request.endTime,
                 comment = request.comment,
             )
         log.debug("Saving timeOff")
         val timeOffFromDb = timeOffRepository.save(timeOffToSave)
-        return TimeOffResponse.fromTimeOff(timeOffFromDb)
+        return timeOffMapper.toTimeOffResponse(timeOffFromDb)
     }
 
     @Transactional
@@ -180,6 +205,41 @@ class AvailabilityService {
             log.debug("${expiredTimeOffs.count()} expired exceptions found. Deleting...")
             timeOffRepository.deleteAll(expiredTimeOffs)
         }
+    }
+
+    fun getTeamAvailability(teamId: Long): TeamAvailabilityResponse {
+        log.debug("generating team schedule")
+        val team = teamRepository.findById(teamId)
+        if (!team.isPresent) return TeamAvailabilityResponse(error = "Team not found")
+        log.debug("Found team: ${team.get().name}")
+        val teamPlayers = playerRepository.findAllByTeam(team.get())
+        log.debug("Found players: {}", teamPlayers.map { p -> p.name })
+        val now = Instant.now()
+        val sevenDaysFromNow = now.plus(Duration.ofDays(7))
+
+        val avails = TeamAvailabilityResponse()
+        teamPlayers.forEach { player ->
+            log.debug("generating schedule for: ${player.name}")
+            val weeklyAvailabilitySlots =
+                weeklyAvailabilitySlotRepository.findAllByPlayerId(player.id!!)
+            val timeOffsInTheNextWeek =
+                timeOffRepository.findTimeOffWithinNextWeekForPlayer(
+                    player.id!!,
+                    now,
+                    sevenDaysFromNow,
+                )
+            val availability =
+                AvailabilityResponse(
+                    weeklyAvailabilitySlotMapper.toWeeklyAvailabilitySlotResponseList(
+                        weeklyAvailabilitySlots
+                    ),
+                    timeOffMapper.toTimeOffResponseList(timeOffsInTheNextWeek),
+                )
+            avails.playerSchedules.add(
+                PlayerAvailabilityResponse(player.id!!, player.name, availability)
+            )
+        }
+        return avails
     }
 
     private fun verifyTimeOff(user: User, request: TimeOffRequest): MutableList<String> {
@@ -214,8 +274,13 @@ class AvailabilityService {
 
     @Transactional
     fun deleteTimeOff(userId: String, timeOffId: Long) {
-        log.info("Deleting timeOff: $timeOffId")
+        log.debug("Deleting timeOff: $timeOffId")
         val userProxy = getUserProxyFromUuidString(userId)
-        timeOffRepository.deleteByIdAndUser(timeOffId, userProxy)
+        val timeOff = timeOffRepository.findByIdAndUser(timeOffId, userProxy)
+        if (!timeOff.isPresent)
+            throw IllegalArgumentException(
+                "TimeOff with id $timeOffId not found or unassociated with current user"
+            )
+        timeOffRepository.delete(timeOff.get())
     }
 }

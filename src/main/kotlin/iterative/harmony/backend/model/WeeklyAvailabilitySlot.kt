@@ -8,7 +8,7 @@ import java.time.LocalTime
 @Table(name = "weekly_availability_slots")
 data class WeeklyAvailabilitySlot(
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "user_id") val user: User,
-    val playerId: Long? = null,
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "player_id") val player: Player?,
     val dayOfWeek: String,
     val startTime: LocalTime,
     val endTime: LocalTime,

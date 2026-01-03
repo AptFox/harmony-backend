@@ -40,7 +40,7 @@ class JwtAuthenticationFilter : OncePerRequestFilter() {
             SecurityContextHolder.getContext().authentication = auth
             filterChain.doFilter(request, response)
         } catch (ex: Exception) {
-            if (ex !is JwtException) {
+            if (ex !is JwtException && ex !is AccessTokenMissingOrMalformedInRequestException) {
                 Sentry.captureException(ex)
             }
             SecurityContextHolder.clearContext()

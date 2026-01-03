@@ -3,11 +3,19 @@ package iterative.harmony.backend.service
 import iterative.harmony.backend.controller.requests.TimeOffRequest
 import iterative.harmony.backend.controller.requests.WeeklyAvailabilitySlotRequest
 import iterative.harmony.backend.controller.responses.AvailabilityResponse
+import iterative.harmony.backend.controller.responses.PlayerAvailabilityResponse
+import iterative.harmony.backend.controller.responses.TeamAvailabilityResponse
+import iterative.harmony.backend.controller.responses.TimeOffMapper
+import iterative.harmony.backend.controller.responses.TimeOffResponse
+import iterative.harmony.backend.controller.responses.WeeklyAvailabilitySlotMapper
+import iterative.harmony.backend.controller.responses.WeeklyAvailabilitySlotResponse
+import iterative.harmony.backend.model.Player
+import iterative.harmony.backend.model.Team
 import iterative.harmony.backend.model.TimeOff
 import iterative.harmony.backend.model.User
 import iterative.harmony.backend.model.WeeklyAvailabilitySlot
-import iterative.harmony.backend.model.dto.TimeOffDto
-import iterative.harmony.backend.model.dto.WeeklyAvailabilitySlotDto
+import iterative.harmony.backend.repository.PlayerRepository
+import iterative.harmony.backend.repository.TeamRepository
 import iterative.harmony.backend.repository.TimeOffRepository
 import iterative.harmony.backend.repository.UserRepository
 import iterative.harmony.backend.repository.WeeklyAvailabilitySlotRepository
@@ -15,6 +23,7 @@ import iterative.harmony.backend.util.AvailabilityConstants.DAYS_OF_WEEK
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalTime
+import java.util.Optional
 import java.util.UUID
 import kotlin.test.assertEquals
 import org.junit.jupiter.api.DisplayName
@@ -28,7 +37,6 @@ import org.mockito.internal.verification.Times
 import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.*
 import org.mockito.kotlin.any
-import org.mockito.kotlin.doNothing
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.whenever
 
@@ -38,55 +46,54 @@ class AvailabilityServiceTest {
     private lateinit var weeklyAvailabilitySlotRepositoryMock: WeeklyAvailabilitySlotRepository
     @Mock private lateinit var timeOffRepositoryMock: TimeOffRepository
     @Mock private lateinit var userRepositoryMock: UserRepository
+    @Mock private lateinit var playerRepositoryMock: PlayerRepository
+    @Mock private lateinit var teamRepositoryMock: TeamRepository
+    @Mock private lateinit var weeklyAvailabilitySlotMapperMock: WeeklyAvailabilitySlotMapper
+    @Mock private lateinit var timeOffMapperMock: TimeOffMapper
 
     @InjectMocks private lateinit var availabilityService: AvailabilityService
 
     val userId: UUID = UUID.randomUUID()
     val userMock = mock<User> { on { userId } doReturn userId }
-    val playerId: Long = 2L
-    val comment = "test comment"
+    val playerMock: Player = mock<Player> { on { id } doReturn 2L }
     val dayOfWeek = "Mon"
+    val newYorkTimeZoneId = "America/New_York"
 
     @Test
     fun `getCurrentUserAvailability returns an AvailabilityResponse`() {
-        val timeOffs: List<TimeOff> =
-            mutableListOf(
-                TimeOff(
-                    userMock,
-                    playerId,
-                    startTime = Instant.now(),
-                    endTime = Instant.now().plus(Duration.ofHours(1)),
-                    comment,
-                )
-            )
+        val timeOffMock = mock<TimeOff>()
+        val timeOffs: List<TimeOff> = mutableListOf(timeOffMock)
         val weeklyAvailabilitySlots: List<WeeklyAvailabilitySlot> =
             mutableListOf(
                 WeeklyAvailabilitySlot(
                     userMock,
-                    playerId,
+                    playerMock,
                     dayOfWeek,
                     startTime = LocalTime.NOON,
                     endTime = LocalTime.NOON.plus(Duration.ofHours(1)),
-                    timeZoneId = "America/New_York",
+                    timeZoneId = newYorkTimeZoneId,
                 )
             )
+        val weeklyAvailabilitySlotResponseMock = mock<WeeklyAvailabilitySlotResponse>()
+        val timeOffResponseMock = mock<TimeOffResponse>()
         val expected =
-            AvailabilityResponse.fromWeeklyAvailabilitySlotsAndTimeOffs(
-                weeklyAvailabilitySlots,
-                timeOffs,
+            AvailabilityResponse(
+                listOf(weeklyAvailabilitySlotResponseMock),
+                listOf(timeOffResponseMock),
             )
 
         whenever(weeklyAvailabilitySlotRepositoryMock.findAllByUser(userMock))
             .thenReturn(weeklyAvailabilitySlots)
+        whenever(timeOffRepositoryMock.findFutureTimeOffForUser(any(), any())).thenReturn(timeOffs)
+        whenever(userRepositoryMock.getReferenceById(userId)).thenReturn(userMock)
         whenever(
-                timeOffRepositoryMock.findAllByUserAndStartTimeIsAfterOrEndTimeIsAfter(
-                    any(),
-                    any(),
-                    any(),
+                weeklyAvailabilitySlotMapperMock.toWeeklyAvailabilitySlotResponseList(
+                    weeklyAvailabilitySlots
                 )
             )
-            .thenReturn(timeOffs)
-        whenever(userRepositoryMock.getReferenceById(userId)).thenReturn(userMock)
+            .thenReturn(listOf(weeklyAvailabilitySlotResponseMock))
+        whenever(timeOffMapperMock.toTimeOffResponseList(timeOffs))
+            .thenReturn(listOf(timeOffResponseMock))
 
         val actual = availabilityService.getCurrentUserAvailability(userId.toString())
         assertEquals(
@@ -207,6 +214,7 @@ class AvailabilityServiceTest {
                 val expectedSlot =
                     WeeklyAvailabilitySlot(
                         user = userMock,
+                        playerMock,
                         dayOfWeek = dayOfWeek,
                         startTime = expectedMergedStartTime,
                         endTime = expectedMergedEndTime,
@@ -217,23 +225,28 @@ class AvailabilityServiceTest {
                 val expectedWeeklyAvailabilitySlot =
                     WeeklyAvailabilitySlot(
                         userMock,
-                        2L,
+                        playerMock,
                         dayOfWeek,
                         startTime = expectedMergedStartTime,
                         endTime = expectedMergedEndTime,
                         timeZoneId = "America/New_York",
                     )
 
-                val expected =
-                    WeeklyAvailabilitySlotDto.fromWeeklyAvailabilitySlot(
-                        expectedWeeklyAvailabilitySlot
-                    )
+                val expected = mock<WeeklyAvailabilitySlotResponse>()
 
                 whenever(weeklyAvailabilitySlotRepositoryMock.saveAll(expectedMergedSlots))
                     .thenReturn(mutableListOf(expectedWeeklyAvailabilitySlot))
                 whenever(weeklyAvailabilitySlotRepositoryMock.deleteAllByUser(userMock))
                     .thenReturn(null)
                 whenever(userRepositoryMock.getReferenceById(userId)).thenReturn(userMock)
+                whenever(playerRepositoryMock.findByUser(userMock))
+                    .thenReturn(Optional.of(playerMock))
+                whenever(
+                        weeklyAvailabilitySlotMapperMock.toWeeklyAvailabilitySlotResponseList(
+                            mutableListOf(expectedWeeklyAvailabilitySlot)
+                        )
+                    )
+                    .thenReturn(listOf(expected))
 
                 val response =
                     availabilityService.overwriteWeeklyAvailability(userId.toString(), requests)
@@ -270,6 +283,7 @@ class AvailabilityServiceTest {
                     expectedUnmergedSlots.add(
                         WeeklyAvailabilitySlot(
                             user = userMock,
+                            player = playerMock,
                             dayOfWeek = DAYS_OF_WEEK.elementAt(i),
                             startTime = expectedMergedStartTime,
                             endTime = expectedMergedEndTime,
@@ -278,22 +292,31 @@ class AvailabilityServiceTest {
                     )
                 }
 
+                val expected = mutableListOf<WeeklyAvailabilitySlotResponse>()
+                for (i in 0..6) {
+                    expected.add(mock<WeeklyAvailabilitySlotResponse>())
+                }
+
                 whenever(weeklyAvailabilitySlotRepositoryMock.saveAll(expectedUnmergedSlots))
                     .thenReturn(expectedUnmergedSlots)
                 whenever(weeklyAvailabilitySlotRepositoryMock.deleteAllByUser(userMock))
                     .thenReturn(null)
                 whenever(userRepositoryMock.getReferenceById(userId)).thenReturn(userMock)
+                whenever(playerRepositoryMock.findByUser(userMock))
+                    .thenReturn(Optional.of(playerMock))
+                whenever(
+                        weeklyAvailabilitySlotMapperMock.toWeeklyAvailabilitySlotResponseList(
+                            expectedUnmergedSlots
+                        )
+                    )
+                    .thenReturn(expected)
 
                 val response =
                     availabilityService.overwriteWeeklyAvailability(userId.toString(), requests)
                 val actual = response.weeklyAvailabilitySlots
                 for (i in 0..6) {
                     val actualSlot = actual?.get(i)
-                    val expectedSlot =
-                        WeeklyAvailabilitySlotDto.fromWeeklyAvailabilitySlot(
-                            expectedUnmergedSlots[i]
-                        )
-                    assertEquals(expectedSlot, actualSlot)
+                    assertEquals(expected[i], actualSlot)
                 }
                 verify(weeklyAvailabilitySlotRepositoryMock).saveAll(expectedUnmergedSlots)
                 verify(weeklyAvailabilitySlotRepositoryMock).deleteAllByUser(userMock)
@@ -448,11 +471,12 @@ class AvailabilityServiceTest {
                 val expected =
                     TimeOff(
                         user = userMock,
-                        playerId = null,
+                        player = playerMock,
                         startTime = request.startTime,
                         endTime = request.endTime,
                         comment = null,
                     )
+                val timeOffResponseMock = mock<TimeOffResponse>()
                 whenever(timeOffRepositoryMock.save(expected)).thenReturn(expected)
                 whenever(
                         timeOffRepositoryMock.existsByUserAndStartTimeEquals(
@@ -462,10 +486,13 @@ class AvailabilityServiceTest {
                     )
                     .thenReturn(false)
                 whenever(userRepositoryMock.getReferenceById(userId)).thenReturn(userMock)
+                whenever(playerRepositoryMock.findByUser(userMock))
+                    .thenReturn(Optional.of(playerMock))
+                whenever(timeOffMapperMock.toTimeOffResponse(expected))
+                    .thenReturn(timeOffResponseMock)
 
-                val response = availabilityService.addTimeOff(userId.toString(), request)
-                val actual = response.timeOff
-                assertEquals(TimeOffDto.fromTimeOff(expected), actual)
+                val actual = availabilityService.addTimeOff(userId.toString(), request)
+                assertEquals(timeOffResponseMock, actual)
             }
         }
     }
@@ -473,9 +500,87 @@ class AvailabilityServiceTest {
     @Test
     fun `deleteTimeOff deletes supplied TimeOff for user`() {
         val exceptionId = 1L
-        doNothing().whenever(timeOffRepositoryMock).deleteByIdAndUser(exceptionId, userMock)
+        val timeOffMock = mock<TimeOff>()
+        whenever(timeOffRepositoryMock.findByIdAndUser(exceptionId, userMock))
+            .doReturn(Optional.of(timeOffMock))
         whenever(userRepositoryMock.getReferenceById(userId)).thenReturn(userMock)
         availabilityService.deleteTimeOff(userId.toString(), exceptionId)
-        verify(timeOffRepositoryMock).deleteByIdAndUser(exceptionId, userMock)
+        verify(timeOffRepositoryMock).delete(timeOffMock)
+    }
+
+    @Nested
+    @DisplayName("getTeamAvailability")
+    inner class GetTeamAvailability() {
+        @Test
+        fun `returns an error when team is not found`() {
+            val teamId = 1L
+            whenever(teamRepositoryMock.findById(teamId)).doReturn(Optional.empty())
+            val expected = TeamAvailabilityResponse(error = "Team not found")
+            val actual = availabilityService.getTeamAvailability(teamId)
+            assertEquals(expected, actual)
+        }
+
+        @Test
+        fun `returns an empty response when team has no players`() {
+            val teamId = 1L
+            val teamMock = mock<Team>()
+
+            whenever(teamRepositoryMock.findById(teamId)).doReturn(Optional.of(teamMock))
+            whenever(playerRepositoryMock.findAllByTeam(teamMock)).thenReturn(listOf())
+
+            val expected = TeamAvailabilityResponse()
+            val actual = availabilityService.getTeamAvailability(teamId)
+            assertEquals(expected, actual)
+        }
+
+        @Test
+        fun `returns a response when team has players with availability and timeOff`() {
+            val teamId = 1L
+            val teamMock = mock<Team>()
+            val playerMockList =
+                listOf(
+                    mock<Player> {
+                        on { id } doReturn 2L
+                        on { name } doReturn "testPlayer"
+                    }
+                )
+            val weeklyAvailabilitySlotsMockList = listOf(mock<WeeklyAvailabilitySlot>())
+            val timeOffsMockList = listOf(mock<TimeOff>())
+            val weeklyAvailabilitySlotResponseMockList =
+                listOf(mock<WeeklyAvailabilitySlotResponse>())
+            val timeOffResponseMockList = listOf(mock<TimeOffResponse>())
+
+            whenever(teamRepositoryMock.findById(teamId)).doReturn(Optional.of(teamMock))
+            whenever(playerRepositoryMock.findAllByTeam(teamMock)).thenReturn(playerMockList)
+            whenever(weeklyAvailabilitySlotRepositoryMock.findAllByPlayerId(2L))
+                .thenReturn(weeklyAvailabilitySlotsMockList)
+            whenever(timeOffRepositoryMock.findTimeOffWithinNextWeekForPlayer(any(), any(), any()))
+                .thenReturn(timeOffsMockList)
+            whenever(
+                    weeklyAvailabilitySlotMapperMock.toWeeklyAvailabilitySlotResponseList(
+                        weeklyAvailabilitySlotsMockList
+                    )
+                )
+                .thenReturn(weeklyAvailabilitySlotResponseMockList)
+            whenever(timeOffMapperMock.toTimeOffResponseList(timeOffsMockList))
+                .thenReturn(timeOffResponseMockList)
+
+            val expected =
+                TeamAvailabilityResponse(
+                    playerSchedules =
+                        mutableListOf(
+                            PlayerAvailabilityResponse(
+                                playerId = 2L,
+                                playerName = "testPlayer",
+                                AvailabilityResponse(
+                                    weeklyAvailabilitySlotResponseMockList,
+                                    timeOffResponseMockList,
+                                ),
+                            )
+                        )
+                )
+            val actual = availabilityService.getTeamAvailability(teamId)
+            assertEquals(expected, actual)
+        }
     }
 }
