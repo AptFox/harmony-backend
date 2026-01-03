@@ -4,17 +4,14 @@ import iterative.harmony.backend.controller.requests.TimeOffRequest
 import iterative.harmony.backend.controller.requests.WeeklyAvailabilitySlotRequest
 import iterative.harmony.backend.controller.responses.AvailabilityResponse
 import iterative.harmony.backend.controller.responses.PlayerAvailabilityResponse
-import iterative.harmony.backend.controller.responses.PlayerMapper
 import iterative.harmony.backend.controller.responses.TeamAvailabilityResponse
 import iterative.harmony.backend.controller.responses.TimeOffMapper
 import iterative.harmony.backend.controller.responses.TimeOffResponse
 import iterative.harmony.backend.controller.responses.WeeklyAvailabilityResponse
 import iterative.harmony.backend.controller.responses.WeeklyAvailabilitySlotMapper
-import iterative.harmony.backend.model.Organization
 import iterative.harmony.backend.model.TimeOff
 import iterative.harmony.backend.model.User
 import iterative.harmony.backend.model.WeeklyAvailabilitySlot
-import iterative.harmony.backend.repository.OrganizationRepository
 import iterative.harmony.backend.repository.PlayerRepository
 import iterative.harmony.backend.repository.TeamRepository
 import iterative.harmony.backend.repository.TimeOffRepository
@@ -49,8 +46,6 @@ class AvailabilityService {
     @Autowired private lateinit var timeOffRepository: TimeOffRepository
     @Autowired private lateinit var userRepository: UserRepository
     @Autowired private lateinit var playerRepository: PlayerRepository
-    @Autowired private lateinit var orgRepository: OrganizationRepository
-    @Autowired private lateinit var playerMapper: PlayerMapper
     @Autowired private lateinit var timeOffMapper: TimeOffMapper
     @Autowired private lateinit var weeklyAvailabilitySlotMapper: WeeklyAvailabilitySlotMapper
 
@@ -62,10 +57,6 @@ class AvailabilityService {
     fun getUserProxyFromUuidString(userId: String): User {
         val uuid = UUID.fromString(userId)
         return userRepository.getReferenceById(uuid)
-    }
-
-    fun getOrgProxyFromId(orgId: Long): Organization {
-        return orgRepository.getReferenceById(orgId)
     }
 
     fun getCurrentUserAvailability(userId: String): AvailabilityResponse {

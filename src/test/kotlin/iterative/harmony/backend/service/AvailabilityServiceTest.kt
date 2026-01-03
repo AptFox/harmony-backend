@@ -3,17 +3,19 @@ package iterative.harmony.backend.service
 import iterative.harmony.backend.controller.requests.TimeOffRequest
 import iterative.harmony.backend.controller.requests.WeeklyAvailabilitySlotRequest
 import iterative.harmony.backend.controller.responses.AvailabilityResponse
+import iterative.harmony.backend.controller.responses.PlayerAvailabilityResponse
+import iterative.harmony.backend.controller.responses.TeamAvailabilityResponse
 import iterative.harmony.backend.controller.responses.TimeOffMapper
 import iterative.harmony.backend.controller.responses.TimeOffResponse
 import iterative.harmony.backend.controller.responses.WeeklyAvailabilitySlotMapper
 import iterative.harmony.backend.controller.responses.WeeklyAvailabilitySlotResponse
-import iterative.harmony.backend.model.Organization
 import iterative.harmony.backend.model.Player
+import iterative.harmony.backend.model.Team
 import iterative.harmony.backend.model.TimeOff
 import iterative.harmony.backend.model.User
 import iterative.harmony.backend.model.WeeklyAvailabilitySlot
-import iterative.harmony.backend.repository.OrganizationRepository
 import iterative.harmony.backend.repository.PlayerRepository
+import iterative.harmony.backend.repository.TeamRepository
 import iterative.harmony.backend.repository.TimeOffRepository
 import iterative.harmony.backend.repository.UserRepository
 import iterative.harmony.backend.repository.WeeklyAvailabilitySlotRepository
@@ -45,18 +47,15 @@ class AvailabilityServiceTest {
     @Mock private lateinit var timeOffRepositoryMock: TimeOffRepository
     @Mock private lateinit var userRepositoryMock: UserRepository
     @Mock private lateinit var playerRepositoryMock: PlayerRepository
-    @Mock private lateinit var orgRepositoryMock: OrganizationRepository
+    @Mock private lateinit var teamRepositoryMock: TeamRepository
     @Mock private lateinit var weeklyAvailabilitySlotMapperMock: WeeklyAvailabilitySlotMapper
     @Mock private lateinit var timeOffMapperMock: TimeOffMapper
 
     @InjectMocks private lateinit var availabilityService: AvailabilityService
 
     val userId: UUID = UUID.randomUUID()
-    val orgId: Long = 3L
     val userMock = mock<User> { on { userId } doReturn userId }
     val playerMock: Player = mock<Player> { on { id } doReturn 2L }
-    val orgMock: Organization = mock<Organization>()
-    val testComment = "test comment"
     val dayOfWeek = "Mon"
     val newYorkTimeZoneId = "America/New_York"
 
@@ -509,14 +508,79 @@ class AvailabilityServiceTest {
         verify(timeOffRepositoryMock).delete(timeOffMock)
     }
 
-    // TODO: write tests for getTeamSchedule
     @Nested
-    @DisplayName("getTeamSchedule")
-    inner class GetTeamSchedule() {
+    @DisplayName("getTeamAvailability")
+    inner class GetTeamAvailability() {
+        @Test
+        fun `returns an error when team is not found`() {
+            val teamId = 1L
+            whenever(teamRepositoryMock.findById(teamId)).doReturn(Optional.empty())
+            val expected = TeamAvailabilityResponse(error = "Team not found")
+            val actual = availabilityService.getTeamAvailability(teamId)
+            assertEquals(expected, actual)
+        }
 
-        // TODO: write tests for error states
+        @Test
+        fun `returns an empty response when team has no players`() {
+            val teamId = 1L
+            val teamMock = mock<Team>()
 
-        // TODO: write tests for success states
+            whenever(teamRepositoryMock.findById(teamId)).doReturn(Optional.of(teamMock))
+            whenever(playerRepositoryMock.findAllByTeam(teamMock)).thenReturn(listOf())
 
+            val expected = TeamAvailabilityResponse()
+            val actual = availabilityService.getTeamAvailability(teamId)
+            assertEquals(expected, actual)
+        }
+
+        @Test
+        fun `returns a response when team has players with availability and timeOff`() {
+            val teamId = 1L
+            val teamMock = mock<Team>()
+            val playerMockList =
+                listOf(
+                    mock<Player> {
+                        on { id } doReturn 2L
+                        on { name } doReturn "testPlayer"
+                    }
+                )
+            val weeklyAvailabilitySlotsMockList = listOf(mock<WeeklyAvailabilitySlot>())
+            val timeOffsMockList = listOf(mock<TimeOff>())
+            val weeklyAvailabilitySlotResponseMockList =
+                listOf(mock<WeeklyAvailabilitySlotResponse>())
+            val timeOffResponseMockList = listOf(mock<TimeOffResponse>())
+
+            whenever(teamRepositoryMock.findById(teamId)).doReturn(Optional.of(teamMock))
+            whenever(playerRepositoryMock.findAllByTeam(teamMock)).thenReturn(playerMockList)
+            whenever(weeklyAvailabilitySlotRepositoryMock.findAllByPlayerId(2L))
+                .thenReturn(weeklyAvailabilitySlotsMockList)
+            whenever(timeOffRepositoryMock.findTimeOffWithinNextWeekForPlayer(any(), any(), any()))
+                .thenReturn(timeOffsMockList)
+            whenever(
+                    weeklyAvailabilitySlotMapperMock.toWeeklyAvailabilitySlotResponseList(
+                        weeklyAvailabilitySlotsMockList
+                    )
+                )
+                .thenReturn(weeklyAvailabilitySlotResponseMockList)
+            whenever(timeOffMapperMock.toTimeOffResponseList(timeOffsMockList))
+                .thenReturn(timeOffResponseMockList)
+
+            val expected =
+                TeamAvailabilityResponse(
+                    playerSchedules =
+                        mutableListOf(
+                            PlayerAvailabilityResponse(
+                                playerId = 2L,
+                                playerName = "testPlayer",
+                                AvailabilityResponse(
+                                    weeklyAvailabilitySlotResponseMockList,
+                                    timeOffResponseMockList,
+                                ),
+                            )
+                        )
+                )
+            val actual = availabilityService.getTeamAvailability(teamId)
+            assertEquals(expected, actual)
+        }
     }
 }
