@@ -1,6 +1,7 @@
 package iterative.harmony.backend.service
 
 import iterative.harmony.backend.controller.requests.UpdateUserRequest
+import iterative.harmony.backend.controller.responses.UserMapper
 import iterative.harmony.backend.controller.responses.UserResponse
 import iterative.harmony.backend.exception.UserNotFoundException
 import iterative.harmony.backend.model.Role
@@ -26,8 +27,8 @@ import org.mockito.junit.jupiter.MockitoExtension
 class UserServiceTest {
 
     @Mock private lateinit var userRepositoryMock: UserRepository
-
     @Mock private lateinit var roleRepositoryMock: RoleRepository
+    @Mock private lateinit var userMapperMock: UserMapper
 
     @InjectMocks private lateinit var userService: UserService
 
@@ -120,9 +121,6 @@ class UserServiceTest {
 
         @Test
         fun `should return the current user`() {
-            whenever(userRepositoryMock.findById(uuid)).thenReturn(Optional.of(expectedUser))
-
-            val actualUserResponse = userService.getCurrentUser(uuid.toString())
             val expectedUserResponse =
                 UserResponse(
                     uuid,
@@ -132,6 +130,11 @@ class UserServiceTest {
                     expectedUser.discordId,
                     expectedUser.discordAvatarHash,
                 )
+            whenever(userRepositoryMock.findById(uuid)).thenReturn(Optional.of(expectedUser))
+            whenever(userMapperMock.toUserResponse(expectedUser)).thenReturn(expectedUserResponse)
+
+            val actualUserResponse = userService.getCurrentUser(uuid.toString())
+
             assertEquals(expectedUserResponse, actualUserResponse)
         }
 
@@ -166,11 +169,6 @@ class UserServiceTest {
                         displayName = updateUserRequest.displayName
                         timeZoneId = updateUserRequest.timeZoneId
                     }
-
-                whenever(userRepositoryMock.findById(expectedUser.userId!!))
-                    .thenReturn(Optional.of(expectedUser))
-                whenever(userRepositoryMock.save(updatedUser)).thenReturn(updatedUser)
-
                 val expectedUserResponse =
                     UserResponse(
                         expectedUser.userId!!,
@@ -180,6 +178,12 @@ class UserServiceTest {
                         expectedUser.discordId,
                         expectedUser.discordAvatarHash,
                     )
+
+                whenever(userMapperMock.toUserResponse(expectedUser))
+                    .thenReturn(expectedUserResponse)
+                whenever(userRepositoryMock.findById(expectedUser.userId!!))
+                    .thenReturn(Optional.of(expectedUser))
+                whenever(userRepositoryMock.save(updatedUser)).thenReturn(updatedUser)
 
                 val actualUserResponse =
                     userService.updateUser(updateUserRequest, expectedUser.userId.toString())

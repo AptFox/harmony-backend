@@ -290,6 +290,6 @@ class AvailabilityService {
             throw IllegalArgumentException(
                 "TimeOff with id $timeOffId not found or unassociated with current user"
             )
-        timeOffRepository.deleteByIdAndUser(timeOffId, userProxy)
+        timeOffRepository.delete(timeOff.get())
     }
 }
