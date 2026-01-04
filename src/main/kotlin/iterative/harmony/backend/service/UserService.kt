@@ -83,7 +83,6 @@ class UserService {
         throw UserNotFoundException(userId)
     }
 
-    @Transactional
     suspend fun import(batch: MutableList<User>, row: Map<String, String>, defaultUserRole: Role) {
         val discordId = row["discord_id"].toString()
         val memberId = row["member_id"].toString()
