@@ -1,4 +1,4 @@
-package iterative.harmony.backend.controller.dto
+package iterative.harmony.backend.model.dto
 
 data class DiscordOAuthUser(
     val id: String,

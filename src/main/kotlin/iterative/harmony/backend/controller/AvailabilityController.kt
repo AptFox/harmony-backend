@@ -1,10 +1,11 @@
 package iterative.harmony.backend.controller
 
-import iterative.harmony.backend.controller.dto.AvailabilityResponse
-import iterative.harmony.backend.controller.dto.TimeOffRequest
-import iterative.harmony.backend.controller.dto.TimeOffResponse
-import iterative.harmony.backend.controller.dto.WeeklyAvailabilityResponse
-import iterative.harmony.backend.controller.dto.WeeklyAvailabilitySlotRequest
+import iterative.harmony.backend.controller.requests.TimeOffRequest
+import iterative.harmony.backend.controller.requests.WeeklyAvailabilitySlotRequest
+import iterative.harmony.backend.controller.responses.AvailabilityResponse
+import iterative.harmony.backend.controller.responses.TeamAvailabilityResponse
+import iterative.harmony.backend.controller.responses.TimeOffResponse
+import iterative.harmony.backend.controller.responses.WeeklyAvailabilityResponse
 import iterative.harmony.backend.service.AvailabilityService
 import iterative.harmony.backend.util.RoleConstants
 import iterative.harmony.backend.util.getLogger
@@ -33,7 +34,7 @@ class AvailabilityController {
     @PreAuthorize("hasRole('${RoleConstants.USER_ROLE}')")
     @GetMapping("/@me")
     fun getUserAvailability(principal: Principal): AvailabilityResponse {
-        log.info("getting availability and timeOff")
+        log.debug("getting availability and timeOff")
 
         return availabilityService.getCurrentUserAvailability(principal.name)
     }
@@ -44,7 +45,7 @@ class AvailabilityController {
         @Valid @RequestBody slots: List<WeeklyAvailabilitySlotRequest>,
         principal: Principal,
     ): ResponseEntity<WeeklyAvailabilityResponse> {
-        log.info("setting weekly availability")
+        log.debug("setting weekly availability")
         if (slots.isEmpty())
             throw IllegalArgumentException("Request must contain at least 1 WeeklyAvailabilitySlot")
         if (slots.size > 112)
@@ -54,6 +55,15 @@ class AvailabilityController {
 
         val response = availabilityService.overwriteWeeklyAvailability(principal.name, slots)
         val status = if (!response.errors.isNullOrEmpty()) HttpStatus.BAD_REQUEST else HttpStatus.OK
+
+        return ResponseEntity.status(status).body(response)
+    }
+
+    @PreAuthorize("hasRole('${RoleConstants.USER_ROLE}')")
+    @GetMapping("/weekly/team/{teamId}")
+    fun getTeamAvailability(@PathVariable teamId: Long): ResponseEntity<TeamAvailabilityResponse> {
+        val response = availabilityService.getTeamAvailability(teamId)
+        val status = if (!response.error.isNullOrEmpty()) HttpStatus.BAD_REQUEST else HttpStatus.OK
 
         return ResponseEntity.status(status).body(response)
     }
@@ -71,7 +81,7 @@ class AvailabilityController {
         @Valid @RequestBody timeOff: TimeOffRequest,
         principal: Principal,
     ): ResponseEntity<TimeOffResponse> {
-        log.info("setting timeOff")
+        log.debug("setting timeOff")
 
         val response = availabilityService.addTimeOff(principal.name, timeOff)
         val status = if (!response.errors.isNullOrEmpty()) HttpStatus.BAD_REQUEST else HttpStatus.OK
@@ -81,8 +91,15 @@ class AvailabilityController {
 
     @PreAuthorize("hasRole('${RoleConstants.USER_ROLE}')")
     @DeleteMapping("/time_off/{timeOffId}")
-    fun deleteTimeOff(principal: Principal, @PathVariable timeOffId: Long): ResponseEntity<Void> {
-        availabilityService.deleteTimeOff(principal.name, timeOffId)
+    fun deleteTimeOff(
+        principal: Principal,
+        @PathVariable timeOffId: Long,
+    ): ResponseEntity<String?> {
+        try {
+            availabilityService.deleteTimeOff(principal.name, timeOffId)
+        } catch (ex: IllegalArgumentException) {
+            return ResponseEntity.badRequest().body(ex.message)
+        }
         return ResponseEntity.ok().build()
     }
 }

@@ -10,6 +10,7 @@ buildscript {
 plugins {
 	id 'org.jetbrains.kotlin.jvm' version '1.9.25'
 	id 'org.jetbrains.kotlin.plugin.spring' version '1.9.25'
+	id 'org.jetbrains.kotlin.kapt' version '1.9.25'
 	id 'org.springframework.boot' version '3.3.5'
 	id 'io.spring.dependency-management' version '1.1.6'
 	id 'org.jetbrains.kotlin.plugin.jpa' version '1.9.25'
@@ -51,6 +52,8 @@ repositories {
 dependencies {
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 
+	implementation "org.mapstruct:mapstruct:1.5.3.Final"
+	kapt "org.mapstruct:mapstruct-processor:1.5.3.Final"
 	implementation 'me.paulschwarz:spring-dotenv:4.0.0'
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
@@ -59,6 +62,10 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-webflux'
+	implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1"
+	implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-reactor'
+	implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-csv'
 	implementation 'com.fasterxml.jackson.module:jackson-module-kotlin'
 	implementation 'org.flywaydb:flyway-database-postgresql:11.1.0'
 	implementation 'org.jetbrains.kotlin:kotlin-reflect'
@@ -69,8 +76,6 @@ dependencies {
 	implementation 'io.sentry:sentry-spring-boot-starter-jakarta:8.6.0'
 	implementation 'com.bucket4j:bucket4j_jdk17-core:8.15.0'
 
-	compileOnly 'org.projectlombok:lombok'
-	annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.jetbrains.kotlin:kotlin-test-junit5'
 	testImplementation 'org.springframework.security:spring-security-test'
@@ -79,6 +84,15 @@ dependencies {
 	testImplementation 'org.mockito.kotlin:mockito-kotlin:5.3.1'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	testRuntimeOnly 'com.h2database:h2'
+
+}
+
+kapt {
+	arguments {
+		arg("mapstruct.defaultComponentModel", "spring")
+		arg("mapstruct.unmappedTargetPolicy", "IGNORE")
+	}
+	correctErrorTypes = true
 }
 
 kotlin {

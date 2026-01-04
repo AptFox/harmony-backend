@@ -6,6 +6,7 @@ import io.jsonwebtoken.Jwts
 import io.jsonwebtoken.security.Keys
 import iterative.harmony.backend.model.RefreshToken
 import iterative.harmony.backend.repository.RefreshTokenRepository
+import iterative.harmony.backend.repository.UserRepository
 import iterative.harmony.backend.util.RoleConstants
 import iterative.harmony.backend.util.Utils
 import java.util.*
@@ -22,6 +23,7 @@ import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
 import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.any as kotlinAny
+import org.mockito.kotlin.doNothing
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.whenever
 import org.springframework.dao.OptimisticLockingFailureException
@@ -32,6 +34,8 @@ class JwtTokenServiceTest {
     @Mock
     private var mockRefreshTokenRepository: RefreshTokenRepository =
         mock(RefreshTokenRepository::class.java)
+
+    @Mock private var mockUserRepository: UserRepository = mock(UserRepository::class.java)
 
     private val secretKey: String = "some_really_really_long_secret_key"
     private val tokenParser: JwtParser =
@@ -128,6 +132,7 @@ class JwtTokenServiceTest {
             val mockRefreshToken =
                 RefreshToken(userId, userAgentFingerprint, issuedAt, expiration, userId)
             whenever(mockRefreshTokenRepository.save(any())).thenReturn(mockRefreshToken)
+            doNothing().whenever(mockUserRepository).updateLastLogin(kotlinAny(), kotlinAny())
             val utils = mock<Utils>()
             whenever(utils.getCurrentTimeInMillisRounded()).thenReturn(staticIssuedTime)
 

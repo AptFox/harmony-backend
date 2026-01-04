@@ -1,6 +1,6 @@
 package iterative.harmony.backend.config
 
-import iterative.harmony.backend.controller.dto.UserResponse
+import iterative.harmony.backend.controller.responses.UserResponse
 import iterative.harmony.backend.service.AuthService
 import iterative.harmony.backend.service.JwtTokenService
 import iterative.harmony.backend.service.UserService
@@ -82,7 +82,7 @@ class SecurityConfigTest {
                     .json(
                         """
                     {
-                        "id": "${expectedUser.id}",
+                        "userId": "${expectedUser.userId}",
                         "displayName": "${expectedUser.displayName}",
                         "timeZoneId": "${expectedUser.timeZoneId}",
                         "discordId": "${expectedUser.discordId}",
