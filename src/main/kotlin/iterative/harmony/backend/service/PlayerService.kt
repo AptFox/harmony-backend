@@ -3,6 +3,7 @@ package iterative.harmony.backend.service
 import iterative.harmony.backend.controller.responses.PlayerMapper
 import iterative.harmony.backend.controller.responses.PlayerResponse
 import iterative.harmony.backend.exception.ImportException
+import iterative.harmony.backend.model.Franchise
 import iterative.harmony.backend.model.Organization
 import iterative.harmony.backend.model.Player
 import iterative.harmony.backend.model.SkillGroup
@@ -43,25 +44,32 @@ class PlayerService {
         org: Organization,
         preExistingTeams: List<Team>,
         preExistingSkillGroups: List<SkillGroup>,
+        preExistingFranchises: List<Franchise>,
         batch: MutableList<Player>,
         row: Map<String, String>,
     ) {
         val name = row["name"].toString()
         val memberId = row["member_id"].toString()
         val skillGroupName = row["skill_group"].toString()
-        val franchise = row["franchise"].toString()
+        val franchiseName = row["franchise"].toString()
         val staffPos = row["Franchise Staff Position"].toString()
         if (
             name.isEmpty() ||
                 memberId.isEmpty() ||
                 skillGroupName.isEmpty() ||
-                franchise.isEmpty() ||
+                franchiseName.isEmpty() ||
                 staffPos.isEmpty()
         )
             throw ImportException("Required field is missing")
 
         val (skillGroup, team) =
-            getTeamBy(franchise, skillGroupName, preExistingSkillGroups, preExistingTeams)
+            getTeamBy(
+                franchiseName,
+                skillGroupName,
+                preExistingSkillGroups,
+                preExistingFranchises,
+                preExistingTeams,
+            )
         var user: Optional<User>
         try {
             user = userRepository.findByImportId(memberId)
@@ -98,21 +106,29 @@ class PlayerService {
     }
 
     private suspend fun getTeamBy(
-        franchise: String,
+        franchiseName: String,
         skillGroupName: String,
         preExistingSkillGroups: List<SkillGroup>,
+        preExistingFranchises: List<Franchise>,
         preExistingTeams: List<Team>,
     ): Pair<SkillGroup, Team?> {
         val skillGroup = preExistingSkillGroups.find { sg -> sg.name == skillGroupName }
         if (skillGroup == null)
             throw ImportException("Could not find SkillGroup with name: $skillGroupName")
 
-        if (FRANCHISES_TO_IGNORE.contains(franchise)) return Pair(skillGroup, null)
+        if (FRANCHISES_TO_IGNORE.contains(franchiseName)) return Pair(skillGroup, null)
+        val franchise = preExistingFranchises.find { franchise -> franchise.name == franchiseName }
+        if (franchise == null)
+            throw ImportException("Could not find Franchise with name: $franchiseName")
 
-        val compositeName = "${skillGroup.acronym} $franchise"
-        val matchingTeam = preExistingTeams.find { team -> team.name == compositeName }
+        val matchingTeam =
+            preExistingTeams.find { team ->
+                team.skillGroup.id == skillGroup.id && team.franchise.id == franchise.id
+            }
         if (matchingTeam == null)
-            throw ImportException("Could not find Team with name: $compositeName")
+            throw ImportException(
+                "Could not find Team with name = $franchiseName and skillGroup = $skillGroupName"
+            )
 
         return Pair(skillGroup, matchingTeam)
     }

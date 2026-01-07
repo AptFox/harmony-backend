@@ -7,6 +7,7 @@ import iterative.harmony.backend.model.SkillGroup
 import iterative.harmony.backend.model.Team
 import iterative.harmony.backend.model.User
 import iterative.harmony.backend.repository.DataSourceRepository
+import iterative.harmony.backend.repository.FranchiseRepository
 import iterative.harmony.backend.repository.OrganizationRepository
 import iterative.harmony.backend.repository.RoleRepository
 import iterative.harmony.backend.util.RoleConstants
@@ -38,6 +39,7 @@ class ScheduledImportService {
     @Autowired private lateinit var orgRepository: OrganizationRepository
     @Autowired private lateinit var dataSourceRepository: DataSourceRepository
     @Autowired private lateinit var roleRepository: RoleRepository
+    @Autowired private lateinit var franchiseRepository: FranchiseRepository
     @Autowired private lateinit var csvParsingService: CsvParsingService
     @Autowired private lateinit var skillGroupService: SkillGroupService
     @Autowired private lateinit var teamService: TeamService
@@ -237,11 +239,13 @@ class ScheduledImportService {
             try {
                 val preExistingTeams = teamService.getPreExistingTeamsByOrg(org)
                 val preExistingSkillGroups = skillGroupService.getPreExistingSkillGroupsByOrg(org)
+                val preExistingFranchises = franchiseRepository.findAllByOrganization(org)
                 downloadAndImport(org, "players", MLE_PLAYERS_HEADERS, saveBatch) { batch, csvRow ->
                     playerService.import(
                         org,
                         preExistingTeams,
                         preExistingSkillGroups,
+                        preExistingFranchises,
                         batch,
                         csvRow,
                     )
