@@ -4,5 +4,5 @@ data class FranchiseResponse(
     var id: Long,
     var name: String,
     var acronym: String,
-    var imageUrl: String,
+    var imageUrl: String?,
 )

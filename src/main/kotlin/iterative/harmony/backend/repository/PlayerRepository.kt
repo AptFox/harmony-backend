@@ -5,6 +5,7 @@ import iterative.harmony.backend.model.Player
 import iterative.harmony.backend.model.Team
 import iterative.harmony.backend.model.User
 import java.util.Optional
+import org.springframework.data.jpa.repository.EntityGraph
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.repository.CrudRepository
 import org.springframework.stereotype.Repository
@@ -17,5 +18,5 @@ interface PlayerRepository : JpaRepository<Player, Long>, CrudRepository<Player,
 
     fun findByUserAndOrganization(user: User, org: Organization): Optional<Player>
 
-    fun findAllByTeam(team: Team): List<Player>
+    @EntityGraph(attributePaths = ["user"]) fun findAllByTeam(team: Team): List<Player>
 }

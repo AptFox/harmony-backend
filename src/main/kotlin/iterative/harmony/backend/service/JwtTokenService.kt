@@ -131,8 +131,8 @@ class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
             val tokenClaims = getClaims(refreshToken)
             val tokenFromClaims = getRefreshTokenFromClaims(tokenClaims)
 
-            if (tokenFromClaims.fingerprint != userAgentFingerprint)
-                throw TokenFingerprintMismatchException()
+            //            if (tokenFromClaims.fingerprint != userAgentFingerprint)
+            //                throw TokenFingerprintMismatchException()
 
             val tokenFromDb = refreshTokenRepository.findByJti(tokenFromClaims.jti!!).get()
             val tokenIsExpired = Date(tokenFromDb.expiresAt).before(Date())

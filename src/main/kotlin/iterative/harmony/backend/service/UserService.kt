@@ -10,10 +10,13 @@ import iterative.harmony.backend.model.User
 import iterative.harmony.backend.model.dto.DiscordOAuthUser
 import iterative.harmony.backend.repository.RoleRepository
 import iterative.harmony.backend.repository.UserRepository
+import iterative.harmony.backend.util.CacheConstants.USER_BY_ID
 import iterative.harmony.backend.util.RoleConstants
 import iterative.harmony.backend.util.Utils
 import java.util.*
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.cache.annotation.CachePut
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -58,8 +61,9 @@ class UserService {
         return user.get().roles.map { it.name }
     }
 
+    @Cacheable(value = [USER_BY_ID], key = "#userId")
     fun getCurrentUser(userId: String): UserResponse {
-        val user = userRepository.findById(UUID.fromString(userId))
+        val user = Optional.of(userRepository.findByIdWithEagerOrgFetch(UUID.fromString(userId)))
         if (!user.isPresent) {
             throw UserNotFoundException(userId)
         }
@@ -67,6 +71,7 @@ class UserService {
     }
 
     @Transactional
+    @CachePut(value = [USER_BY_ID], key = "#userId")
     fun updateUser(updateUserRequest: UpdateUserRequest, userId: String): UserResponse {
         Utils().verifyTimeZone(updateUserRequest.timeZoneId)
         val userFromDB = userRepository.findById(UUID.fromString(userId))

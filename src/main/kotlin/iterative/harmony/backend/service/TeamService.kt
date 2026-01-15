@@ -1,5 +1,7 @@
 package iterative.harmony.backend.service
 
+import iterative.harmony.backend.controller.responses.TeamMapper
+import iterative.harmony.backend.controller.responses.TeamResponse
 import iterative.harmony.backend.exception.ImportException
 import iterative.harmony.backend.model.Franchise
 import iterative.harmony.backend.model.Organization
@@ -7,7 +9,9 @@ import iterative.harmony.backend.model.SkillGroup
 import iterative.harmony.backend.model.Team
 import iterative.harmony.backend.repository.FranchiseRepository
 import iterative.harmony.backend.repository.TeamRepository
+import iterative.harmony.backend.util.CacheConstants.FRANCHISE_TEAMS
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -15,6 +19,14 @@ import org.springframework.transaction.annotation.Transactional
 class TeamService {
     @Autowired private lateinit var teamRepository: TeamRepository
     @Autowired private lateinit var franchiseRepository: FranchiseRepository
+    @Autowired private lateinit var teamMapper: TeamMapper
+
+    @Cacheable(value = [FRANCHISE_TEAMS], key = "#franchiseId")
+    fun getTeamsForFranchise(franchiseId: Long): List<TeamResponse> {
+        val franchise = franchiseRepository.getReferenceById(franchiseId)
+        val teams = teamRepository.findAllByFranchise(franchise)
+        return teamMapper.toTeamResponseList(teams)
+    }
 
     suspend fun import(
         org: Organization,

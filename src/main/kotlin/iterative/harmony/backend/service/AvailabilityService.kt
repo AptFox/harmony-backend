@@ -26,21 +26,23 @@ import iterative.harmony.backend.util.AvailabilityConstants.MORE_THAN_24_HOURS
 import iterative.harmony.backend.util.AvailabilityConstants.MORE_THAN_90_DAYS_AWAY
 import iterative.harmony.backend.util.AvailabilityConstants.SAME_START_AND_END_TIME
 import iterative.harmony.backend.util.AvailabilityConstants.TIME_OFF_ALREADY_EXISTS
+import iterative.harmony.backend.util.CacheConstants.TEAM_AVAILABILITY_BY_ID
+import iterative.harmony.backend.util.CacheConstants.USER_AVAILABILITY_BY_ID
 import iterative.harmony.backend.util.Utils
 import iterative.harmony.backend.util.getLogger
 import java.time.Duration
 import java.time.Instant
 import java.time.temporal.Temporal
 import java.util.UUID
-import kotlin.jvm.optionals.getOrNull
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.cache.CacheManager
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 @Service
 class AvailabilityService {
     @Autowired private lateinit var teamRepository: TeamRepository
-
     @Autowired
     private lateinit var weeklyAvailabilitySlotRepository: WeeklyAvailabilitySlotRepository
     @Autowired private lateinit var timeOffRepository: TimeOffRepository
@@ -48,20 +50,39 @@ class AvailabilityService {
     @Autowired private lateinit var playerRepository: PlayerRepository
     @Autowired private lateinit var timeOffMapper: TimeOffMapper
     @Autowired private lateinit var weeklyAvailabilitySlotMapper: WeeklyAvailabilitySlotMapper
+    @Autowired private lateinit var cacheManager: CacheManager
 
     private val log = getLogger()
     private val ONE_DAY = Duration.ofDays(1)
     private val ONE_HOUR = Duration.ofHours(1)
     private val THREE_MONTHS = Duration.ofDays(90)
 
+    fun clearCachedAvailabilityForUserTeams(userId: String) {
+        val uuid = UUID.fromString(userId)
+        val user = userRepository.findById(uuid).get()
+        log.debug("Clearing $USER_AVAILABILITY_BY_ID cache for userId: $userId")
+        cacheManager.getCache(USER_AVAILABILITY_BY_ID)?.evict(userId)
+        val teamIds = user.players.map { player -> Pair(player.id, player.team?.id) }
+        teamIds.forEach { (playerId, teamId) ->
+            if (teamId == null) {
+                log.debug("No team found for playerId: $playerId. Skipping cache clear.")
+            } else {
+                log.debug(
+                    "Clearing $TEAM_AVAILABILITY_BY_ID cache for [playerId: $playerId, teamId: $teamId]"
+                )
+                cacheManager.getCache(TEAM_AVAILABILITY_BY_ID)?.evict(teamId)
+            }
+        }
+    }
+
     fun getUserProxyFromUuidString(userId: String): User {
         val uuid = UUID.fromString(userId)
         return userRepository.getReferenceById(uuid)
     }
 
+    @Cacheable(value = [USER_AVAILABILITY_BY_ID], key = "#userId")
     fun getCurrentUserAvailability(userId: String): AvailabilityResponse {
         val user = getUserProxyFromUuidString(userId)
-
         val weeklyAvailabilitySlots = weeklyAvailabilitySlotRepository.findAllByUser(user)
         val timeOffs = getFutureTimeOffs(user)
         return AvailabilityResponse(
@@ -82,6 +103,7 @@ class AvailabilityService {
         log.info("Deleting weekly availability slots")
         val user = getUserProxyFromUuidString(userId)
         weeklyAvailabilitySlotRepository.deleteAllByUser(user)
+        clearCachedAvailabilityForUserTeams(userId)
     }
 
     @Transactional
@@ -95,7 +117,6 @@ class AvailabilityService {
         val mergedSlots = mergeOverlappingSlots(slots)
 
         val userProxy = getUserProxyFromUuidString(userId)
-        val playerProxy = playerRepository.findByUser(userProxy).getOrNull()
 
         log.debug("Deleting old weekly availability slots")
         weeklyAvailabilitySlotRepository.deleteAllByUser(userProxy)
@@ -105,7 +126,6 @@ class AvailabilityService {
             mergedSlots.map {
                 WeeklyAvailabilitySlot(
                     user = userProxy,
-                    player = playerProxy,
                     dayOfWeek = it.dayOfWeek,
                     startTime = it.startTime,
                     endTime = it.endTime,
@@ -113,6 +133,7 @@ class AvailabilityService {
                 )
             }
         val slotsFromDb = weeklyAvailabilitySlotRepository.saveAll(slotsToSave)
+        clearCachedAvailabilityForUserTeams(userId)
         return WeeklyAvailabilityResponse(
             weeklyAvailabilitySlotMapper.toWeeklyAvailabilitySlotResponseList(slotsFromDb)
         )
@@ -181,18 +202,17 @@ class AvailabilityService {
 
         log.debug("searching for old timeOff")
         deleteExpiredExceptions(userProxy)
-        val playerProxy = playerRepository.findByUser(userProxy).getOrNull()
 
         val timeOffToSave =
             TimeOff(
                 user = userProxy,
-                player = playerProxy,
                 startTime = request.startTime,
                 endTime = request.endTime,
                 comment = request.comment,
             )
         log.debug("Saving timeOff")
         val timeOffFromDb = timeOffRepository.save(timeOffToSave)
+        clearCachedAvailabilityForUserTeams(userId)
         return timeOffMapper.toTimeOffResponse(timeOffFromDb)
     }
 
@@ -207,6 +227,7 @@ class AvailabilityService {
         }
     }
 
+    @Cacheable(value = [TEAM_AVAILABILITY_BY_ID], key = "#teamId")
     fun getTeamAvailability(teamId: Long): TeamAvailabilityResponse {
         log.debug("generating team schedule")
         val team = teamRepository.findById(teamId)
@@ -221,10 +242,10 @@ class AvailabilityService {
         teamPlayers.forEach { player ->
             log.debug("generating schedule for: ${player.name}")
             val weeklyAvailabilitySlots =
-                weeklyAvailabilitySlotRepository.findAllByPlayerId(player.id!!)
+                weeklyAvailabilitySlotRepository.findAllByUser(player.user)
             val timeOffsInTheNextWeek =
-                timeOffRepository.findTimeOffWithinNextWeekForPlayer(
-                    player.id!!,
+                timeOffRepository.findTimeOffWithinNextWeekForUser(
+                    player.user.userId!!,
                     now,
                     sevenDaysFromNow,
                 )
@@ -282,5 +303,6 @@ class AvailabilityService {
                 "TimeOff with id $timeOffId not found or unassociated with current user"
             )
         timeOffRepository.delete(timeOff.get())
+        clearCachedAvailabilityForUserTeams(userId)
     }
 }

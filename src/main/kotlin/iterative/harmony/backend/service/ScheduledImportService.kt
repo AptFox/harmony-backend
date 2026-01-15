@@ -168,7 +168,7 @@ class ScheduledImportService {
                 }
                 log.info("$logPrefix - succeeded")
             } catch (ex: DataIntegrityViolationException) {
-                log.error("$logPrefix - error saving to DB: ${ex.message}")
+                log.error("$logPrefix - error saving to DB: ${ex.message}", ex)
                 throw ScheduledTaskException("$logPrefix failed", ex)
             } finally {
                 if (tempFile.exists()) tempFile.delete()
@@ -189,7 +189,7 @@ class ScheduledImportService {
                     skillGroupService.import(org, batch, csvRow, preExistingSkillGroups)
                 }
             } catch (ex: Exception) {
-                log.error("SkillGroup import failed")
+                log.error("SkillGroup import failed", ex)
                 throw ex
             }
         }
@@ -208,7 +208,7 @@ class ScheduledImportService {
                     teamService.import(org, batch, csvRow, preExistingSkillGroups, preExistingTeams)
                 }
             } catch (ex: Exception) {
-                log.error("${org.acronym} Team import failed")
+                log.error("${org.acronym} Team import failed", ex)
                 throw ex
             }
         }
@@ -225,7 +225,7 @@ class ScheduledImportService {
                     userService.import(batch, csvRow, defaultUserRole)
                 }
             } catch (ex: Exception) {
-                log.error("${org.acronym} User import failed")
+                log.error("${org.acronym} User import failed", ex)
                 throw ex
             }
         }
@@ -251,7 +251,7 @@ class ScheduledImportService {
                     )
                 }
             } catch (ex: Exception) {
-                log.error("${org.acronym} Player import failed")
+                log.error("${org.acronym} Player import failed", ex)
                 throw ex
             }
         }

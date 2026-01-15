@@ -1,10 +1,9 @@
 package iterative.harmony.backend.controller
 
-import iterative.harmony.backend.controller.responses.PlayerResponse
-import iterative.harmony.backend.service.PlayerService
+import iterative.harmony.backend.controller.responses.TeamResponse
+import iterative.harmony.backend.service.TeamService
 import iterative.harmony.backend.util.RoleConstants
 import iterative.harmony.backend.util.getLogger
-import java.security.Principal
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.validation.annotation.Validated
@@ -14,18 +13,17 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
-@RequestMapping("/api/players")
+@RequestMapping("/api/teams")
 @Validated
-class PlayerController {
+class TeamsController {
     private val log = getLogger()
-    @Autowired private lateinit var playerService: PlayerService
+    @Autowired private lateinit var teamService: TeamService
 
     @PreAuthorize("hasRole('${RoleConstants.USER_ROLE}')")
-    @GetMapping("/@me")
-    fun getPlayers(@RequestParam orgId: Long, principal: Principal): PlayerResponse {
-        // TODO: verify this is used
-        log.debug("getting players")
+    @GetMapping()
+    fun getTeamsForFranchise(@RequestParam franchiseId: Long): List<TeamResponse> {
+        log.debug("getting teams for franchiseId: $franchiseId")
 
-        return playerService.getPlayersForCurrentUser(orgId, principal.name)
+        return teamService.getTeamsForFranchise(franchiseId)
     }
 }
