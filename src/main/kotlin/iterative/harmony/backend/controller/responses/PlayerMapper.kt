@@ -1,5 +1,6 @@
 package iterative.harmony.backend.controller.responses
 
+import iterative.harmony.backend.model.Franchise
 import iterative.harmony.backend.model.Organization
 import iterative.harmony.backend.model.Player
 import iterative.harmony.backend.model.SkillGroup
@@ -17,4 +18,6 @@ interface PlayerMapper {
     fun toOrganizationResponse(organization: Organization): OrganizationResponse
 
     fun toSkillGroupResponse(skillGroup: SkillGroup): SkillGroupResponse
+
+    fun toFranchiseResponse(franchise: Franchise): FranchiseResponse
 }

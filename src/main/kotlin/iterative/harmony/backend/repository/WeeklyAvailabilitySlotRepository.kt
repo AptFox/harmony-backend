@@ -11,7 +11,5 @@ import org.springframework.transaction.annotation.Transactional
 interface WeeklyAvailabilitySlotRepository : JpaRepository<WeeklyAvailabilitySlot, Long> {
     fun findAllByUser(user: User): List<WeeklyAvailabilitySlot>
 
-    fun findAllByPlayerId(playerId: Long): List<WeeklyAvailabilitySlot>
-
     @Modifying @Transactional fun deleteAllByUser(user: User): List<WeeklyAvailabilitySlot>
 }

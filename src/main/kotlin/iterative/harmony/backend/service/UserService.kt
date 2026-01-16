@@ -10,16 +10,20 @@ import iterative.harmony.backend.model.User
 import iterative.harmony.backend.model.dto.DiscordOAuthUser
 import iterative.harmony.backend.repository.RoleRepository
 import iterative.harmony.backend.repository.UserRepository
+import iterative.harmony.backend.util.CacheConstants.USER_BY_ID
 import iterative.harmony.backend.util.RoleConstants
 import iterative.harmony.backend.util.Utils
+import iterative.harmony.backend.util.getLogger
 import java.util.*
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.cache.annotation.CachePut
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 @Service
 class UserService {
-
+    private val log = getLogger()
     @Autowired private lateinit var userRepository: UserRepository
     @Autowired private lateinit var roleRepository: RoleRepository
     @Autowired private lateinit var userMapper: UserMapper
@@ -58,15 +62,17 @@ class UserService {
         return user.get().roles.map { it.name }
     }
 
+    @Cacheable(value = [USER_BY_ID], key = "#userId")
     fun getCurrentUser(userId: String): UserResponse {
-        val user = userRepository.findById(UUID.fromString(userId))
-        if (!user.isPresent) {
+        val user = userRepository.findByIdWithEagerOrgFetch(UUID.fromString(userId))
+        if (user == null) {
             throw UserNotFoundException(userId)
         }
-        return userMapper.toUserResponse(user.get())
+        return userMapper.toUserResponse(user)
     }
 
     @Transactional
+    @CachePut(value = [USER_BY_ID], key = "#userId")
     fun updateUser(updateUserRequest: UpdateUserRequest, userId: String): UserResponse {
         Utils().verifyTimeZone(updateUserRequest.timeZoneId)
         val userFromDB = userRepository.findById(UUID.fromString(userId))
@@ -85,9 +91,9 @@ class UserService {
 
     suspend fun import(batch: MutableList<User>, row: Map<String, String>, defaultUserRole: Role) {
         val discordId = row["discord_id"].toString()
-        val memberId = row["member_id"].toString()
+        val importId = row["member_id"].toString()
         val name = row["name"].toString()
-        if (discordId.isEmpty() || memberId.isEmpty() || name.isEmpty())
+        if (discordId.isEmpty() || importId.isEmpty() || name.isEmpty())
             throw ImportException("Required field is missing")
 
         val preExistingUser = userRepository.findByDiscordId(discordId)
@@ -95,10 +101,11 @@ class UserService {
             val updatedUser =
                 preExistingUser.get().apply {
                     this.displayName = name
-                    this.importId = memberId
+                    this.importId = importId
                 }
             batch.add(updatedUser)
         } else {
+            throwIfImportIdAlreadyInDB(importId, discordId)
             val importedUser =
                 User(
                     userId = null,
@@ -109,9 +116,20 @@ class UserService {
                     discordAvatarHash = null,
                     timeZoneId = null,
                     roles = setOf(defaultUserRole),
-                    importId = memberId,
+                    importId = importId,
                 )
             batch.add(importedUser)
+        }
+    }
+
+    suspend fun throwIfImportIdAlreadyInDB(importId: String, discordId: String) {
+        val preExistingUser = userRepository.findByImportId(importId)
+        if (preExistingUser.isPresent) {
+            val errorMsg =
+                "User has multiple discord accounts in data source (same importId, two discordIds). Skipping... "
+            val userId = preExistingUser.get().userId
+            log.error("$errorMsg[userId: $userId, importId: $importId, discordId: $discordId]")
+            throw ImportException(errorMsg)
         }
     }
 

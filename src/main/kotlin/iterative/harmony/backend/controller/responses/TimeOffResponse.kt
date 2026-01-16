@@ -6,7 +6,6 @@ import java.util.UUID
 data class TimeOffResponse(
     var id: Long? = null,
     var userId: UUID? = null,
-    var playerId: Long? = null,
     var startTime: Instant? = null,
     var endTime: Instant? = null,
     var comment: String? = null,

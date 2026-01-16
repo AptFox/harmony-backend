@@ -5,6 +5,13 @@ object RoleConstants {
     const val ADMIN_ROLE = "ADMIN"
 }
 
+object CacheConstants {
+    const val FRANCHISE_TEAMS = "FranchiseTeamsByFranchiseId"
+    const val TEAM_AVAILABILITY_BY_ID = "TeamAvailabilityById"
+    const val USER_AVAILABILITY_BY_ID = "UserAvailabilityById"
+    const val USER_BY_ID = "UserById"
+}
+
 object SecurityConstants {
     const val AUTH_PATH = "/auth"
     const val REFRESH_TOKEN_PATH = "/auth/refresh_token"
