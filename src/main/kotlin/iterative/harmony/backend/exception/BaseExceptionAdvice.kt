@@ -27,7 +27,8 @@ class BaseExceptionAdvice {
     @Autowired private lateinit var environment: Environment
 
     fun logException(ex: Exception) {
-        log.error("${ex.javaClass.simpleName}: ${ex.message}")
+        if (ex::class in COMMON_EXCEPTIONS) return
+        log.error("${ex.javaClass.simpleName}: ${ex.message}", ex)
     }
 
     fun reportExceptionToSentry(ex: Exception) {

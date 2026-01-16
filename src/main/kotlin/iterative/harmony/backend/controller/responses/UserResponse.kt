@@ -9,4 +9,5 @@ data class UserResponse(
     var timeZoneId: String?,
     var discordId: String,
     var discordAvatarHash: String?,
+    var organizations: List<OrganizationResponse>?,
 )

@@ -129,8 +129,9 @@ class UserServiceTest {
                     expectedUser.timeZoneId,
                     expectedUser.discordId,
                     expectedUser.discordAvatarHash,
+                    listOf(),
                 )
-            whenever(userRepositoryMock.findById(uuid)).thenReturn(Optional.of(expectedUser))
+            whenever(userRepositoryMock.findByIdWithEagerOrgFetch(uuid)).thenReturn(expectedUser)
             whenever(userMapperMock.toUserResponse(expectedUser)).thenReturn(expectedUserResponse)
 
             val actualUserResponse = userService.getCurrentUser(uuid.toString())
@@ -143,8 +144,8 @@ class UserServiceTest {
         inner class NewUser() {
             @Test
             fun `should throw UserNotFoundException`() {
-                whenever(userRepositoryMock.findById(expectedUser.userId!!))
-                    .thenReturn(Optional.empty())
+                whenever(userRepositoryMock.findByIdWithEagerOrgFetch(expectedUser.userId!!))
+                    .thenReturn(null)
 
                 assertThrows(UserNotFoundException::class.java) {
                     userService.getCurrentUser(uuid.toString())
@@ -177,6 +178,7 @@ class UserServiceTest {
                         updateUserRequest.timeZoneId,
                         expectedUser.discordId,
                         expectedUser.discordAvatarHash,
+                        listOf(),
                     )
 
                 whenever(userMapperMock.toUserResponse(expectedUser))

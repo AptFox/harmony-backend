@@ -27,4 +27,7 @@ data class User(
     val roles: Set<Role>,
     val lastLoginAt: Instant? = null,
     var importId: String? = null,
+    @OneToMany(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    val players: List<Player> = mutableListOf(),
 ) : AuditableEntity()
