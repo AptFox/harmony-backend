@@ -64,11 +64,11 @@ class UserService {
 
     @Cacheable(value = [USER_BY_ID], key = "#userId")
     fun getCurrentUser(userId: String): UserResponse {
-        val user = Optional.of(userRepository.findByIdWithEagerOrgFetch(UUID.fromString(userId)))
-        if (!user.isPresent) {
+        val user = userRepository.findByIdWithEagerOrgFetch(UUID.fromString(userId))
+        if (user == null) {
             throw UserNotFoundException(userId)
         }
-        return userMapper.toUserResponse(user.get())
+        return userMapper.toUserResponse(user)
     }
 
     @Transactional

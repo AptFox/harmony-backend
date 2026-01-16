@@ -35,7 +35,6 @@ import java.time.Instant
 import java.time.temporal.Temporal
 import java.util.UUID
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.cache.CacheManager
 import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -50,7 +49,7 @@ class AvailabilityService {
     @Autowired private lateinit var playerRepository: PlayerRepository
     @Autowired private lateinit var timeOffMapper: TimeOffMapper
     @Autowired private lateinit var weeklyAvailabilitySlotMapper: WeeklyAvailabilitySlotMapper
-    @Autowired private lateinit var cacheManager: CacheManager
+    @Autowired private lateinit var cacheService: CacheService
 
     private val log = getLogger()
     private val ONE_DAY = Duration.ofDays(1)
@@ -61,7 +60,7 @@ class AvailabilityService {
         val uuid = UUID.fromString(userId)
         val user = userRepository.findById(uuid).get()
         log.debug("Clearing $USER_AVAILABILITY_BY_ID cache for userId: $userId")
-        cacheManager.getCache(USER_AVAILABILITY_BY_ID)?.evict(userId)
+        cacheService.clearUserAvailabilityCache(userId)
         val teamIds = user.players.map { player -> Pair(player.id, player.team?.id) }
         teamIds.forEach { (playerId, teamId) ->
             if (teamId == null) {
@@ -70,7 +69,7 @@ class AvailabilityService {
                 log.debug(
                     "Clearing $TEAM_AVAILABILITY_BY_ID cache for [playerId: $playerId, teamId: $teamId]"
                 )
-                cacheManager.getCache(TEAM_AVAILABILITY_BY_ID)?.evict(teamId)
+                cacheService.clearTeamAvailabilityCache(teamId)
             }
         }
     }
