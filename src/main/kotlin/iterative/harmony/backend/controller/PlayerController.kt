@@ -23,9 +23,7 @@ class PlayerController {
     @PreAuthorize("hasRole('${RoleConstants.USER_ROLE}')")
     @GetMapping("/@me")
     fun getPlayers(@RequestParam orgId: Long, principal: Principal): PlayerResponse {
-        // TODO: verify this is used
         log.debug("getting players")
-
-        return playerService.getPlayersForCurrentUser(orgId, principal.name)
+        return playerService.getPlayerForCurrentUserByOrg(orgId, principal.name)
     }
 }

@@ -39,8 +39,7 @@ class PlayerService {
     val STAFF_POSITIONS_TO_IGNORE = listOf(NA, PEND)
     val FRANCHISES_TO_IGNORE = listOf(FA, FP, WAIVERS, PEND, RFA)
 
-    fun getPlayersForCurrentUser(orgId: Long, userId: String): PlayerResponse {
-        // TODO: verify that is makes sense to get players this way instead of from the user model
+    fun getPlayerForCurrentUserByOrg(orgId: Long, userId: String): PlayerResponse {
         val userProxy = userRepository.getReferenceById(UUID.fromString(userId))
         val orgProxy = organizationRepository.getReferenceById(orgId)
         val player = playerRepository.findByUserAndOrganization(userProxy, orgProxy)
