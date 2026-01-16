@@ -13,6 +13,7 @@ import iterative.harmony.backend.repository.UserRepository
 import iterative.harmony.backend.util.CacheConstants.USER_BY_ID
 import iterative.harmony.backend.util.RoleConstants
 import iterative.harmony.backend.util.Utils
+import iterative.harmony.backend.util.getLogger
 import java.util.*
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.cache.annotation.CachePut
@@ -22,7 +23,7 @@ import org.springframework.transaction.annotation.Transactional
 
 @Service
 class UserService {
-
+    private val log = getLogger()
     @Autowired private lateinit var userRepository: UserRepository
     @Autowired private lateinit var roleRepository: RoleRepository
     @Autowired private lateinit var userMapper: UserMapper
@@ -90,9 +91,9 @@ class UserService {
 
     suspend fun import(batch: MutableList<User>, row: Map<String, String>, defaultUserRole: Role) {
         val discordId = row["discord_id"].toString()
-        val memberId = row["member_id"].toString()
+        val importId = row["member_id"].toString()
         val name = row["name"].toString()
-        if (discordId.isEmpty() || memberId.isEmpty() || name.isEmpty())
+        if (discordId.isEmpty() || importId.isEmpty() || name.isEmpty())
             throw ImportException("Required field is missing")
 
         val preExistingUser = userRepository.findByDiscordId(discordId)
@@ -100,10 +101,11 @@ class UserService {
             val updatedUser =
                 preExistingUser.get().apply {
                     this.displayName = name
-                    this.importId = memberId
+                    this.importId = importId
                 }
             batch.add(updatedUser)
         } else {
+            throwIfImportIdAlreadyInDB(importId, discordId)
             val importedUser =
                 User(
                     userId = null,
@@ -114,9 +116,20 @@ class UserService {
                     discordAvatarHash = null,
                     timeZoneId = null,
                     roles = setOf(defaultUserRole),
-                    importId = memberId,
+                    importId = importId,
                 )
             batch.add(importedUser)
+        }
+    }
+
+    suspend fun throwIfImportIdAlreadyInDB(importId: String, discordId: String) {
+        val preExistingUser = userRepository.findByImportId(importId)
+        if (preExistingUser.isPresent) {
+            val errorMsg =
+                "User has multiple discord accounts in data source (same importId, two discordIds). Skipping... "
+            val userId = preExistingUser.get().userId
+            log.error("$errorMsg[userId: $userId, importId: $importId, discordId: $discordId]")
+            throw ImportException(errorMsg)
         }
     }
 

@@ -65,6 +65,7 @@ class TeamService {
                         team.skillGroup.id == skillGroup.id &&
                         team.franchise.id == franchise.id
                 }
+            // TODO: this logic no longer creates new teams, fix it.
             if (preExistingTeam == null) {
                 batch.add(
                     Team(

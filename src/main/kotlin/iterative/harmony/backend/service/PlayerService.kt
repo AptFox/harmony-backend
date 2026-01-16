@@ -13,6 +13,7 @@ import iterative.harmony.backend.model.User
 import iterative.harmony.backend.repository.OrganizationRepository
 import iterative.harmony.backend.repository.PlayerRepository
 import iterative.harmony.backend.repository.UserRepository
+import iterative.harmony.backend.util.getLogger
 import java.util.Optional
 import java.util.UUID
 import org.springframework.beans.factory.annotation.Autowired
@@ -22,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional
 
 @Service
 class PlayerService {
+    private val log = getLogger()
     @Autowired private lateinit var userRepository: UserRepository
     @Autowired private lateinit var organizationRepository: OrganizationRepository
     @Autowired private lateinit var playerRepository: PlayerRepository
@@ -55,13 +57,13 @@ class PlayerService {
         row: Map<String, String>,
     ) {
         val name = row["name"].toString()
-        val memberId = row["member_id"].toString()
+        val importId = row["member_id"].toString()
         val skillGroupName = row["skill_group"].toString()
         val franchiseName = row["franchise"].toString()
         val staffPos = row["Franchise Staff Position"].toString()
         if (
             name.isEmpty() ||
-                memberId.isEmpty() ||
+                importId.isEmpty() ||
                 skillGroupName.isEmpty() ||
                 franchiseName.isEmpty() ||
                 staffPos.isEmpty()
@@ -78,12 +80,15 @@ class PlayerService {
             )
         var user: Optional<User>
         try {
-            user = userRepository.findByImportId(memberId)
+            user = userRepository.findByImportId(importId)
         } catch (ex: IncorrectResultSizeDataAccessException) {
             throw ImportException("Duplicated import IDs found. Skipping.", ex)
         }
-        if (!user.isPresent)
-            throw ImportException("Could not find user with import_id to link player to.")
+        if (!user.isPresent) {
+            val errorMsg = "Could not find user with import_id to link player to. Skipping..."
+            log.error("$errorMsg[importId: $importId]")
+            throw ImportException(errorMsg)
+        }
 
         val teamRole = staffPos.takeIf { it !in STAFF_POSITIONS_TO_IGNORE }
 
