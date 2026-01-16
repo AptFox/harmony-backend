@@ -12,6 +12,8 @@ import iterative.harmony.backend.repository.OrganizationRepository
 import iterative.harmony.backend.repository.RoleRepository
 import iterative.harmony.backend.util.RoleConstants
 import iterative.harmony.backend.util.getLogger
+import jakarta.persistence.EntityManager
+import jakarta.persistence.PersistenceContext
 import java.io.File
 import java.nio.file.StandardOpenOption
 import java.util.concurrent.TimeUnit
@@ -26,6 +28,8 @@ import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.http.MediaType
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.support.TransactionTemplate
 import org.springframework.web.reactive.function.client.WebClient
 
 @Service
@@ -45,6 +49,9 @@ class ScheduledImportService {
     @Autowired private lateinit var teamService: TeamService
     @Autowired private lateinit var userService: UserService
     @Autowired private lateinit var playerService: PlayerService
+    @PersistenceContext private lateinit var entityManager: EntityManager
+    @Autowired private lateinit var transactionManager: PlatformTransactionManager
+    private val transactionTemplate by lazy { TransactionTemplate(transactionManager) }
     private val webClient = WebClient.builder().build()
     private val BATCH_SIZE = 100
     // TODO: Figure out how to store these headers in the DB alongside data_sources
@@ -84,6 +91,15 @@ class ScheduledImportService {
             "current_scrim_points",
             "Eligible Until",
         )
+
+    private fun flushHibernateCache(logPrefix: String, batchCode: suspend () -> Unit) {
+        transactionTemplate.execute {
+            runBlocking { batchCode() }
+            log.debug("$logPrefix - Clearing hibernate cache")
+            entityManager.flush()
+            entityManager.clear()
+        }
+    }
 
     // Runs every hour
     @Scheduled(fixedRate = 1, timeUnit = TimeUnit.HOURS)
@@ -158,13 +174,13 @@ class ScheduledImportService {
                     importCode(batch, csvRow)
                     if (batch.size >= BATCH_SIZE) {
                         log.debug("$logPrefix - Saving batch of $BATCH_SIZE")
-                        saveBatch(batch)
+                        flushHibernateCache(logPrefix) { saveBatch(batch) }
                         batch.clear()
                     }
                 }
                 if (batch.isNotEmpty()) {
                     log.debug("$logPrefix - Saving batch of ${batch.size}")
-                    saveBatch(batch)
+                    flushHibernateCache(logPrefix) { saveBatch(batch) }
                 }
                 log.info("$logPrefix - succeeded")
             } catch (ex: DataIntegrityViolationException) {
