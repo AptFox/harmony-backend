@@ -15,6 +15,7 @@ interface UserMapper {
     @Mapping(target = "id", source = "organization.id")
     @Mapping(target = "name", source = "organization.name")
     @Mapping(target = "acronym", source = "organization.acronym")
+    @Mapping(target = "timeZoneId", source = "organization.timeZoneId")
     fun toOrganizationResponse(player: Player): OrganizationResponse
 
     fun toOrganizationResponseList(organizations: List<Organization>): List<OrganizationResponse>
