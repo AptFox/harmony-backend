@@ -6,4 +6,5 @@ import jakarta.persistence.Table
 
 @Entity
 @Table(name = "organizations")
-data class Organization(val name: String, val acronym: String) : LongEntity()
+data class Organization(val name: String, val acronym: String, val timeZoneId: String?) :
+    LongEntity()
