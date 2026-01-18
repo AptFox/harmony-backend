@@ -33,7 +33,7 @@ class UserServiceTest {
     @InjectMocks private lateinit var userService: UserService
 
     private val uuid: UUID = UUID.fromString("306420e2-5f30-4070-a5c1-b9961bf10ef4")
-    private val discordUser = DiscordOAuthUser("1", "username", "globalName", "123456")
+    private val discordUser = DiscordOAuthUser("1", "username", "123456")
     private val userRole = Role(RoleConstants.USER_ROLE, "The default role for a user")
     private val userRoles = listOf(userRole.name)
     private val expectedUser =
