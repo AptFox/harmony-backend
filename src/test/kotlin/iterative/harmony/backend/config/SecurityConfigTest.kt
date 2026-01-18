@@ -131,10 +131,15 @@ class SecurityConfigTest {
 
         @Test
         @WithAnonymousUser
-        fun `anonymous user can access error endpoint`() {
+        fun `anonymous user errors are redirected to the frontend`() {
             mockMvc
                 .perform(MockMvcRequestBuilders.get("/error"))
-                .andExpect(MockMvcResultMatchers.status().isInternalServerError)
+                .andExpect(MockMvcResultMatchers.status().is3xxRedirection)
+                .andExpect(
+                    MockMvcResultMatchers.redirectedUrl(
+                        "http://localhost:3000/error?statusCode=500"
+                    )
+                )
         }
 
         @Test
