@@ -17,15 +17,7 @@ class CustomOAuth2UserService : DefaultOAuth2UserService() {
 
     override fun loadUser(userRequest: OAuth2UserRequest): OAuth2User {
         val oAuth2User = super.loadUser(userRequest)
-        val discordAttributes = oAuth2User.attributes
-
-        val discordUser =
-            DiscordOAuthUser(
-                id = discordAttributes["id"] as String,
-                username = discordAttributes["username"] as String,
-                globalName = discordAttributes["global_name"] as String,
-                avatarHash = discordAttributes["avatar"] as String,
-            )
+        val discordUser = DiscordOAuthUser.fromAttributes(oAuth2User.attributes)
         val user = userService.getOrCreateUser(discordUser)
 
         val authorities = user.roles.map { SimpleGrantedAuthority(it.name) }
