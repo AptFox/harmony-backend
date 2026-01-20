@@ -70,7 +70,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.HARMONY_AUTO_PR_PAT }}
         run: |
-          TITLE="build/deploy: Harmony v${{ steps.versioning.outputs.VERSION }}"
+          TITLE="build/deploy: Harmony API v${{ steps.versioning.outputs.VERSION }}"
 
           BODY=$(printf "%s\n\n%s\n\n%s\n%s" \
             "## Auto-PR: \`dev\` ➔ \`main\`" \
