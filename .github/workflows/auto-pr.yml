@@ -1,0 +1,104 @@
+name: auto-pr
+
+on:
+  push:
+    branches:
+      - dev
+
+permissions:
+  contents: read
+  pull-requests: write
+  actions: read
+
+jobs:
+  auto-pr:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if dev is ahead of main
+        id: branch_check
+        run: |
+          COMMITS=$(git log origin/main..origin/dev --oneline)
+          if [ -z "$COMMITS" ]; then
+            echo "ahead=false" >> "$GITHUB_OUTPUT"
+            echo "Dev is not ahead of main — skipping PR."
+          else
+            echo "ahead=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Calculate Deploy / Build Version
+        if: steps.branch_check.outputs.ahead == 'true'
+        id: versioning
+        env:
+          GH_TOKEN: ${{ secrets.HARMONY_AUTO_PR_PAT }}
+        run: |
+          DEPLOY_COUNT=$(gh run list \
+            --workflow "prod-deploy" \
+            --status success \
+            --json conclusion \
+            --limit 1000 \
+            | jq '. | length')
+
+          VERSION=$((DEPLOY_COUNT + 1))
+          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Calculated version: $VERSION"
+
+      - name: Generate Change Log
+        if: steps.branch_check.outputs.ahead == 'true'
+        id: changelog
+        run: |
+          COMMITS=$(git log origin/main..origin/dev \
+            --no-merges \
+            --pretty=format:"* %h - %an: %s (%ar)")
+
+          echo "Found commits:"
+          echo "$COMMITS"
+
+          {
+            echo "CHANGELOG<<EOF"
+            echo "$COMMITS"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create or Update PR (dev → main)
+        if: steps.branch_check.outputs.ahead == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.HARMONY_AUTO_PR_PAT }}
+        run: |
+          TITLE="build/deploy: Harmony v${{ steps.versioning.outputs.VERSION }}"
+
+          BODY=$(printf "%s\n\n%s\n\n%s\n%s" \
+            "## Auto-PR: \`dev\` ➔ \`main\`" \
+            "This PR was automatically generated because new code was pushed to the \`dev\` branch." \
+            "### Change log (commits)" \
+            "${{ steps.changelog.outputs.CHANGELOG }}"
+          )
+
+          # Check for existing open PR
+          EXISTING_PR=$(gh pr list \
+            --base main \
+            --head dev \
+            --state open \
+            --json number \
+            --jq '.[0].number')
+
+          if [ -n "$EXISTING_PR" ]; then
+            echo "Updating existing PR #$EXISTING_PR"
+            gh pr edit "$EXISTING_PR" \
+              --title "$TITLE" \
+              --body "$BODY"
+          else
+            echo "Creating new PR"
+            gh pr create \
+              --base main \
+              --head dev \
+              --title "$TITLE" \
+              --body "$BODY" \
+              --label auto-pr
+          fi
+
