@@ -31,6 +31,7 @@ jobs:
             echo "ahead=true" >> "$GITHUB_OUTPUT"
           fi
 
+      # Semantic versioning - https://semver.org/
       - name: Calculate Deploy / Build Version
         if: steps.branch_check.outputs.ahead == 'true'
         id: versioning
@@ -43,8 +44,19 @@ jobs:
             --json conclusion \
             --limit 1000 \
             | jq '. | length')
+          
+          PR_COUNT=$(gh pr list \
+            --base dev \
+            --state merged \
+            --limit 5000 \
+            --json number \
+            --jq 'length')
+          
+          MAJOR=0
+          MINOR=$((DEPLOY_COUNT + 1))
+          PATCH=$PR_COUNT
 
-          VERSION=$((DEPLOY_COUNT + 1))
+          VERSION="$MAJOR.$MINOR.$PATCH"
           echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Calculated version: $VERSION"
 
