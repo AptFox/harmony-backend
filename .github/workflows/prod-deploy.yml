@@ -1,0 +1,51 @@
+name: prod-deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Log in to Heroku Container Registry
+      - name: Log in to Heroku Container Registry
+        run: |
+          echo "${{ secrets.HEROKU_AUTH_TOKEN }}" | docker login --username=_ --password-stdin registry.heroku.com
+
+      # Build the Docker image
+      - name: Build new Docker image
+        run: docker build -t registry.heroku.com/$HEROKU_APP_NAME/web .
+        env:
+          HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
+
+      # Push the Docker image to Heroku
+      - name: Push new Docker image to Heroku
+        run: docker push registry.heroku.com/$HEROKU_APP_NAME/web
+        env:
+          HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
+
+      # Install Heroku CLI
+      - name: Install Heroku CLI
+        run: curl https://cli-assets.heroku.com/install.sh | sh
+
+      # Authenticate with Heroku using the Heroku API key (GitHub secret)
+      - name: Login to Heroku
+        run: heroku container:login
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_AUTH_TOKEN }}
+          HEROKU_HEADERS: ${{ vars.HEROKU_HEADERS }}
+
+      # Trigger Heroku deploy
+      - name: Deploy the updated container on Heroku
+        run: heroku container:release web -a harmony-backend
+        env:
+          HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
+          HEROKU_API_KEY: ${{ secrets.HEROKU_AUTH_TOKEN }}
+          HEROKU_HEADERS: ${{ vars.HEROKU_HEADERS }}
