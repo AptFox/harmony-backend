@@ -27,7 +27,7 @@
  - Commit linted changes
  - Open PR against dev branch
  - Request to have dev merged to main for deployment of new feature
-   - PR's merged to `main` trigger CI/CD (deployment to heroku)
+   - PR's merged to `main` trigger CI/CD (deployment to prod)
 
 # Database changes
  - If you're creating/updating a table, make sure to add a flyway migration script
