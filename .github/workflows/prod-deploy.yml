@@ -5,6 +5,10 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -14,38 +18,28 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Log in to Heroku Container Registry
-      - name: Log in to Heroku Container Registry
+      # Log in to GHCR
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Build image
+      - name: Build new container image
+        run: docker build -t ${{ vars.IMAGE_NAME }}:latest .
+
+      # Push image
+      - name: Push image
+        run: docker push ${{ vars.IMAGE_NAME }}:latest
+
+      # Trigger deploy on VPS (web hook)
+      - name: Trigger prod deployment
+        if: success() # Only runs if previous steps succeeded
         run: |
-          echo "${{ secrets.HEROKU_AUTH_TOKEN }}" | docker login --username=_ --password-stdin registry.heroku.com
-
-      # Build the Docker image
-      - name: Build new Docker image
-        run: docker build -t registry.heroku.com/$HEROKU_APP_NAME/web .
-        env:
-          HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
-
-      # Push the Docker image to Heroku
-      - name: Push new Docker image to Heroku
-        run: docker push registry.heroku.com/$HEROKU_APP_NAME/web
-        env:
-          HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
-
-      # Install Heroku CLI
-      - name: Install Heroku CLI
-        run: curl https://cli-assets.heroku.com/install.sh | sh
-
-      # Authenticate with Heroku using the Heroku API key (GitHub secret)
-      - name: Login to Heroku
-        run: heroku container:login
-        env:
-          HEROKU_API_KEY: ${{ secrets.HEROKU_AUTH_TOKEN }}
-          HEROKU_HEADERS: ${{ vars.HEROKU_HEADERS }}
-
-      # Trigger Heroku deploy
-      - name: Deploy the updated container on Heroku
-        run: heroku container:release web -a harmony-backend
-        env:
-          HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
-          HEROKU_API_KEY: ${{ secrets.HEROKU_AUTH_TOKEN }}
-          HEROKU_HEADERS: ${{ vars.HEROKU_HEADERS }}
+          curl -X 'POST' "${{ secrets.PROD_DEPLOY_WEB_HOOK_URL }}" \
+            -H 'accept: application/json' \
+            -H "Content-Type: application/json" \
+            -H "x-api-key: ${{ secrets.API_KEY }}" \
+            -d "{ \"applicationId\": \"${{ secrets.APP_ID }}\" }"
