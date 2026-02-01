@@ -5,6 +5,7 @@ import io.github.bucket4j.Bucket
 import iterative.harmony.backend.util.SecurityConstants.AUTH_PREFIX
 import iterative.harmony.backend.util.SecurityConstants.NON_AUTH_PREFIX
 import iterative.harmony.backend.util.Utils
+import iterative.harmony.backend.util.setUserIdInLogs
 import jakarta.servlet.http.HttpServletRequest
 import java.time.Duration
 import org.springframework.stereotype.Service
@@ -16,6 +17,7 @@ class RateLimiterService() {
 
     fun getRequestId(request: HttpServletRequest): String {
         val userId = Utils().getUserIdFromSecurityContext()
+        setUserIdInLogs(userId)
         val userAgent = Utils().getUserAgentFromRequest(request)
         val authPrefix =
             if (request.requestURI.startsWith("/$AUTH_PREFIX/")) AUTH_PREFIX else NON_AUTH_PREFIX

@@ -20,6 +20,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.collections.isNotEmpty
 import kotlinx.coroutines.reactor.awaitSingleOrNull
 import kotlinx.coroutines.runBlocking
+import org.slf4j.MDC
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.core.io.buffer.DataBuffer
@@ -104,6 +105,7 @@ class ScheduledImportService {
     // Runs every hour
     @Scheduled(fixedRate = 1, timeUnit = TimeUnit.HOURS)
     fun hourlyImports() {
+        MDC.put("userId", "HOURLY_IMPORT")
         log.info("Hourly - Scheduled Import started")
         runBlocking {
             importUsers()
@@ -115,6 +117,7 @@ class ScheduledImportService {
     // Runs once a day
     @Scheduled(fixedRate = 1, timeUnit = TimeUnit.DAYS)
     fun dailyScheduleTasks() {
+        MDC.put("userId", "DAILY_IMPORT")
         log.info("Daily - Scheduled Import started")
         runBlocking {
             importSkillGroups()
