@@ -5,8 +5,8 @@ import iterative.harmony.backend.util.SecurityConstants.AUTH_PATH
 import iterative.harmony.backend.util.SecurityConstants.COOKIE_EXPIRATION_IN_SECONDS
 import iterative.harmony.backend.util.SecurityConstants.REFRESH_TOKEN_NAME
 import iterative.harmony.backend.util.getLogger
+import iterative.harmony.backend.util.setUserIdInLogs
 import java.util.UUID
-import org.slf4j.MDC
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.core.env.Environment
 import org.springframework.http.ResponseCookie
@@ -19,10 +19,6 @@ class AuthService {
     @Autowired private lateinit var environment: Environment
 
     private val log = getLogger()
-
-    fun setUserIdInLogs(userId: UUID) {
-        MDC.put("userId", userId.toString())
-    }
 
     fun generateEmptyRefreshTokenCookie(): String {
         return generateRefreshTokenCookie("", 0)

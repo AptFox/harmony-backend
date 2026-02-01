@@ -17,6 +17,7 @@ import iterative.harmony.backend.repository.RefreshTokenRepository
 import iterative.harmony.backend.repository.UserRepository
 import iterative.harmony.backend.util.Utils
 import iterative.harmony.backend.util.getLogger
+import iterative.harmony.backend.util.setUserIdInLogs
 import java.security.Key
 import java.time.Instant
 import java.util.*
@@ -130,6 +131,7 @@ class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
         try {
             val tokenClaims = getClaims(refreshToken)
             val tokenFromClaims = getRefreshTokenFromClaims(tokenClaims)
+            setUserIdInLogs(tokenFromClaims.userId)
 
             if (tokenFromClaims.fingerprint != userAgentFingerprint)
                 throw TokenFingerprintMismatchException()
@@ -145,6 +147,12 @@ class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
             throw JtiNotInRefreshTokenException(ex)
         } catch (ex: NoSuchElementException) {
             throw RefreshTokenNotInDBException(ex)
+        } catch (ex: TokenFingerprintMismatchException) {
+            throw ex
+        } catch (ex: RefreshTokenFieldMismatchException) {
+            throw ex
+        } catch (ex: RefreshTokenExpiredException) {
+            throw ex
         } catch (ex: Exception) {
             throw UnexpectedRefreshTokenVerificationException(ex)
         }

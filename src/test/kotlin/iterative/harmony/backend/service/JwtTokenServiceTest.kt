@@ -322,10 +322,7 @@ class JwtTokenServiceTest {
                     { jwtTokenService.verifyRefreshToken(validToken, userAgentFingerprint) },
                     "should have thrown an exception",
                 )
-            assertEquals(
-                "Unexpected refresh token verification error: The supplied refresh token is expired",
-                exception.message,
-            )
+            assertEquals("The supplied refresh token is expired", exception.message)
         }
 
         @Test
@@ -352,7 +349,7 @@ class JwtTokenServiceTest {
                     "should have thrown an exception",
                 )
             assertEquals(
-                "Unexpected refresh token verification error: Request fingerprint and token fingerprint do not match",
+                "Request fingerprint and token fingerprint do not match",
                 exception.message,
             )
         }
