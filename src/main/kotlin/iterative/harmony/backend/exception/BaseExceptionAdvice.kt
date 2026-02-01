@@ -44,11 +44,7 @@ class BaseExceptionAdvice {
         return null
     }
 
-    @ExceptionHandler(
-        IllegalArgumentException::class,
-        AccessTokenMissingOrMalformedInRequestException::class,
-        RefreshTokenNotInRequestException::class,
-    )
+    @ExceptionHandler(IllegalArgumentException::class, RefreshTokenNotInRequestException::class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     fun badRequestExceptionHandler(ex: IllegalArgumentException): String? {
         logException(ex)
@@ -64,6 +60,7 @@ class BaseExceptionAdvice {
         TokenFingerprintMismatchException::class,
         UnexpectedRefreshTokenVerificationException::class,
         UnparseableTokenException::class,
+        AccessTokenMissingOrMalformedInRequestException::class,
     )
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     fun unauthorizedExceptionHandler(ex: RuntimeException): String? {
