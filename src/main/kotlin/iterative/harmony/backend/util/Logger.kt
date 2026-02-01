@@ -10,12 +10,12 @@ import org.slf4j.MDC
  */
 inline fun <reified T> T.getLogger(): Logger = LoggerFactory.getLogger(T::class.java)
 
-inline fun <reified T> T.setUserIdInLogs(userId: UUID) = {
+fun setUserIdInLogs(userId: UUID) {
     val userIdPrefix = userId.toString().take(8)
     MDC.put("userId", userIdPrefix)
 }
 
-inline fun <reified T> T.setUserIdInLogs(userId: String) = {
+fun setUserIdInLogs(userId: String) {
     val userIdPrefix = userId.take(8)
     MDC.put("userId", userIdPrefix)
 }

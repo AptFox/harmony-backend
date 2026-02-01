@@ -49,13 +49,6 @@ class AuthServiceTest {
     }
 
     @Test
-    fun `setUserIdInLogs should set userId in MDC`() {
-        val userId = UUID.randomUUID()
-        authService.setUserIdInLogs(userId)
-        assertEquals(userId.toString(), MDC.get("userId"))
-    }
-
-    @Test
     fun `throwIfNoRefreshToken should throw if refreshToken is null or empty`() {
         assertThrows(RefreshTokenNotInRequestException::class.java) {
             authService.throwIfNoRefreshToken(null)
@@ -86,7 +79,7 @@ class AuthServiceTest {
 
         verify(tokenService).verifyRefreshToken(refreshToken, userAgentFingerprint)
         verify(tokenService).deleteRefreshToken(refreshTokenMock)
-        assertEquals(userId.toString(), MDC.get("userId"))
+        assertEquals(userId.toString().take(8), MDC.get("userId"))
     }
 
     @Nested
