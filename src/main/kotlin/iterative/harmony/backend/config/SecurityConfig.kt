@@ -2,11 +2,11 @@ package iterative.harmony.backend.config
 
 import iterative.harmony.backend.util.SecurityConstants.DISCORD_OAUTH_PATH
 import iterative.harmony.backend.util.SecurityConstants.ENV_PATH
-import iterative.harmony.backend.util.SecurityConstants.ERROR_PATH
 import iterative.harmony.backend.util.SecurityConstants.FAVICON_PATH
 import iterative.harmony.backend.util.SecurityConstants.GIT_PATH
 import iterative.harmony.backend.util.SecurityConstants.LOGOUT_PATH
 import iterative.harmony.backend.util.SecurityConstants.REFRESH_TOKEN_PATH
+import iterative.harmony.backend.util.getLogger
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
@@ -17,14 +17,13 @@ import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
 
-val PUBLIC_URLS =
-    arrayOf("/", "/robots.txt", LOGOUT_PATH, REFRESH_TOKEN_PATH, DISCORD_OAUTH_PATH, ERROR_PATH)
+val PUBLIC_URLS = arrayOf("/", "/robots.txt", LOGOUT_PATH, REFRESH_TOKEN_PATH, DISCORD_OAUTH_PATH)
 val INAPPROPRIATE_URLS = arrayOf(FAVICON_PATH, GIT_PATH, ENV_PATH)
 
 @Configuration
 @EnableWebSecurity
 class SecurityConfig {
-
+    private val log = getLogger()
     @Autowired private lateinit var oAuth2LoginSuccessHandler: OAuth2LoginSuccessHandler
     @Autowired private lateinit var jwtAuthenticationFilter: JwtAuthenticationFilter
     @Autowired private lateinit var customOAuth2UserService: CustomOAuth2UserService
@@ -70,7 +69,10 @@ class SecurityConfig {
                     userInfo.userService(customOAuth2UserService)
                 }
                 oauth2.successHandler(oAuth2LoginSuccessHandler)
-                oauth2.failureHandler { _, response, _ -> response.sendError(401, "Unauthorized") }
+                oauth2.failureHandler { request, response, ex ->
+                    log.error("OAuth failed", ex)
+                    response.sendRedirect("$frontEndBaseUrl/error?statusCode=401")
+                }
             }
             .addFilterAfter(loggingFilter, UsernamePasswordAuthenticationFilter::class.java)
             .exceptionHandling { exception ->
