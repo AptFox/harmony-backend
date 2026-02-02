@@ -51,12 +51,11 @@ class LoggingFilter : OncePerRequestFilter() {
             val clientIp =
                 request.getHeader("X-Forwarded-For")?.split(",")?.first() ?: request.remoteAddr
             log.info(
-                "{} {} {} {}ms requestId={} ip={}",
+                "{} {} {} {}ms ip={}",
                 request.method,
                 requestPath,
                 response.status,
                 durationMs,
-                requestId,
                 clientIp,
             )
             MDC.clear() // Clear logging context
