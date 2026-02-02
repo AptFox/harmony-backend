@@ -25,7 +25,7 @@ object SecurityConstants {
     const val COOKIE_EXPIRATION_IN_SECONDS = 60 * 60 * 48 // 48 hours
     const val AUTH_PREFIX: String = "auth"
     const val NON_AUTH_PREFIX: String = "nonAuth"
-    const val ANON_USER_ID: String = "ANON_USER"
+    const val ANON_USER_ID: String = "ANON"
     const val ANON_USER_AGENT: String = "ANON_BROWSER"
     const val ANON_REQUEST_IP: String = "0.0.0.0"
 }
