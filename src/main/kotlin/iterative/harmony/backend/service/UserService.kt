@@ -91,23 +91,14 @@ class UserService {
 
     suspend fun import(batch: MutableList<User>, row: Map<String, String>, defaultUserRole: Role) {
         val discordId = row["discord_id"].toString()
-        val importId = row["member_id"].toString()
         val name = row["name"].toString()
-        if (discordId.isEmpty() || importId.isEmpty() || name.isEmpty())
+        if (discordId.isEmpty() || name.isEmpty())
             throw ImportException("Required field is missing")
 
         val preExistingUser = userRepository.findByDiscordId(discordId)
-        val preExistingImportId = preExistingUser.map { it.importId }.orElse(null)
-        if (preExistingImportId != importId) {
-            throwIfImportIdAlreadyInDB(importId, discordId)
-        }
 
         if (preExistingUser.isPresent) {
-            val updatedUser =
-                preExistingUser.get().apply {
-                    this.displayName = name
-                    this.importId = importId
-                }
+            val updatedUser = preExistingUser.get().apply { this.displayName = name }
             batch.add(updatedUser)
         } else {
             val importedUser =
@@ -120,7 +111,6 @@ class UserService {
                     discordAvatarHash = null,
                     timeZoneId = null,
                     roles = setOf(defaultUserRole),
-                    importId = importId,
                 )
             batch.add(importedUser)
         }
