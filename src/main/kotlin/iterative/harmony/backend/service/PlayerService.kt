@@ -56,13 +56,13 @@ class PlayerService {
         row: Map<String, String>,
     ) {
         val name = row["name"].toString()
-        val importId = row["member_id"].toString()
+        val discordId = row["discord_id"].toString()
         val skillGroupName = row["skill_group"].toString()
         val franchiseName = row["franchise"].toString()
         val staffPos = row["Franchise Staff Position"].toString()
         if (
             name.isEmpty() ||
-                importId.isEmpty() ||
+                discordId.isEmpty() ||
                 skillGroupName.isEmpty() ||
                 franchiseName.isEmpty() ||
                 staffPos.isEmpty()
@@ -79,13 +79,13 @@ class PlayerService {
             )
         var user: Optional<User>
         try {
-            user = userRepository.findByImportId(importId)
+            user = userRepository.findByDiscordId(discordId)
         } catch (ex: IncorrectResultSizeDataAccessException) {
             throw ImportException("Duplicated import IDs found. Skipping.", ex)
         }
         if (!user.isPresent) {
-            val errorMsg = "Could not find user with import_id to link player to. Skipping..."
-            log.error("$errorMsg[importId: $importId]")
+            val errorMsg = "Could not find user with discord_id to link player to. Skipping..."
+            log.error("$errorMsg[discord_id: $discordId]")
             throw ImportException(errorMsg)
         }
 
