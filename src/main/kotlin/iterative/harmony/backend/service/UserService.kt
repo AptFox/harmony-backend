@@ -97,6 +97,11 @@ class UserService {
             throw ImportException("Required field is missing")
 
         val preExistingUser = userRepository.findByDiscordId(discordId)
+        val preExistingImportId = preExistingUser.map { it.importId }.orElse(null)
+        if (preExistingImportId != importId) {
+            throwIfImportIdAlreadyInDB(importId, discordId)
+        }
+
         if (preExistingUser.isPresent) {
             val updatedUser =
                 preExistingUser.get().apply {
@@ -105,7 +110,6 @@ class UserService {
                 }
             batch.add(updatedUser)
         } else {
-            throwIfImportIdAlreadyInDB(importId, discordId)
             val importedUser =
                 User(
                     userId = null,

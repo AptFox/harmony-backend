@@ -65,6 +65,7 @@ class ScheduledImportService {
             "league_photo_url",
             "discord_emoji",
             "max_salary",
+            "eligibility_requirement",
         )
     private val MLE_TEAMS_HEADERS =
         listOf(
@@ -85,12 +86,13 @@ class ScheduledImportService {
             "salary",
             "sprocket_player_id",
             "member_id",
+            "discord_id",
             "skill_group",
             "franchise",
             "Franchise Staff Position",
             "slot",
             "current_scrim_points",
-            "Eligible Until",
+            "Eligible Through",
         )
 
     private fun flushHibernateCache(logPrefix: String, batchCode: suspend () -> Unit) {
