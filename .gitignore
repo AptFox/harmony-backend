@@ -7,6 +7,7 @@ build/
 
 ### MISC ###
 .env
+CLAUDE.md
 
 ### STS ###
 .apt_generated
