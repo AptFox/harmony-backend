@@ -153,7 +153,7 @@ FRONT_END_BASE_URL=http://localhost:3000
 # oAuth config
 DISCORD_CLIENT_ID=
 DISCORD_CLIENT_SECRET=
-DISCORD_REDIRECT_URI=http://localhost:8080
+DISCORD_REDIRECT_URI=http://localhost:8080/login/oauth2/code/discord
 
 # Sentry config
 SENTRY_ENABLED=false
