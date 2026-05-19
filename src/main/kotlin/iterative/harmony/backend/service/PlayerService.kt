@@ -81,7 +81,7 @@ class PlayerService {
         try {
             user = userRepository.findByDiscordId(discordId)
         } catch (ex: IncorrectResultSizeDataAccessException) {
-            throw ImportException("Duplicated import IDs found. Skipping.", ex)
+            throw ImportException("Duplicated discordId found. Skipping.", ex)
         }
         if (!user.isPresent) {
             val errorMsg = "Could not find user with discord_id to link player to. Skipping..."
