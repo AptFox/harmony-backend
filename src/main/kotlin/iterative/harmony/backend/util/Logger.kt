@@ -1,5 +1,7 @@
 package iterative.harmony.backend.util
 
+import iterative.harmony.backend.util.LogConstants.SCHEDULED_TASK
+import iterative.harmony.backend.util.LogConstants.USER_ID
 import java.util.UUID
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -10,12 +12,22 @@ import org.slf4j.MDC
  */
 inline fun <reified T> T.getLogger(): Logger = LoggerFactory.getLogger(T::class.java)
 
+// TODO: create 'Loggable' class and have all other classes inherit from it.
+
 fun setUserIdInLogs(userId: UUID) {
-    val userIdPrefix = userId.toString().take(8)
-    MDC.put("userId", userIdPrefix)
+    setUserIdInLogs(userId.toString())
 }
 
 fun setUserIdInLogs(userId: String) {
     val userIdPrefix = userId.take(8)
-    MDC.put("userId", userIdPrefix)
+    MDC.put(USER_ID, userIdPrefix)
+}
+
+fun setScheduledTaskInLogs(task: String) {
+    MDC.put(SCHEDULED_TASK, task)
+}
+
+// Clear logging context
+fun clearLoggingContext() {
+    MDC.clear()
 }
