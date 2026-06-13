@@ -1,8 +1,15 @@
 package iterative.harmony.backend.config
 
+import iterative.harmony.backend.util.LogConstants.CLIENT_IP
+import iterative.harmony.backend.util.LogConstants.REQUEST_DURATION_IN_MS
+import iterative.harmony.backend.util.LogConstants.REQUEST_ID
+import iterative.harmony.backend.util.LogConstants.REQUEST_METHOD
+import iterative.harmony.backend.util.LogConstants.REQUEST_PATH
+import iterative.harmony.backend.util.LogConstants.RESPONSE_STATUS
+import iterative.harmony.backend.util.LogConstants.USER_ID
 import iterative.harmony.backend.util.Utils
+import iterative.harmony.backend.util.clearLoggingContext
 import iterative.harmony.backend.util.getLogger
-import iterative.harmony.backend.util.setUserIdInLogs
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -35,30 +42,31 @@ class LoggingFilter : OncePerRequestFilter() {
         response: HttpServletResponse,
         filterChain: FilterChain,
     ) {
-        val start = System.nanoTime()
-        val requestId = UUID.randomUUID().toString().take(8)
-        MDC.put("requestId", requestId)
+        logRequestMetrics(request)
+        val requestStartTime = System.nanoTime()
         try {
-            val userId = Utils().getUserIdFromSecurityContext()
-            setUserIdInLogs(userId)
-
             filterChain.doFilter(request, response)
         } finally {
-            val requestUri = request.requestURI
-            val query = request.queryString?.let { "?$it" } ?: ""
-            val requestPath = "$requestUri$query"
-            val durationMs = (System.nanoTime() - start) / 1_000_000
-            val clientIp =
-                request.getHeader("X-Forwarded-For")?.split(",")?.first() ?: request.remoteAddr
-            log.info(
-                "{} {} {} {}ms ip={}",
-                request.method,
-                requestPath,
-                response.status,
-                durationMs,
-                clientIp,
-            )
-            MDC.clear() // Clear logging context
+            val requestDurationMs = (System.nanoTime() - requestStartTime) / 1_000_000
+            log.info("$REQUEST_DURATION_IN_MS = $requestDurationMs")
+            log.info("$RESPONSE_STATUS = ${response.status}")
+            clearLoggingContext()
         }
+    }
+
+    fun logRequestMetrics(request: HttpServletRequest) {
+        val requestId = UUID.randomUUID().toString().take(8)
+        val requestUri = request.requestURI
+        val query = request.queryString?.let { "?$it" } ?: ""
+        val requestPath = "$requestUri$query"
+        val clientIp =
+            request.getHeader("X-Forwarded-For")?.split(",")?.first() ?: request.remoteAddr
+        val userId = Utils().getUserIdFromSecurityContext()
+        val userIdPrefix = userId.take(8)
+        MDC.put(USER_ID, userIdPrefix)
+        MDC.put(REQUEST_ID, requestId)
+        MDC.put(REQUEST_METHOD, request.method)
+        MDC.put(REQUEST_PATH, requestPath)
+        MDC.put(CLIENT_IP, clientIp)
     }
 }
