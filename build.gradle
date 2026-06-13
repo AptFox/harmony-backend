@@ -73,6 +73,7 @@ dependencies {
 	implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
 	implementation 'io.jsonwebtoken:jjwt-impl:0.11.5'
 	implementation 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+	implementation("net.logstash.logback:logstash-logback-encoder:9.0")
 	implementation 'io.sentry:sentry-spring-boot-starter-jakarta:8.6.0'
 	implementation 'com.bucket4j:bucket4j_jdk17-core:8.15.0'
 	implementation 'org.springframework.boot:spring-boot-starter-cache'
@@ -111,6 +112,7 @@ allOpen {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	jvmArgs("-XX:+EnableDynamicAgentLoading", "-Xshare:off")
 }
 tasks.withType(Test) {
 	reports {

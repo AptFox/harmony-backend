@@ -11,7 +11,9 @@ import iterative.harmony.backend.repository.FranchiseRepository
 import iterative.harmony.backend.repository.OrganizationRepository
 import iterative.harmony.backend.repository.RoleRepository
 import iterative.harmony.backend.util.RoleConstants
+import iterative.harmony.backend.util.clearLoggingContext
 import iterative.harmony.backend.util.getLogger
+import iterative.harmony.backend.util.setScheduledTaskInLogs
 import jakarta.persistence.EntityManager
 import jakarta.persistence.PersistenceContext
 import java.io.File
@@ -20,7 +22,6 @@ import java.util.concurrent.TimeUnit
 import kotlin.collections.isNotEmpty
 import kotlinx.coroutines.reactor.awaitSingleOrNull
 import kotlinx.coroutines.runBlocking
-import org.slf4j.MDC
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.core.io.buffer.DataBuffer
@@ -94,6 +95,8 @@ class ScheduledImportService {
             "current_scrim_points",
             "Eligible Through",
         )
+    private val HOURLY_IMPORT = "HOURLY_IMPORT"
+    private val DAILY_IMPORT = "DAILY_IMPORT"
 
     private fun flushHibernateCache(logPrefix: String, batchCode: suspend () -> Unit) {
         transactionTemplate.execute {
@@ -104,28 +107,34 @@ class ScheduledImportService {
         }
     }
 
+    private fun runScheduledTask(taskName: String, codeBlock: () -> Unit) {
+        setScheduledTaskInLogs(taskName)
+        log.info("$taskName started")
+        codeBlock()
+        log.info("$taskName stopped")
+        clearLoggingContext()
+    }
+
     // Runs every hour
     @Scheduled(fixedRate = 1, timeUnit = TimeUnit.HOURS)
     fun hourlyImports() {
-        MDC.put("userId", "HOURLY_IMPORT")
-        log.info("Hourly - Scheduled Import started")
-        runBlocking {
-            importUsers()
-            importPlayers()
+        runScheduledTask(HOURLY_IMPORT) {
+            runBlocking {
+                importUsers()
+                importPlayers()
+            }
         }
-        log.info("Hourly - Scheduled Import stopped")
     }
 
     // Runs once a day
     @Scheduled(fixedRate = 1, timeUnit = TimeUnit.DAYS)
     fun dailyScheduleTasks() {
-        MDC.put("userId", "DAILY_IMPORT")
-        log.info("Daily - Scheduled Import started")
-        runBlocking {
-            importSkillGroups()
-            importTeams()
+        runScheduledTask(DAILY_IMPORT) {
+            runBlocking {
+                importSkillGroups()
+                importTeams()
+            }
         }
-        log.info("Daily - Scheduled Import stopped")
     }
 
     private suspend fun downloadToTempFile(url: String, prefix: String, suffix: String): File {

@@ -140,12 +140,28 @@ openssl rand -base64 32
 ### set environment variables
  - open the repository and create a `.env` file containing the following:
 ```
-FRONT_END_BASE_URL=http://localhost:3000
+SPRING_PROFILES_ACTIVE=dev
+
+# Log level
+HARMONY_LOG_LEVEL=DEBUG
+
+# Security
 JWT_SECRET=[THE_JWT_SECRET_KEY_YOU_GENERATED]
+
+FRONT_END_BASE_URL=http://localhost:3000
+
+# oAuth config
 DISCORD_CLIENT_ID=
 DISCORD_CLIENT_SECRET=
-DISCORD_REDIRECT_URI=http://localhost:8080
+DISCORD_REDIRECT_URI=http://localhost:8080/login/oauth2/code/discord
+
+# Sentry config
+SENTRY_ENABLED=false
+
+# Dev tools
 HOT_RELOAD=true
+
+# Local Database config
 JDBC_DATABASE_URL=jdbc:postgresql://host.docker.internal:5432/harmony
 #JDBC_DATABASE_URL=jdbc:postgresql://localhost:5432/harmony
 JDBC_DATABASE_USERNAME=harmony_app
@@ -169,7 +185,8 @@ Started BackendApplicationKt in 1.931 seconds
 
 #### Open the app in a web browser and check the health endpoint to verify it's running
  - Go to `http://localhost:8080/` in a web browser
- - If you see "Hello World" then the application is running locally.
+ - If you see something like "INFO  i.h.b.c.LoggingFilter: requestId=0cf1739c user=ANON - GET / 204 16ms ip=192.168.65.1" logged in your terminal then the application is running locally.
+   - Don't expect a response from your browser, the backend is configured to return 204's on it's root URL
 
 # Troubleshooting
 - "Failed to configure a DataSource: 'url' attribute is not specified and no embedded datasource could be configured."

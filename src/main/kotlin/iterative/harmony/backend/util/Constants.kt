@@ -41,3 +41,14 @@ object AvailabilityConstants {
     const val MORE_THAN_90_DAYS_AWAY = "time off must be within 90 days"
     const val TIME_OFF_ALREADY_EXISTS = "Time off with this start time already exists"
 }
+
+object LogConstants {
+    const val USER_ID = "userId"
+    const val REQUEST_ID = "requestId"
+    const val SCHEDULED_TASK = "scheduledTask"
+    const val REQUEST_METHOD = "requestMethod"
+    const val REQUEST_PATH = "requestPath"
+    const val RESPONSE_STATUS = "responseStatus"
+    const val REQUEST_DURATION_IN_MS = "requestDurationMs"
+    const val CLIENT_IP = "clientIp"
+}
