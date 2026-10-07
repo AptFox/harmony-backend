@@ -33,6 +33,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
 import org.springframework.web.reactive.function.client.WebClient
+import org.springframework.web.reactive.function.client.WebClientRequestException
 
 @Service
 @ConditionalOnProperty(
@@ -147,8 +148,13 @@ class ScheduledImportService {
                 .retrieve()
                 .bodyToFlux(DataBuffer::class.java)
 
-        DataBufferUtils.write(flux, tempFile.toPath(), StandardOpenOption.CREATE)
-            .awaitSingleOrNull()
+        try {
+            DataBufferUtils.write(flux, tempFile.toPath(), StandardOpenOption.CREATE)
+                .awaitSingleOrNull()
+        } catch (ex: Exception) {
+            tempFile.delete()
+            throw ex
+        }
 
         return tempFile
     }
@@ -177,11 +183,18 @@ class ScheduledImportService {
             log.info("$logPrefix started")
             val dataSourceName = dataSource.name.replace(" ", "-")
             val tempFile =
-                downloadToTempFile(
-                    url = dataSource.url,
-                    prefix = "${orgAcronym}-${dataSourceName}",
-                    suffix = ".${dataFormat}",
-                )
+                try {
+                    downloadToTempFile(
+                        url = dataSource.url,
+                        prefix = "${orgAcronym}-${dataSourceName}",
+                        suffix = ".${dataFormat}",
+                    )
+                } catch (ex: WebClientRequestException) {
+                    // Transient network failures (e.g. connection timeouts) shouldn't fail the
+                    // whole scheduled task; skip this source and pick it up on the next run
+                    log.warn("$logPrefix - skipped, download failed: ${ex.message}")
+                    return@forEach
+                }
             try {
                 val batch = mutableListOf<T>()
                 csvParsingService.parseCsvStream(tempFile, csvHeaders) { csvRow ->
