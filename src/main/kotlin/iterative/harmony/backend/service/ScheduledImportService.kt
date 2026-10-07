@@ -190,8 +190,6 @@ class ScheduledImportService {
                         suffix = ".${dataFormat}",
                     )
                 } catch (ex: WebClientRequestException) {
-                    // Transient network failures (e.g. connection timeouts) shouldn't fail the
-                    // whole scheduled task; skip this source and pick it up on the next run
                     log.warn("$logPrefix - skipped, download failed: ${ex.message}")
                     return@forEach
                 }
