@@ -21,14 +21,10 @@ class CsvParsingService {
     // Parses CSV's in a stream and logs errors per row without stopping for a malformed row
     suspend fun parseCsvStream(
         file: File,
-        headers: List<String>,
+        requiredHeaders: List<String>,
         parsingCode: suspend (csvRow: Map<String, String>) -> Unit,
     ) {
-        val schema =
-            CsvSchema.builder()
-                .apply { headers.forEach { addColumn(it) } }
-                .setUseHeader(true)
-                .build()
+        val schema = CsvSchema.emptySchema().withHeader()
 
         try {
             val errorCollector = mutableMapOf<String, CsvParsingErrorSummary>()
@@ -40,7 +36,17 @@ class CsvParsingService {
 
             return mappingIterator.use { csvStream ->
                 var rowIndex = 0
+                var headersValidated = false
                 csvStream.forEach { row ->
+                    if (!headersValidated) {
+                        val missing = requiredHeaders.filterNot { row.containsKey(it) }
+                        if (missing.isNotEmpty()) {
+                            throw ImportException(
+                                "CSV is missing required column(s): $missing. Found: ${row.keys}"
+                            )
+                        }
+                        headersValidated = true
+                    }
                     try {
                         parsingCode(row)
                     } catch (ex: ImportException) {
