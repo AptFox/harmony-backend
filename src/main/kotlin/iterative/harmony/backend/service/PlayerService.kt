@@ -31,7 +31,6 @@ class PlayerImportContext(
     val playerIdsByUserId: Map<UUID, Long>,
 ) {
     val seenUserIds: MutableSet<UUID> = mutableSetOf()
-    // Players created during this run, so a user appearing twice doesn't create two players
     val newPlayersByUserId: MutableMap<UUID, Player> = mutableMapOf()
     var teamMatchCount = 0
 }
@@ -135,7 +134,6 @@ class PlayerService {
                         ImportException("Player $existingPlayerId was deleted during import")
                     }
             } else {
-                // Reusing the same instance prevents duplicate players when a user appears twice
                 context.newPlayersByUserId.getOrPut(userId) {
                     Player(
                         name = name,
@@ -214,7 +212,7 @@ class PlayerService {
         return null
     }
 
-    // Returns a null team when the franchise doesn't match a team, so the player is removed
+    // Returns a null team when no matching team found
     private fun getTeamBy(
         franchiseName: String,
         skillGroupName: String,
