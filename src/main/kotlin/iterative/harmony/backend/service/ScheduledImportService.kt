@@ -18,7 +18,10 @@ import jakarta.persistence.EntityManager
 import jakarta.persistence.PersistenceContext
 import java.io.File
 import java.nio.file.StandardOpenOption
+import java.time.Duration
+import java.time.Instant
 import java.util.concurrent.TimeUnit
+import javax.sql.DataSource as JdbcDataSource
 import kotlin.collections.isNotEmpty
 import kotlinx.coroutines.reactor.awaitSingleOrNull
 import kotlinx.coroutines.runBlocking
@@ -53,6 +56,7 @@ class ScheduledImportService {
     @Autowired private lateinit var playerService: PlayerService
     @PersistenceContext private lateinit var entityManager: EntityManager
     @Autowired private lateinit var transactionManager: PlatformTransactionManager
+    @Autowired private lateinit var jdbcDataSource: JdbcDataSource
     private val transactionTemplate by lazy { TransactionTemplate(transactionManager) }
     private val webClient = WebClient.builder().build()
     private val BATCH_SIZE = 100
@@ -94,9 +98,11 @@ class ScheduledImportService {
             "slot",
             "current_scrim_points",
             "Eligible Through",
+            "game_title",
         )
-    private val HOURLY_IMPORT = "HOURLY_IMPORT"
-    private val DAILY_IMPORT = "DAILY_IMPORT"
+    private val SCHEDULED_IMPORT = "SCHEDULED_IMPORT"
+    private val IMPORT_LOCK_KEY = 4_826_001L
+    private val DAILY_IMPORT_INTERVAL = Duration.ofHours(24).minusMinutes(5)
 
     private fun flushHibernateCache(logPrefix: String, batchCode: suspend () -> Unit) {
         transactionTemplate.execute {
@@ -110,29 +116,62 @@ class ScheduledImportService {
     private fun runScheduledTask(taskName: String, codeBlock: () -> Unit) {
         setScheduledTaskInLogs(taskName)
         log.info("$taskName started")
-        codeBlock()
-        log.info("$taskName stopped")
-        clearLoggingContext()
+        try {
+            codeBlock()
+        } finally {
+            log.info("$taskName stopped")
+            clearLoggingContext()
+        }
     }
 
-    // Runs every hour
-    @Scheduled(fixedRate = 1, timeUnit = TimeUnit.HOURS)
-    fun hourlyImports() {
-        runScheduledTask(HOURLY_IMPORT) {
-            runBlocking {
-                importUsers()
-                importPlayers()
+    // Holds a Postgres lock during import. Skips if already locked
+    private fun withImportLock(codeBlock: () -> Unit) {
+        jdbcDataSource.connection.use { connection ->
+            val acquired =
+                connection.prepareStatement("SELECT pg_try_advisory_lock(?)").use { statement ->
+                    statement.setLong(1, IMPORT_LOCK_KEY)
+                    statement.executeQuery().use { result -> result.next() && result.getBoolean(1) }
+                }
+            if (!acquired) {
+                log.info("Import lock is held by another instance. Skipping run.")
+                return
+            }
+            try {
+                codeBlock()
+            } finally {
+                connection.prepareStatement("SELECT pg_advisory_unlock(?)").use { statement ->
+                    statement.setLong(1, IMPORT_LOCK_KEY)
+                    statement.execute()
+                }
             }
         }
     }
 
-    // Runs once a day
-    @Scheduled(fixedRate = 1, timeUnit = TimeUnit.DAYS)
-    fun dailyScheduleTasks() {
-        runScheduledTask(DAILY_IMPORT) {
-            runBlocking {
-                importSkillGroups()
-                importTeams()
+    // Runs every hour. Skill groups and teams import once per DAILY_IMPORT_INTERVAL.
+    @Scheduled(fixedRate = 1, timeUnit = TimeUnit.HOURS)
+    fun scheduledImports() {
+        runScheduledTask(SCHEDULED_IMPORT) {
+            withImportLock {
+                val failedSteps = mutableListOf<String>()
+                val steps: List<Pair<String, suspend () -> Unit>> =
+                    listOf(
+                        "skill_groups" to { importSkillGroups() },
+                        "teams" to { importTeams() },
+                        "users" to { importUsers() },
+                        "players" to { importPlayers() },
+                    )
+                runBlocking {
+                    steps.forEach { (stepName, step) ->
+                        try {
+                            step()
+                        } catch (ex: Exception) {
+                            log.error("$stepName import failed", ex)
+                            failedSteps.add(stepName)
+                        }
+                    }
+                }
+                if (failedSteps.isNotEmpty())
+                    throw ScheduledTaskException("Import steps failed: $failedSteps")
             }
         }
     }
@@ -158,14 +197,16 @@ class ScheduledImportService {
         destinationTable: String,
         csvHeaders: List<String>,
         saveBatch: suspend (batch: MutableList<T>) -> Unit,
+        minInterval: Duration = Duration.ZERO,
         importCode: suspend (batch: MutableList<T>, csvRow: Map<String, String>) -> Unit,
-    ) {
+    ): CsvParsingResult? {
         val dataSources =
             dataSourceRepository.findAllByOrganizationAndDestinationTableAndEnabled(
                 org,
                 destinationTable,
                 true,
             )
+        var combinedResult: CsvParsingResult? = null
         dataSources.forEach { dataSource ->
             val dataFormat = dataSource.dataFormat
             if (dataFormat != "csv")
@@ -174,6 +215,14 @@ class ScheduledImportService {
                 )
             val orgAcronym = org.acronym
             val logPrefix = "$orgAcronym - $destinationTable import"
+            val importStartedAt = Instant.now()
+            val lastImportedAt = dataSource.lastImportedAt
+            if (
+                lastImportedAt != null && lastImportedAt.plus(minInterval).isAfter(importStartedAt)
+            ) {
+                log.info("$logPrefix skipped, last imported at $lastImportedAt")
+                return@forEach
+            }
             log.info("$logPrefix started")
             val dataSourceName = dataSource.name.replace(" ", "-")
             val tempFile =
@@ -184,18 +233,26 @@ class ScheduledImportService {
                 )
             try {
                 val batch = mutableListOf<T>()
-                csvParsingService.parseCsvStream(tempFile, csvHeaders) { csvRow ->
-                    importCode(batch, csvRow)
-                    if (batch.size >= BATCH_SIZE) {
-                        log.debug("$logPrefix - Saving batch of $BATCH_SIZE")
-                        flushHibernateCache(logPrefix) { saveBatch(batch) }
-                        batch.clear()
+                val result =
+                    csvParsingService.parseCsvStream(tempFile, csvHeaders) { csvRow ->
+                        importCode(batch, csvRow)
+                        if (batch.size >= BATCH_SIZE) {
+                            log.debug("$logPrefix - Saving batch of $BATCH_SIZE")
+                            flushHibernateCache(logPrefix) { saveBatch(batch) }
+                            batch.clear()
+                        }
                     }
-                }
                 if (batch.isNotEmpty()) {
                     log.debug("$logPrefix - Saving batch of ${batch.size}")
                     flushHibernateCache(logPrefix) { saveBatch(batch) }
                 }
+                dataSource.lastImportedAt = importStartedAt
+                transactionTemplate.execute { dataSourceRepository.save(dataSource) }
+                combinedResult =
+                    CsvParsingResult(
+                        (combinedResult?.rowsProcessed ?: 0) + result.rowsProcessed,
+                        (combinedResult?.errorCount ?: 0) + result.errorCount,
+                    )
                 log.info("$logPrefix - succeeded")
             } catch (ex: DataIntegrityViolationException) {
                 log.error("$logPrefix - error saving to DB: ${ex.message}", ex)
@@ -204,6 +261,7 @@ class ScheduledImportService {
                 if (tempFile.exists()) tempFile.delete()
             }
         }
+        return combinedResult
     }
 
     suspend fun importSkillGroups() {
@@ -213,9 +271,13 @@ class ScheduledImportService {
         orgRepository.findAll().forEach { org ->
             try {
                 val preExistingSkillGroups = skillGroupService.getPreExistingSkillGroupsByOrg(org)
-                downloadAndImport(org, "skill_groups", MLE_LEAGUES_HEADERS, saveBatch) {
-                    batch,
-                    csvRow ->
+                downloadAndImport(
+                    org,
+                    "skill_groups",
+                    MLE_LEAGUES_HEADERS,
+                    saveBatch,
+                    DAILY_IMPORT_INTERVAL,
+                ) { batch, csvRow ->
                     skillGroupService.import(org, batch, csvRow, preExistingSkillGroups)
                 }
             } catch (ex: Exception) {
@@ -234,7 +296,13 @@ class ScheduledImportService {
                 val preExistingSkillGroups = skillGroupService.getPreExistingSkillGroupsByOrg(org)
                 val preExistingTeams = teamService.getPreExistingTeamsByOrg(org)
 
-                downloadAndImport(org, "teams", MLE_TEAMS_HEADERS, saveBatch) { batch, csvRow ->
+                downloadAndImport(
+                    org,
+                    "teams",
+                    MLE_TEAMS_HEADERS,
+                    saveBatch,
+                    DAILY_IMPORT_INTERVAL,
+                ) { batch, csvRow ->
                     teamService.import(org, batch, csvRow, preExistingSkillGroups, preExistingTeams)
                 }
             } catch (ex: Exception) {
@@ -270,15 +338,26 @@ class ScheduledImportService {
                 val preExistingTeams = teamService.getPreExistingTeamsByOrg(org)
                 val preExistingSkillGroups = skillGroupService.getPreExistingSkillGroupsByOrg(org)
                 val preExistingFranchises = franchiseRepository.findAllByOrganization(org)
-                downloadAndImport(org, "players", MLE_PLAYERS_HEADERS, saveBatch) { batch, csvRow ->
-                    playerService.import(
+                val context =
+                    playerService.buildImportContext(
                         org,
                         preExistingTeams,
                         preExistingSkillGroups,
                         preExistingFranchises,
-                        batch,
-                        csvRow,
                     )
+                val result =
+                    downloadAndImport(org, "players", MLE_PLAYERS_HEADERS, saveBatch) {
+                        batch,
+                        csvRow ->
+                        playerService.import(context, batch, csvRow)
+                    }
+                if (result != null) {
+                    val missingPlayerIds =
+                        playerService.findPlayersMissingFromImport(context, result)
+                    if (missingPlayerIds.isNotEmpty())
+                        flushHibernateCache("${org.acronym} - players delete") {
+                            playerService.deleteBatch(missingPlayerIds)
+                        }
                 }
             } catch (ex: Exception) {
                 log.error("${org.acronym} Player import failed", ex)
