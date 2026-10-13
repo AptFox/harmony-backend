@@ -13,6 +13,8 @@ data class CsvParsingErrorSummary(
     val rowPositions: MutableList<Int> = mutableListOf(),
 )
 
+data class CsvParsingResult(val rowsProcessed: Int, val errorCount: Int)
+
 @Service
 class CsvParsingService {
     private val log = getLogger()
@@ -23,7 +25,7 @@ class CsvParsingService {
         file: File,
         requiredHeaders: List<String>,
         parsingCode: suspend (csvRow: Map<String, String>) -> Unit,
-    ) {
+    ): CsvParsingResult {
         val schema = CsvSchema.emptySchema().withHeader()
 
         try {
@@ -66,6 +68,7 @@ class CsvParsingService {
                 errorCollector.forEach { (errorMsg, summary) ->
                     log.error("Error: '$errorMsg', received for rows ${summary.rowPositions}")
                 }
+                CsvParsingResult(rowIndex, totalErrorsEncountered)
             }
         } catch (e: IOException) {
             throw RuntimeException("Error parsing CSV: ${e.message}")

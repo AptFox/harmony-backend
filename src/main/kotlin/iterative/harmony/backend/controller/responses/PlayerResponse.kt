@@ -9,4 +9,8 @@ data class PlayerResponse(
     var team: TeamResponse?,
     var userId: UUID,
     var teamRole: String?,
+    var salary: String?,
+    var slot: String?,
+    var currentScrimPoints: Int?,
+    var eligibleThrough: String?,
 )

@@ -1,5 +1,7 @@
 package iterative.harmony.backend.service
 
+import io.sentry.Sentry
+import io.sentry.SentryLevel
 import iterative.harmony.backend.controller.responses.PlayerMapper
 import iterative.harmony.backend.controller.responses.PlayerResponse
 import iterative.harmony.backend.exception.ImportException
@@ -21,6 +23,19 @@ import org.springframework.dao.IncorrectResultSizeDataAccessException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
+class PlayerImportContext(
+    val org: Organization,
+    val teams: List<Team>,
+    val skillGroups: List<SkillGroup>,
+    val franchises: List<Franchise>,
+    val playerIdsByUserId: Map<UUID, Long>,
+) {
+    val seenUserIds: MutableSet<UUID> = mutableSetOf()
+    // Players created during this run, so a user appearing twice doesn't create two players
+    val newPlayersByUserId: MutableMap<UUID, Player> = mutableMapOf()
+    var teamMatchCount = 0
+}
+
 @Service
 class PlayerService {
     private val log = getLogger()
@@ -35,9 +50,16 @@ class PlayerService {
     val FP = "FP"
     val WAIVERS = "Waivers"
     val RFA = "RFA"
+    val NO_SLOT = "NONE"
+    // TODO: Store the game alongside the org, create a games table
+    val IMPORTED_GAME_TITLE = "Rocket League"
 
     val STAFF_POSITIONS_TO_IGNORE = listOf(NA, PEND)
     val FRANCHISES_TO_IGNORE = listOf(FA, FP, WAIVERS, PEND, RFA)
+
+    // Guards malformed import
+    val MIN_PLAYER_COVERAGE = 0.9
+    val MAX_ERROR_RATE = 0.10
 
     fun getPlayerForCurrentUserByOrg(orgId: Long, userId: String): PlayerResponse {
         val userProxy = userRepository.getReferenceById(UUID.fromString(userId))
@@ -47,36 +69,33 @@ class PlayerService {
         return playerMapper.toPlayerResponse(player.get())
     }
 
-    suspend fun import(
+    fun buildImportContext(
         org: Organization,
         preExistingTeams: List<Team>,
         preExistingSkillGroups: List<SkillGroup>,
         preExistingFranchises: List<Franchise>,
+    ): PlayerImportContext {
+        val playerIdsByUserId =
+            playerRepository.findPlayerIdsByOrganization(org).associate { it.userId to it.playerId }
+        return PlayerImportContext(
+            org,
+            preExistingTeams,
+            preExistingSkillGroups,
+            preExistingFranchises,
+            playerIdsByUserId,
+        )
+    }
+
+    suspend fun import(
+        context: PlayerImportContext,
         batch: MutableList<Player>,
         row: Map<String, String>,
     ) {
-        val name = row["name"].toString()
-        val discordId = row["discord_id"].toString()
-        val skillGroupName = row["skill_group"].toString()
-        val franchiseName = row["franchise"].toString()
-        val staffPos = row["Franchise Staff Position"].toString()
-        if (
-            name.isEmpty() ||
-                discordId.isEmpty() ||
-                skillGroupName.isEmpty() ||
-                franchiseName.isEmpty() ||
-                staffPos.isEmpty()
-        )
-            throw ImportException("Required field is missing")
+        if (row.valueOf("game_title") != IMPORTED_GAME_TITLE) return
 
-        val (skillGroup, team) =
-            getTeamBy(
-                franchiseName,
-                skillGroupName,
-                preExistingSkillGroups,
-                preExistingFranchises,
-                preExistingTeams,
-            )
+        val discordId = row.valueOf("discord_id")
+        if (discordId.isEmpty()) throw ImportException("Required field is missing")
+
         var user: Optional<User>
         try {
             user = userRepository.findByDiscordId(discordId)
@@ -88,60 +107,143 @@ class PlayerService {
             log.error("$errorMsg[discord_id: $discordId]")
             throw ImportException(errorMsg)
         }
+        val userId = user.get().userId!!
+        context.seenUserIds.add(userId)
 
-        val teamRole = staffPos.takeIf { it !in STAFF_POSITIONS_TO_IGNORE }
+        val name = row.valueOf("name")
+        val skillGroupName = row.valueOf("skill_group")
+        val franchiseName = row.valueOf("franchise")
+        val staffPos = row.valueOf("Franchise Staff Position")
+        if (
+            name.isEmpty() ||
+                skillGroupName.isEmpty() ||
+                franchiseName.isEmpty() ||
+                staffPos.isEmpty()
+        )
+            throw ImportException("Required field is missing")
 
-        val preExistingPlayer = playerRepository.findByUserAndOrganization(user.get(), org)
-        if (preExistingPlayer.isPresent) {
-            val updatedPlayer =
-                preExistingPlayer.get().apply {
-                    this.name = name
-                    this.skillGroup = skillGroup
-                    this.team = team
-                    this.teamRole = teamRole
+        val (skillGroup, team) = getTeamBy(franchiseName, skillGroupName, context)
+        if (team != null) context.teamMatchCount++
+        val teamRole = staffPos.takeIf { team != null && it !in STAFF_POSITIONS_TO_IGNORE }
+        val slot = row.valueOf("slot").takeIf { team != null && it.isNotEmpty() && it != NO_SLOT }
+
+        val existingPlayerId = context.playerIdsByUserId[userId]
+        val player =
+            if (existingPlayerId != null) {
+                batch.find { it.id == existingPlayerId }
+                    ?: playerRepository.findById(existingPlayerId).orElseThrow {
+                        ImportException("Player $existingPlayerId was deleted during import")
+                    }
+            } else {
+                // Reusing the same instance prevents duplicate players when a user appears twice
+                context.newPlayersByUserId.getOrPut(userId) {
+                    Player(
+                        name = name,
+                        organization = context.org,
+                        skillGroup = skillGroup,
+                        team = team,
+                        user = user.get(),
+                        teamRole = teamRole,
+                    )
                 }
-            batch.add(updatedPlayer)
-        } else {
-            val importedPlayer =
-                Player(
-                    name = name,
-                    organization = org,
-                    skillGroup = skillGroup,
-                    team = team,
-                    user = user.get(),
-                    teamRole = teamRole,
-                )
-            batch.add(importedPlayer)
+            }
+        player.apply {
+            this.name = name
+            this.skillGroup = skillGroup
+            this.team = team
+            this.teamRole = teamRole
+            this.slot = slot
+            this.salary = row.valueOf("salary").ifEmpty { null }
+            this.currentScrimPoints = row.valueOf("current_scrim_points").toIntOrNull()
+            this.eligibleThrough = row.valueOf("Eligible Through").ifEmpty { null }
         }
+        if (batch.none { it === player }) batch.add(player)
     }
 
-    private suspend fun getTeamBy(
+    // Returns ids of players missing from the import. Returns nothing if > 10% of players missing
+    // or errored.
+    fun findPlayersMissingFromImport(
+        context: PlayerImportContext,
+        parsingResult: CsvParsingResult,
+    ): List<Long> {
+        val missingPlayerIds =
+            context.playerIdsByUserId.filterKeys { userId -> userId !in context.seenUserIds }.values
+        if (missingPlayerIds.isEmpty()) return emptyList()
+
+        val guardFailure = getImportGuardFailure(context, parsingResult)
+        if (guardFailure != null) {
+            val errorMsg =
+                "${context.org.acronym} - Skipping delete of ${missingPlayerIds.size} players missing from import: $guardFailure"
+            log.error(errorMsg)
+            Sentry.captureMessage(errorMsg, SentryLevel.ERROR)
+            return emptyList()
+        }
+
+        log.info(
+            "${context.org.acronym} - Deleting ${missingPlayerIds.size} players missing from import"
+        )
+        return missingPlayerIds.toList()
+    }
+
+    @Transactional
+    suspend fun deleteBatch(playerIds: List<Long>) {
+        if (playerIds.isEmpty()) return
+        playerRepository.deleteAllByIdInBatch(playerIds)
+    }
+
+    private fun getImportGuardFailure(
+        context: PlayerImportContext,
+        parsingResult: CsvParsingResult,
+    ): String? {
+        if (parsingResult.rowsProcessed == 0) return "no rows were processed"
+
+        val preExistingCount = context.playerIdsByUserId.size
+        if (preExistingCount > 0) {
+            val seenCount = context.playerIdsByUserId.keys.count { it in context.seenUserIds }
+            val coverage = seenCount.toDouble() / preExistingCount
+            if (coverage < MIN_PLAYER_COVERAGE)
+                return "only $seenCount of $preExistingCount existing players were in the import"
+        }
+
+        val errorRate = parsingResult.errorCount.toDouble() / parsingResult.rowsProcessed
+        if (errorRate > MAX_ERROR_RATE)
+            return "${parsingResult.errorCount} of ${parsingResult.rowsProcessed} rows failed to import"
+
+        if (context.teamMatchCount == 0) return "no rows matched a team"
+
+        return null
+    }
+
+    // Returns a null team when the franchise doesn't match a team, so the player is removed
+    private fun getTeamBy(
         franchiseName: String,
         skillGroupName: String,
-        preExistingSkillGroups: List<SkillGroup>,
-        preExistingFranchises: List<Franchise>,
-        preExistingTeams: List<Team>,
+        context: PlayerImportContext,
     ): Pair<SkillGroup, Team?> {
-        val skillGroup = preExistingSkillGroups.find { sg -> sg.name == skillGroupName }
+        val skillGroup = context.skillGroups.find { sg -> sg.name == skillGroupName }
         if (skillGroup == null)
             throw ImportException("Could not find SkillGroup with name: $skillGroupName")
 
         if (FRANCHISES_TO_IGNORE.contains(franchiseName)) return Pair(skillGroup, null)
-        val franchise = preExistingFranchises.find { franchise -> franchise.name == franchiseName }
-        if (franchise == null)
-            throw ImportException("Could not find Franchise with name: $franchiseName")
+        val franchise = context.franchises.find { franchise -> franchise.name == franchiseName }
+        if (franchise == null) {
+            log.debug("Could not find Franchise with name: $franchiseName. removing from team.")
+            return Pair(skillGroup, null)
+        }
 
         val matchingTeam =
-            preExistingTeams.find { team ->
+            context.teams.find { team ->
                 team.skillGroup.id == skillGroup.id && team.franchise.id == franchise.id
             }
         if (matchingTeam == null)
-            throw ImportException(
-                "Could not find Team with name = $franchiseName and skillGroup = $skillGroupName"
+            log.debug(
+                "Could not find Team with name = $franchiseName and skillGroup = $skillGroupName. removing from team."
             )
 
         return Pair(skillGroup, matchingTeam)
     }
+
+    private fun Map<String, String>.valueOf(key: String): String = this[key]?.trim().orEmpty()
 
     @Transactional
     suspend fun saveBatch(batch: List<Player>) {
