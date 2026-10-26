@@ -1,5 +1,6 @@
 package iterative.harmony.backend.service
 
+import iterative.harmony.backend.exception.DataSourceUnavailableException
 import iterative.harmony.backend.exception.ScheduledTaskException
 import iterative.harmony.backend.model.Organization
 import iterative.harmony.backend.model.Player
@@ -16,27 +17,18 @@ import iterative.harmony.backend.util.getLogger
 import iterative.harmony.backend.util.setScheduledTaskInLogs
 import jakarta.persistence.EntityManager
 import jakarta.persistence.PersistenceContext
-import java.io.File
-import java.nio.file.StandardOpenOption
+import java.time.Clock
 import java.time.Duration
-import java.time.Instant
 import java.util.concurrent.TimeUnit
-import javax.sql.DataSource as JdbcDataSource
 import kotlin.collections.isNotEmpty
-import kotlinx.coroutines.reactor.awaitSingleOrNull
 import kotlinx.coroutines.runBlocking
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
-import org.springframework.core.io.buffer.DataBuffer
-import org.springframework.core.io.buffer.DataBufferUtils
 import org.springframework.dao.DataIntegrityViolationException
-import org.springframework.http.MediaType
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
-import org.springframework.web.reactive.function.client.WebClient
-import org.springframework.web.reactive.function.client.WebClientRequestException
 
 @Service
 @ConditionalOnProperty(
@@ -57,9 +49,10 @@ class ScheduledImportService {
     @Autowired private lateinit var playerService: PlayerService
     @PersistenceContext private lateinit var entityManager: EntityManager
     @Autowired private lateinit var transactionManager: PlatformTransactionManager
-    @Autowired private lateinit var jdbcDataSource: JdbcDataSource
+    @Autowired private lateinit var csvDownloader: CsvDownloader
+    @Autowired private lateinit var importLock: ImportLock
+    @Autowired private lateinit var clock: Clock
     private val transactionTemplate by lazy { TransactionTemplate(transactionManager) }
-    private val webClient = WebClient.builder().build()
     private val BATCH_SIZE = 100
     // TODO: Figure out how to store these headers in the DB alongside data_sources
     private val MLE_LEAGUES_HEADERS =
@@ -102,7 +95,6 @@ class ScheduledImportService {
             "game_title",
         )
     private val SCHEDULED_IMPORT = "SCHEDULED_IMPORT"
-    private val IMPORT_LOCK_KEY = 4_826_001L
     private val DAILY_IMPORT_INTERVAL = Duration.ofHours(24).minusMinutes(5)
 
     private fun flushHibernateCache(logPrefix: String, batchCode: suspend () -> Unit) {
@@ -125,34 +117,11 @@ class ScheduledImportService {
         }
     }
 
-    // Holds a Postgres lock during import. Skips if already locked
-    private fun withImportLock(codeBlock: () -> Unit) {
-        jdbcDataSource.connection.use { connection ->
-            val acquired =
-                connection.prepareStatement("SELECT pg_try_advisory_lock(?)").use { statement ->
-                    statement.setLong(1, IMPORT_LOCK_KEY)
-                    statement.executeQuery().use { result -> result.next() && result.getBoolean(1) }
-                }
-            if (!acquired) {
-                log.info("Import lock is held by another instance. Skipping run.")
-                return
-            }
-            try {
-                codeBlock()
-            } finally {
-                connection.prepareStatement("SELECT pg_advisory_unlock(?)").use { statement ->
-                    statement.setLong(1, IMPORT_LOCK_KEY)
-                    statement.execute()
-                }
-            }
-        }
-    }
-
     // Runs every hour. Skill groups and teams import once per DAILY_IMPORT_INTERVAL.
     @Scheduled(fixedRate = 1, timeUnit = TimeUnit.HOURS)
     fun scheduledImports() {
         runScheduledTask(SCHEDULED_IMPORT) {
-            withImportLock {
+            importLock.runExclusive {
                 val failedSteps = mutableListOf<String>()
                 val steps: List<Pair<String, suspend () -> Unit>> =
                     listOf(
@@ -165,6 +134,8 @@ class ScheduledImportService {
                     steps.forEach { (stepName, step) ->
                         try {
                             step()
+                        } catch (ex: DataSourceUnavailableException) {
+                            log.error("$stepName import skipped - dataSource unavailable", ex)
                         } catch (ex: Exception) {
                             log.error("$stepName import failed", ex)
                             failedSteps.add(stepName)
@@ -175,27 +146,6 @@ class ScheduledImportService {
                     throw ScheduledTaskException("Import steps failed: $failedSteps")
             }
         }
-    }
-
-    private suspend fun downloadToTempFile(url: String, prefix: String, suffix: String): File {
-        val tempFile = File.createTempFile(prefix, suffix)
-        val flux =
-            webClient
-                .get()
-                .uri(url)
-                .accept(MediaType.APPLICATION_OCTET_STREAM)
-                .retrieve()
-                .bodyToFlux(DataBuffer::class.java)
-
-        try {
-            DataBufferUtils.write(flux, tempFile.toPath(), StandardOpenOption.CREATE)
-                .awaitSingleOrNull()
-        } catch (ex: Exception) {
-            tempFile.delete()
-            throw ex
-        }
-
-        return tempFile
     }
 
     suspend fun <T> downloadAndImport(
@@ -221,7 +171,7 @@ class ScheduledImportService {
                 )
             val orgAcronym = org.acronym
             val logPrefix = "$orgAcronym - $destinationTable import"
-            val importStartedAt = Instant.now()
+            val importStartedAt = clock.instant()
             val lastImportedAt = dataSource.lastImportedAt
             if (
                 lastImportedAt != null && lastImportedAt.plus(minInterval).isAfter(importStartedAt)
@@ -232,16 +182,11 @@ class ScheduledImportService {
             log.info("$logPrefix started")
             val dataSourceName = dataSource.name.replace(" ", "-")
             val tempFile =
-                try {
-                    downloadToTempFile(
-                        url = dataSource.url,
-                        prefix = "${orgAcronym}-${dataSourceName}",
-                        suffix = ".${dataFormat}",
-                    )
-                } catch (ex: WebClientRequestException) {
-                    log.warn("$logPrefix - skipped, download failed: ${ex.message}")
-                    return@forEach
-                }
+                csvDownloader.downloadToTempFile(
+                    url = dataSource.url,
+                    prefix = "${orgAcronym}-${dataSourceName}",
+                    suffix = ".${dataFormat}",
+                )
             try {
                 val batch = mutableListOf<T>()
                 val result =

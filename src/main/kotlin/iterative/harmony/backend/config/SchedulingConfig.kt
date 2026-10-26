@@ -3,6 +3,7 @@ package iterative.harmony.backend.config
 import io.sentry.Sentry
 import iterative.harmony.backend.exception.ScheduledTaskException
 import iterative.harmony.backend.util.getLogger
+import java.time.Clock
 import java.time.Instant
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -15,10 +16,12 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler
 class SchedulingConfig {
     private val log = getLogger()
 
+    @Bean fun clock(): Clock = Clock.systemUTC()
+
     @Bean
     fun taskScheduler(): TaskScheduler {
         val scheduler = ThreadPoolTaskScheduler()
-        scheduler.poolSize = 1
+        scheduler.poolSize = 2
         scheduler.setThreadNamePrefix("harmony-scheduled-task-")
         scheduler.setErrorHandler { ex -> reportErrorToSentry(ex) }
         scheduler.setWaitForTasksToCompleteOnShutdown(true)
@@ -38,10 +41,9 @@ class SchedulingConfig {
                 mapOf("timestamp" to Instant.now().toString(), "executor" to threadName),
             )
 
-            val wrappedEx =
-                ScheduledTaskException("Scheduled task failed on thread: $threadName", ex)
+            val wrappedEx = ScheduledTaskException("Scheduled task failed - ${ex.message}", ex)
             Sentry.captureException(wrappedEx)
         }
-        log.error("Scheduled task failed on thread $threadName", ex)
+        log.error("Scheduled task failed - ${ex.message}", ex)
     }
 }
