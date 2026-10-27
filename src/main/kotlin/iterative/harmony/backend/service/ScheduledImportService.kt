@@ -21,7 +21,6 @@ import java.time.Clock
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 import kotlin.collections.isNotEmpty
-import kotlinx.coroutines.runBlocking
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.dao.DataIntegrityViolationException
@@ -98,9 +97,9 @@ class ScheduledImportService {
     private val PLAYER_CLEANUP = "PLAYER_CLEANUP"
     private val DAILY_IMPORT_INTERVAL = Duration.ofHours(24).minusMinutes(5)
 
-    private fun flushHibernateCache(logPrefix: String, batchCode: suspend () -> Unit) {
+    private fun flushHibernateCache(logPrefix: String, batchCode: () -> Unit) {
         transactionTemplate.execute {
-            runBlocking { batchCode() }
+            batchCode()
             log.debug("$logPrefix - Clearing hibernate cache")
             entityManager.flush()
             entityManager.clear()
@@ -124,23 +123,21 @@ class ScheduledImportService {
         runScheduledTask(SCHEDULED_IMPORT) {
             importLock.runExclusive {
                 val failedSteps = mutableListOf<String>()
-                val steps: List<Pair<String, suspend () -> Unit>> =
+                val steps: List<Pair<String, () -> Unit>> =
                     listOf(
                         "skill_groups" to { importSkillGroups() },
                         "teams" to { importTeams() },
                         "users" to { importUsers() },
                         "players" to { importPlayers() },
                     )
-                runBlocking {
-                    steps.forEach { (stepName, step) ->
-                        try {
-                            step()
-                        } catch (ex: DataSourceUnavailableException) {
-                            log.error("$stepName import skipped - dataSource unavailable", ex)
-                        } catch (ex: Exception) {
-                            log.error("$stepName import failed", ex)
-                            failedSteps.add(stepName)
-                        }
+                steps.forEach { (stepName, step) ->
+                    try {
+                        step()
+                    } catch (ex: DataSourceUnavailableException) {
+                        log.error("$stepName import skipped - dataSource unavailable", ex)
+                    } catch (ex: Exception) {
+                        log.error("$stepName import failed", ex)
+                        failedSteps.add(stepName)
                     }
                 }
                 if (failedSteps.isNotEmpty())
@@ -186,13 +183,13 @@ class ScheduledImportService {
             throw ScheduledTaskException("Players cleanup failed for orgs: $failedOrgs")
     }
 
-    suspend fun <T> downloadAndImport(
+    fun <T> downloadAndImport(
         org: Organization,
         destinationTable: String,
         csvHeaders: List<String>,
-        saveBatch: suspend (batch: MutableList<T>) -> Unit,
+        saveBatch: (batch: MutableList<T>) -> Unit,
         minInterval: Duration = Duration.ZERO,
-        importCode: suspend (batch: MutableList<T>, csvRow: Map<String, String>) -> Unit,
+        importCode: (batch: MutableList<T>, csvRow: Map<String, String>) -> Unit,
     ): CsvParsingResult? {
         val dataSources =
             dataSourceRepository.findAllByOrganizationAndDestinationTableAndEnabled(
@@ -258,8 +255,8 @@ class ScheduledImportService {
         return combinedResult
     }
 
-    suspend fun importSkillGroups() {
-        val saveBatch: suspend (batch: List<SkillGroup>) -> Unit = { batch ->
+    fun importSkillGroups() {
+        val saveBatch: (batch: List<SkillGroup>) -> Unit = { batch ->
             skillGroupService.saveBatch(batch)
         }
         orgRepository.findAll().forEach { org ->
@@ -281,10 +278,8 @@ class ScheduledImportService {
         }
     }
 
-    suspend fun importTeams() {
-        val saveBatch: suspend (batch: List<Team>) -> Unit = { batch ->
-            teamService.saveBatch(batch)
-        }
+    fun importTeams() {
+        val saveBatch: (batch: List<Team>) -> Unit = { batch -> teamService.saveBatch(batch) }
         orgRepository.findAll().forEach { org ->
             try {
                 val preExistingSkillGroups = skillGroupService.getPreExistingSkillGroupsByOrg(org)
@@ -306,10 +301,8 @@ class ScheduledImportService {
         }
     }
 
-    suspend fun importUsers() {
-        val saveBatch: suspend (batch: List<User>) -> Unit = { batch ->
-            userService.saveBatch(batch)
-        }
+    fun importUsers() {
+        val saveBatch: (batch: List<User>) -> Unit = { batch -> userService.saveBatch(batch) }
         val defaultUserRole = roleRepository.findByName(RoleConstants.USER_ROLE).get()
         orgRepository.findAll().forEach { org ->
             try {
@@ -323,10 +316,8 @@ class ScheduledImportService {
         }
     }
 
-    suspend fun importPlayers() {
-        val saveBatch: suspend (batch: List<Player>) -> Unit = { batch ->
-            playerService.saveBatch(batch)
-        }
+    fun importPlayers() {
+        val saveBatch: (batch: List<Player>) -> Unit = { batch -> playerService.saveBatch(batch) }
         orgRepository.findAll().forEach { org ->
             try {
                 val preExistingTeams = teamService.getPreExistingTeamsByOrg(org)

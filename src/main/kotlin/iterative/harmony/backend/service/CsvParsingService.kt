@@ -21,10 +21,10 @@ class CsvParsingService {
     private val csvMapper = CsvMapper().findAndRegisterModules()
 
     // Parses CSV's in a stream and logs errors per row without stopping for a malformed row
-    suspend fun parseCsvStream(
+    fun parseCsvStream(
         file: File,
         requiredHeaders: List<String>,
-        parsingCode: suspend (csvRow: Map<String, String>) -> Unit,
+        parsingCode: (csvRow: Map<String, String>) -> Unit,
     ): CsvParsingResult {
         val schema = CsvSchema.emptySchema().withHeader()
 

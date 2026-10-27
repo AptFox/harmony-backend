@@ -4,7 +4,6 @@ import iterative.harmony.backend.exception.DataSourceUnavailableException
 import iterative.harmony.backend.util.getLogger
 import java.io.File
 import java.nio.file.StandardOpenOption
-import kotlinx.coroutines.reactor.awaitSingleOrNull
 import org.springframework.core.io.buffer.DataBuffer
 import org.springframework.core.io.buffer.DataBufferUtils
 import org.springframework.http.MediaType
@@ -17,7 +16,7 @@ class CsvDownloader {
     private val log = getLogger()
     private val webClient = WebClient.builder().build()
 
-    suspend fun downloadToTempFile(url: String, prefix: String, suffix: String): File {
+    fun downloadToTempFile(url: String, prefix: String, suffix: String): File {
         val tempFile = File.createTempFile(prefix, suffix)
         try {
             val flux =
@@ -27,8 +26,7 @@ class CsvDownloader {
                     .accept(MediaType.APPLICATION_OCTET_STREAM)
                     .retrieve()
                     .bodyToFlux(DataBuffer::class.java)
-            DataBufferUtils.write(flux, tempFile.toPath(), StandardOpenOption.CREATE)
-                .awaitSingleOrNull()
+            DataBufferUtils.write(flux, tempFile.toPath(), StandardOpenOption.CREATE).block()
         } catch (ex: WebClientRequestException) {
             tempFile.delete()
             log.error("$prefix data source is unavailable: ${ex.message}")

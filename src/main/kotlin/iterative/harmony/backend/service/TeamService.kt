@@ -28,7 +28,7 @@ class TeamService {
         return teamMapper.toTeamResponseList(teams)
     }
 
-    suspend fun import(
+    fun import(
         org: Organization,
         batch: MutableList<Team>,
         row: Map<String, String>,
@@ -78,12 +78,12 @@ class TeamService {
         }
     }
 
-    suspend fun getPreExistingTeamsByOrg(org: Organization): List<Team> {
+    fun getPreExistingTeamsByOrg(org: Organization): List<Team> {
         return teamRepository.findAllByOrganization(org)
     }
 
     @Transactional
-    suspend fun saveBatch(batch: List<Team>) {
+    fun saveBatch(batch: List<Team>) {
         teamRepository.saveAll(batch)
     }
 }

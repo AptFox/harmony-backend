@@ -85,11 +85,7 @@ class PlayerService {
         )
     }
 
-    suspend fun import(
-        context: PlayerImportContext,
-        batch: MutableList<Player>,
-        row: Map<String, String>,
-    ) {
+    fun import(context: PlayerImportContext, batch: MutableList<Player>, row: Map<String, String>) {
         if (row.valueOf("game_title") != IMPORTED_GAME_TITLE) return
 
         val discordId = row.valueOf("discord_id")
@@ -179,7 +175,7 @@ class PlayerService {
     }
 
     @Transactional
-    suspend fun deleteBatch(playerIds: List<Long>) {
+    fun deleteBatch(playerIds: List<Long>) {
         if (playerIds.isEmpty()) return
         playerRepository.deleteAllByIdInBatch(playerIds)
     }
@@ -216,7 +212,7 @@ class PlayerService {
     private fun Map<String, String>.valueOf(key: String): String = this[key]?.trim().orEmpty()
 
     @Transactional
-    suspend fun saveBatch(batch: List<Player>) {
+    fun saveBatch(batch: List<Player>) {
         playerRepository.saveAll(batch)
     }
 }

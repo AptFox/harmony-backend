@@ -17,7 +17,6 @@ import java.time.Duration
 import java.time.Instant
 import java.time.ZoneOffset
 import java.util.Optional
-import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -31,15 +30,12 @@ import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.any
 import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.doReturn
-import org.mockito.kotlin.doSuspendableAnswer
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
-import org.mockito.kotlin.verifyBlocking
 import org.mockito.kotlin.verifyNoInteractions
 import org.mockito.kotlin.whenever
-import org.mockito.kotlin.wheneverBlocking
 import org.slf4j.MDC
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.transaction.PlatformTransactionManager
@@ -111,30 +107,26 @@ class ScheduledImportServiceTest {
 
     // Each download returns `file`, and each parse feeds the next Csv's rows to the import
     private fun stubCsvs(vararg csvs: Csv, file: File = mock()) {
-        wheneverBlocking { csvDownloaderMock.downloadToTempFile(any(), any(), any()) }
-            .thenReturn(file)
+        whenever(csvDownloaderMock.downloadToTempFile(any(), any(), any())).thenReturn(file)
         val remaining = ArrayDeque(csvs.toList())
-        wheneverBlocking { csvParsingServiceMock.parseCsvStream(any(), any(), any()) }
-            .doSuspendableAnswer { invocation ->
-                val csv = remaining.removeFirst()
-                val parsingCode = invocation.getArgument<suspend (Map<String, String>) -> Unit>(2)
-                csv.names.forEach { name -> parsingCode(mapOf("name" to name)) }
-                CsvParsingResult(rowsProcessed = csv.names.size, errorCount = csv.errorCount)
-            }
+        whenever(csvParsingServiceMock.parseCsvStream(any(), any(), any())).doAnswer { invocation ->
+            val csv = remaining.removeFirst()
+            val parsingCode = invocation.getArgument<(Map<String, String>) -> Unit>(2)
+            csv.names.forEach { name -> parsingCode(mapOf("name" to name)) }
+            CsvParsingResult(rowsProcessed = csv.names.size, errorCount = csv.errorCount)
+        }
     }
 
     // Each row's "name" goes into the batch
     private fun importTeams(saveBatch: (List<String>) -> Unit = {}): CsvParsingResult? =
-        runBlocking {
-            scheduledImportService.downloadAndImport<String>(
-                org,
-                "teams",
-                listOf("name"),
-                { batch -> saveBatch(batch.toList()) },
-                dailyInterval,
-            ) { batch, row ->
-                batch.add(row.getValue("name"))
-            }
+        scheduledImportService.downloadAndImport<String>(
+            org,
+            "teams",
+            listOf("name"),
+            { batch -> saveBatch(batch.toList()) },
+            dailyInterval,
+        ) { batch, row ->
+            batch.add(row.getValue("name"))
         }
 
     @Nested
@@ -281,7 +273,7 @@ class ScheduledImportServiceTest {
                     )
                 )
                 .thenReturn(listOf(dataSource()))
-            wheneverBlocking { csvDownloaderMock.downloadToTempFile(any(), any(), any()) }
+            whenever(csvDownloaderMock.downloadToTempFile(any(), any(), any()))
                 .thenThrow(
                     DataSourceUnavailableException("MLE-MLE-Teams data source is unavailable")
                 )
@@ -289,7 +281,7 @@ class ScheduledImportServiceTest {
             // No ScheduledTaskException, so nothing reaches Sentry
             assertDoesNotThrow { scheduledImportService.scheduledImports() }
             // Every step still tried its download
-            verifyBlocking(csvDownloaderMock, times(4)) { downloadToTempFile(any(), any(), any()) }
+            verify(csvDownloaderMock, times(4)).downloadToTempFile(any(), any(), any())
         }
 
         @Test
@@ -325,7 +317,7 @@ class ScheduledImportServiceTest {
 
             scheduledImportService.cleanupPlayers()
 
-            verifyBlocking(playerServiceMock) { deleteBatch(listOf(101L)) }
+            verify(playerServiceMock).deleteBatch(listOf(101L))
         }
 
         @Test
@@ -347,7 +339,7 @@ class ScheduledImportServiceTest {
 
             scheduledImportService.cleanupPlayers()
 
-            verifyBlocking(playerServiceMock, never()) { deleteBatch(any()) }
+            verify(playerServiceMock, never()).deleteBatch(any())
         }
 
         @Test
@@ -363,7 +355,7 @@ class ScheduledImportServiceTest {
                 assertThrows<ScheduledTaskException> { scheduledImportService.cleanupPlayers() }
 
             assertEquals("Players cleanup failed for orgs: [MLE]", ex.message)
-            verifyBlocking(playerServiceMock) { deleteBatch(listOf(201L)) }
+            verify(playerServiceMock).deleteBatch(listOf(201L))
         }
 
         @Test

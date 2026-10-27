@@ -89,7 +89,7 @@ class UserService {
         throw UserNotFoundException(userId)
     }
 
-    suspend fun import(batch: MutableList<User>, row: Map<String, String>, defaultUserRole: Role) {
+    fun import(batch: MutableList<User>, row: Map<String, String>, defaultUserRole: Role) {
         val discordId = row["discord_id"].toString()
         val name = row["name"].toString()
         if (discordId.isEmpty() || name.isEmpty())
@@ -116,7 +116,7 @@ class UserService {
         }
     }
 
-    suspend fun throwIfImportIdAlreadyInDB(importId: String, discordId: String) {
+    fun throwIfImportIdAlreadyInDB(importId: String, discordId: String) {
         val preExistingUser = userRepository.findByImportId(importId)
         if (preExistingUser.isPresent) {
             val errorMsg =
@@ -128,7 +128,7 @@ class UserService {
     }
 
     @Transactional
-    suspend fun saveBatch(batch: List<User>) {
+    fun saveBatch(batch: List<User>) {
         userRepository.saveAll(batch)
     }
 }

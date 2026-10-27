@@ -2,7 +2,6 @@ package iterative.harmony.backend.service
 
 import iterative.harmony.backend.exception.DataSourceUnavailableException
 import java.io.File
-import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -32,7 +31,7 @@ class CsvDownloaderTest {
         fun `wraps a failed request in DataSourceUnavailableException`() {
             val ex =
                 assertThrows<DataSourceUnavailableException> {
-                    runBlocking { csvDownloader.downloadToTempFile(unreachableUrl, prefix, ".csv") }
+                    csvDownloader.downloadToTempFile(unreachableUrl, prefix, ".csv")
                 }
 
             assertEquals("$prefix data source is unavailable", ex.message)
@@ -42,7 +41,7 @@ class CsvDownloaderTest {
         @Test
         fun `deletes the temp file when the request fails`() {
             assertThrows<DataSourceUnavailableException> {
-                runBlocking { csvDownloader.downloadToTempFile(unreachableUrl, prefix, ".csv") }
+                csvDownloader.downloadToTempFile(unreachableUrl, prefix, ".csv")
             }
 
             assertEquals(emptyList<File>(), leftoverTempFiles())

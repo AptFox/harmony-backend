@@ -12,7 +12,7 @@ import org.springframework.transaction.annotation.Transactional
 class SkillGroupService {
     @Autowired private lateinit var skillGroupRepository: SkillGroupRepository
 
-    suspend fun import(
+    fun import(
         org: Organization,
         batch: MutableList<SkillGroup>,
         row: Map<String, String>,
@@ -52,12 +52,12 @@ class SkillGroupService {
         }
     }
 
-    suspend fun getPreExistingSkillGroupsByOrg(org: Organization): List<SkillGroup> {
+    fun getPreExistingSkillGroupsByOrg(org: Organization): List<SkillGroup> {
         return skillGroupRepository.findAllByOrganization(org)
     }
 
     @Transactional
-    suspend fun saveBatch(batch: List<SkillGroup>) {
+    fun saveBatch(batch: List<SkillGroup>) {
         skillGroupRepository.saveAll(batch)
     }
 }

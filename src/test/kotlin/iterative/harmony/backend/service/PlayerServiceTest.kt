@@ -15,7 +15,6 @@ import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
 import java.util.*
-import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -116,7 +115,7 @@ class PlayerServiceTest {
             val context = context()
             val batch = mutableListOf<Player>()
 
-            runBlocking { playerService.import(context, batch, row()) }
+            playerService.import(context, batch, row())
 
             val player = batch.single()
             assertEquals(sharksAcademy, player.team)
@@ -136,7 +135,7 @@ class PlayerServiceTest {
             stubPlayerLookup(existing)
             val batch = mutableListOf<Player>()
 
-            runBlocking { playerService.import(context(listOf(existing)), batch, row()) }
+            playerService.import(context(listOf(existing)), batch, row())
 
             assertSame(existing, batch.single())
             assertEquals("someUser", existing.name)
@@ -153,10 +152,8 @@ class PlayerServiceTest {
             val context = context()
             val batch = mutableListOf<Player>()
 
-            runBlocking {
-                playerService.import(context, batch, row())
-                playerService.import(context, batch, row("skill_group" to "Champion League"))
-            }
+            playerService.import(context, batch, row())
+            playerService.import(context, batch, row("skill_group" to "Champion League"))
 
             val player = batch.single()
             assertEquals(1, context.newPlayersByUserId.size)
@@ -171,10 +168,8 @@ class PlayerServiceTest {
             val context = context(listOf(existing))
             val batch = mutableListOf<Player>()
 
-            runBlocking {
-                playerService.import(context, batch, row())
-                playerService.import(context, batch, row("skill_group" to "Champion League"))
-            }
+            playerService.import(context, batch, row())
+            playerService.import(context, batch, row("skill_group" to "Champion League"))
 
             assertSame(existing, batch.single())
             assertEquals(champion, existing.skillGroup)
@@ -186,9 +181,7 @@ class PlayerServiceTest {
         fun `skips rows that are not Rocket League without an error`() {
             val batch = mutableListOf<Player>()
 
-            runBlocking {
-                playerService.import(context(), batch, row("game_title" to "Trackmania"))
-            }
+            playerService.import(context(), batch, row("game_title" to "Trackmania"))
 
             assertTrue(batch.isEmpty())
             verifyNoInteractions(userRepositoryMock)
@@ -201,13 +194,11 @@ class PlayerServiceTest {
             stubPlayerLookup(existing)
             val batch = mutableListOf<Player>()
 
-            runBlocking {
-                playerService.import(
-                    context(listOf(existing)),
-                    batch,
-                    row("franchise" to "FP", "Franchise Staff Position" to "NA", "slot" to "NONE"),
-                )
-            }
+            playerService.import(
+                context(listOf(existing)),
+                batch,
+                row("franchise" to "FP", "Franchise Staff Position" to "NA", "slot" to "NONE"),
+            )
 
             assertNull(existing.team)
             assertNull(existing.teamRole)
@@ -220,13 +211,11 @@ class PlayerServiceTest {
             val existing = existingPlayer()
             stubPlayerLookup(existing)
 
-            runBlocking {
-                playerService.import(
-                    context(listOf(existing)),
-                    mutableListOf(),
-                    row("franchise" to "Unknown"),
-                )
-            }
+            playerService.import(
+                context(listOf(existing)),
+                mutableListOf(),
+                row("franchise" to "Unknown"),
+            )
 
             assertNull(existing.team)
             assertNull(existing.teamRole)
@@ -238,7 +227,7 @@ class PlayerServiceTest {
             stubUserLookup()
             val batch = mutableListOf<Player>()
 
-            runBlocking { playerService.import(context(), batch, row("slot" to "NONE")) }
+            playerService.import(context(), batch, row("slot" to "NONE"))
 
             assertNull(batch.single().slot)
         }
@@ -248,7 +237,7 @@ class PlayerServiceTest {
             val batch = mutableListOf<Player>()
 
             assertThrows<ImportException> {
-                runBlocking { playerService.import(context(), batch, row() - "discord_id") }
+                playerService.import(context(), batch, row() - "discord_id")
             }
         }
 
@@ -257,13 +246,11 @@ class PlayerServiceTest {
             stubUserLookup()
 
             assertThrows<ImportException> {
-                runBlocking {
-                    playerService.import(
-                        context(),
-                        mutableListOf(),
-                        row("skill_group" to "Unknown League"),
-                    )
-                }
+                playerService.import(
+                    context(),
+                    mutableListOf(),
+                    row("skill_group" to "Unknown League"),
+                )
             }
         }
     }
@@ -321,7 +308,7 @@ class PlayerServiceTest {
         fun `saves the batch`() {
             val batch = listOf(existingPlayer(), newPlayer())
 
-            runBlocking { playerService.saveBatch(batch) }
+            playerService.saveBatch(batch)
 
             verify(playerRepositoryMock).saveAll(batch)
             verifyNoMoreInteractions(playerRepositoryMock)
@@ -333,7 +320,7 @@ class PlayerServiceTest {
     inner class DeleteBatch {
         @Test
         fun `deletes players by id`() {
-            runBlocking { playerService.deleteBatch(listOf(100L)) }
+            playerService.deleteBatch(listOf(100L))
 
             verify(playerRepositoryMock).deleteAllByIdInBatch(listOf(100L))
         }
