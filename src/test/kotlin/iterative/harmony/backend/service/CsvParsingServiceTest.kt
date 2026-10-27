@@ -3,7 +3,6 @@ package iterative.harmony.backend.service
 import iterative.harmony.backend.exception.ImportException
 import java.io.File
 import java.nio.file.Path
-import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -23,8 +22,8 @@ class CsvParsingServiceTest {
     private fun parse(
         file: File,
         requiredHeaders: List<String> = listOf("name", "team"),
-        parsingCode: suspend (Map<String, String>) -> Unit = {},
-    ) = runBlocking { csvParsingService.parseCsvStream(file, requiredHeaders, parsingCode) }
+        parsingCode: (Map<String, String>) -> Unit = {},
+    ) = csvParsingService.parseCsvStream(file, requiredHeaders, parsingCode)
 
     @Nested
     @DisplayName("parseCsvStream")

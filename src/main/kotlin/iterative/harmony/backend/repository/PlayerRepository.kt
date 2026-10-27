@@ -4,11 +4,19 @@ import iterative.harmony.backend.model.Organization
 import iterative.harmony.backend.model.Player
 import iterative.harmony.backend.model.Team
 import iterative.harmony.backend.model.User
+import java.time.Instant
 import java.util.Optional
+import java.util.UUID
 import org.springframework.data.jpa.repository.EntityGraph
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.CrudRepository
 import org.springframework.stereotype.Repository
+
+interface PlayerIdByUser {
+    val userId: UUID
+    val playerId: Long
+}
 
 @Repository
 interface PlayerRepository : JpaRepository<Player, Long>, CrudRepository<Player, Long> {
@@ -19,4 +27,16 @@ interface PlayerRepository : JpaRepository<Player, Long>, CrudRepository<Player,
     fun findByUserAndOrganization(user: User, org: Organization): Optional<Player>
 
     @EntityGraph(attributePaths = ["user"]) fun findAllByTeam(team: Team): List<Player>
+
+    @Query(
+        "SELECT p.user.userId AS userId, p.id AS playerId FROM Player p WHERE p.organization = :org"
+    )
+    fun findPlayerIdsByOrganization(org: Organization): List<PlayerIdByUser>
+
+    @Query(
+        "SELECT p.id FROM Player p WHERE p.organization = :org AND (p.importedAt IS NULL OR p.importedAt < :cutoff)"
+    )
+    fun findStalePlayerIds(org: Organization, cutoff: Instant): List<Long>
+
+    fun countByOrganization(org: Organization): Long
 }
