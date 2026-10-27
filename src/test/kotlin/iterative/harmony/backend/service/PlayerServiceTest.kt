@@ -8,6 +8,7 @@ import iterative.harmony.backend.model.SkillGroup
 import iterative.harmony.backend.model.Team
 import iterative.harmony.backend.model.User
 import iterative.harmony.backend.model.base.LongEntity
+import iterative.harmony.backend.repository.FranchiseRepository
 import iterative.harmony.backend.repository.PlayerIdByUser
 import iterative.harmony.backend.repository.PlayerRepository
 import iterative.harmony.backend.repository.UserIdByDiscordId
@@ -36,6 +37,9 @@ class PlayerServiceTest {
 
     @Mock private lateinit var userRepositoryMock: UserRepository
     @Mock private lateinit var playerRepositoryMock: PlayerRepository
+    @Mock private lateinit var skillGroupServiceMock: SkillGroupService
+    @Mock private lateinit var teamServiceMock: TeamService
+    @Mock private lateinit var franchiseRepositoryMock: FranchiseRepository
     @Spy private val clock: Clock = Clock.fixed(now, ZoneOffset.UTC)
 
     @InjectMocks private lateinit var playerService: PlayerService
@@ -354,6 +358,21 @@ class PlayerServiceTest {
     @DisplayName("buildImportContext")
     inner class BuildImportContext {
         @Test
+        fun `loads the org's teams, skill groups and franchises`() {
+            whenever(teamServiceMock.getPreExistingTeamsByOrg(org))
+                .thenReturn(listOf(sharksAcademy))
+            whenever(skillGroupServiceMock.getPreExistingSkillGroupsByOrg(org))
+                .thenReturn(listOf(academy))
+            whenever(franchiseRepositoryMock.findAllByOrganization(org)).thenReturn(listOf(sharks))
+
+            val context = playerService.buildImportContext(org)
+
+            assertEquals(listOf(sharksAcademy), context.teams)
+            assertEquals(listOf(academy), context.skillGroups)
+            assertEquals(listOf(sharks), context.franchises)
+        }
+
+        @Test
         fun `keys existing player ids by user id`() {
             val idPair =
                 object : PlayerIdByUser {
@@ -363,13 +382,7 @@ class PlayerServiceTest {
             whenever(playerRepositoryMock.findPlayerIdsByOrganization(org))
                 .thenReturn(listOf(idPair))
 
-            val context =
-                playerService.buildImportContext(
-                    org,
-                    listOf(sharksAcademy),
-                    listOf(academy),
-                    listOf(sharks),
-                )
+            val context = playerService.buildImportContext(org)
 
             assertEquals(mapOf(user.userId to 100L), context.playerIdsByUserId)
         }
@@ -391,8 +404,7 @@ class PlayerServiceTest {
                     )
                 )
 
-            val context =
-                playerService.buildImportContext(org, emptyList(), emptyList(), emptyList())
+            val context = playerService.buildImportContext(org)
 
             assertEquals(
                 mapOf(

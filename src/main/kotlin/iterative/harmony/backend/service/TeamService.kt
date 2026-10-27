@@ -27,7 +27,6 @@ class TeamService {
     @Autowired private lateinit var franchiseRepository: FranchiseRepository
     @Autowired private lateinit var teamMapper: TeamMapper
     @Autowired private lateinit var skillGroupService: SkillGroupService
-    @Autowired private lateinit var teamService: TeamService
 
     @Cacheable(value = [FRANCHISE_TEAMS], key = "#franchiseId")
     fun getTeamsForFranchise(franchiseId: Long): List<TeamResponse> {
@@ -37,7 +36,7 @@ class TeamService {
     }
 
     fun buildImportContext(org: Organization): TeamImportContext {
-        val preExistingTeams = teamService.getPreExistingTeamsByOrg(org)
+        val preExistingTeams = getPreExistingTeamsByOrg(org)
         val preExistingSkillGroups = skillGroupService.getPreExistingSkillGroupsByOrg(org)
         return TeamImportContext(org, preExistingTeams, preExistingSkillGroups)
     }
