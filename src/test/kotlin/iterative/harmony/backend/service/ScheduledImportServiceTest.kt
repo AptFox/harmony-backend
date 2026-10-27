@@ -33,6 +33,7 @@ import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.doSuspendableAnswer
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.verifyBlocking
@@ -234,15 +235,13 @@ class ScheduledImportServiceTest {
         }
     }
 
+    private fun stubLockAcquired() {
+        doAnswer { (it.arguments[0] as () -> Unit)() }.whenever(importLockMock).runExclusive(any())
+    }
+
     @Nested
     @DisplayName("scheduledImports")
     inner class ScheduledImports {
-
-        private fun stubLockAcquired() {
-            doAnswer { (it.arguments[0] as () -> Unit)() }
-                .whenever(importLockMock)
-                .runExclusive(any())
-        }
 
         @Test
         fun `does nothing when another instance holds the lock`() {
@@ -298,6 +297,90 @@ class ScheduledImportServiceTest {
             scheduledImportService.scheduledImports()
 
             assertNull(MDC.getCopyOfContextMap()?.takeIf { it.isNotEmpty() })
+        }
+    }
+
+    @Nested
+    @DisplayName("cleanupPlayers")
+    inner class CleanupPlayers {
+        private val otherOrg = Organization("Other League", "OTH", "America/New_York")
+
+        private fun stubPlayerDataSources(org: Organization, vararg lastImportedAts: Instant?) {
+            whenever(
+                    dataSourceRepositoryMock.findAllByOrganizationAndDestinationTableAndEnabled(
+                        org,
+                        "players",
+                        true,
+                    )
+                )
+                .thenReturn(lastImportedAts.map { dataSource(lastImportedAt = it) })
+        }
+
+        @Test
+        fun `deletes stale players using the earliest data source import as the cutoff`() {
+            val earlier = now.minus(Duration.ofHours(2))
+            whenever(orgRepositoryMock.findAll()).thenReturn(listOf(org))
+            stubPlayerDataSources(org, now.minus(Duration.ofHours(1)), earlier)
+            whenever(playerServiceMock.findStalePlayers(org, earlier)).thenReturn(listOf(101L))
+
+            scheduledImportService.cleanupPlayers()
+
+            verifyBlocking(playerServiceMock) { deleteBatch(listOf(101L)) }
+        }
+
+        @Test
+        fun `skips orgs whose players have never been imported`() {
+            whenever(orgRepositoryMock.findAll()).thenReturn(listOf(org, otherOrg))
+            stubPlayerDataSources(org, now, null)
+            stubPlayerDataSources(otherOrg)
+
+            scheduledImportService.cleanupPlayers()
+
+            verifyNoInteractions(playerServiceMock)
+        }
+
+        @Test
+        fun `does not delete when no players are stale`() {
+            whenever(orgRepositoryMock.findAll()).thenReturn(listOf(org))
+            stubPlayerDataSources(org, now)
+            whenever(playerServiceMock.findStalePlayers(org, now)).thenReturn(emptyList())
+
+            scheduledImportService.cleanupPlayers()
+
+            verifyBlocking(playerServiceMock, never()) { deleteBatch(any()) }
+        }
+
+        @Test
+        fun `keeps cleaning later orgs after one fails, then reports the failure`() {
+            whenever(orgRepositoryMock.findAll()).thenReturn(listOf(org, otherOrg))
+            stubPlayerDataSources(org, now)
+            stubPlayerDataSources(otherOrg, now)
+            whenever(playerServiceMock.findStalePlayers(org, now))
+                .thenThrow(RuntimeException("db down"))
+            whenever(playerServiceMock.findStalePlayers(otherOrg, now)).thenReturn(listOf(201L))
+
+            val ex =
+                assertThrows<ScheduledTaskException> { scheduledImportService.cleanupPlayers() }
+
+            assertEquals("Players cleanup failed for orgs: [MLE]", ex.message)
+            verifyBlocking(playerServiceMock) { deleteBatch(listOf(201L)) }
+        }
+
+        @Test
+        fun `scheduled cleanup does nothing when another instance holds the lock`() {
+            scheduledImportService.scheduledPlayerCleanup()
+
+            verifyNoInteractions(orgRepositoryMock, playerServiceMock)
+        }
+
+        @Test
+        fun `scheduled cleanup runs while holding the lock`() {
+            stubLockAcquired()
+            whenever(orgRepositoryMock.findAll()).thenReturn(emptyList())
+
+            scheduledImportService.scheduledPlayerCleanup()
+
+            verify(orgRepositoryMock).findAll()
         }
     }
 }

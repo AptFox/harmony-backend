@@ -95,6 +95,7 @@ class ScheduledImportService {
             "game_title",
         )
     private val SCHEDULED_IMPORT = "SCHEDULED_IMPORT"
+    private val PLAYER_CLEANUP = "PLAYER_CLEANUP"
     private val DAILY_IMPORT_INTERVAL = Duration.ofHours(24).minusMinutes(5)
 
     private fun flushHibernateCache(logPrefix: String, batchCode: suspend () -> Unit) {
@@ -146,6 +147,43 @@ class ScheduledImportService {
                     throw ScheduledTaskException("Import steps failed: $failedSteps")
             }
         }
+    }
+
+    // Runs every hour, offset 30 minutes from imports so it doesn't collide with the import lock
+    @Scheduled(fixedRate = 60, initialDelay = 30, timeUnit = TimeUnit.MINUTES)
+    fun scheduledPlayerCleanup() {
+        runScheduledTask(PLAYER_CLEANUP) { importLock.runExclusive { cleanupPlayers() } }
+    }
+
+    // Deletes players not imported in the last successful players import of each org
+    fun cleanupPlayers() {
+        val failedOrgs = mutableListOf<String>()
+        orgRepository.findAll().forEach { org ->
+            try {
+                val dataSources =
+                    dataSourceRepository.findAllByOrganizationAndDestinationTableAndEnabled(
+                        org,
+                        "players",
+                        true,
+                    )
+                val recentImports = dataSources.map { it.lastImportedAt }
+                if (recentImports.isEmpty() || recentImports.any { it == null }) {
+                    log.info("${org.acronym} - players cleanup skipped, players not yet imported")
+                    return@forEach
+                }
+                val mostRecentImport = recentImports.filterNotNull().min()
+                val stalePlayerIds = playerService.findStalePlayers(org, mostRecentImport)
+                if (stalePlayerIds.isNotEmpty())
+                    flushHibernateCache("${org.acronym} - players delete") {
+                        playerService.deleteBatch(stalePlayerIds)
+                    }
+            } catch (ex: Exception) {
+                log.error("${org.acronym} players cleanup failed", ex)
+                failedOrgs.add(org.acronym)
+            }
+        }
+        if (failedOrgs.isNotEmpty())
+            throw ScheduledTaskException("Players cleanup failed for orgs: $failedOrgs")
     }
 
     suspend fun <T> downloadAndImport(
@@ -301,19 +339,8 @@ class ScheduledImportService {
                         preExistingSkillGroups,
                         preExistingFranchises,
                     )
-                val result =
-                    downloadAndImport(org, "players", MLE_PLAYERS_HEADERS, saveBatch) {
-                        batch,
-                        csvRow ->
-                        playerService.import(context, batch, csvRow)
-                    }
-                if (result != null) {
-                    val missingPlayerIds =
-                        playerService.findPlayersMissingFromImport(context, result)
-                    if (missingPlayerIds.isNotEmpty())
-                        flushHibernateCache("${org.acronym} - players delete") {
-                            playerService.deleteBatch(missingPlayerIds)
-                        }
+                downloadAndImport(org, "players", MLE_PLAYERS_HEADERS, saveBatch) { batch, csvRow ->
+                    playerService.import(context, batch, csvRow)
                 }
             } catch (ex: Exception) {
                 log.error("${org.acronym} Player import failed", ex)

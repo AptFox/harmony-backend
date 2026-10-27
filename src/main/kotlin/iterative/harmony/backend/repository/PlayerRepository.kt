@@ -4,6 +4,7 @@ import iterative.harmony.backend.model.Organization
 import iterative.harmony.backend.model.Player
 import iterative.harmony.backend.model.Team
 import iterative.harmony.backend.model.User
+import java.time.Instant
 import java.util.Optional
 import java.util.UUID
 import org.springframework.data.jpa.repository.EntityGraph
@@ -31,4 +32,11 @@ interface PlayerRepository : JpaRepository<Player, Long>, CrudRepository<Player,
         "SELECT p.user.userId AS userId, p.id AS playerId FROM Player p WHERE p.organization = :org"
     )
     fun findPlayerIdsByOrganization(org: Organization): List<PlayerIdByUser>
+
+    @Query(
+        "SELECT p.id FROM Player p WHERE p.organization = :org AND (p.importedAt IS NULL OR p.importedAt < :cutoff)"
+    )
+    fun findStalePlayerIds(org: Organization, cutoff: Instant): List<Long>
+
+    fun countByOrganization(org: Organization): Long
 }

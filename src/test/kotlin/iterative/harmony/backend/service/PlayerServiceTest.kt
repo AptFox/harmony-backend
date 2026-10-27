@@ -11,6 +11,9 @@ import iterative.harmony.backend.model.base.LongEntity
 import iterative.harmony.backend.repository.PlayerIdByUser
 import iterative.harmony.backend.repository.PlayerRepository
 import iterative.harmony.backend.repository.UserRepository
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
 import java.util.*
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
@@ -23,13 +26,17 @@ import org.mockito.InjectMocks
 import org.mockito.Mock
 import org.mockito.Mockito.*
 import org.mockito.Mockito.`when` as whenever
+import org.mockito.Spy
 import org.mockito.junit.jupiter.MockitoExtension
+
+private val now = Instant.parse("2026-10-25T12:00:00Z")
 
 @ExtendWith(MockitoExtension::class)
 class PlayerServiceTest {
 
     @Mock private lateinit var userRepositoryMock: UserRepository
     @Mock private lateinit var playerRepositoryMock: PlayerRepository
+    @Spy private val clock: Clock = Clock.fixed(now, ZoneOffset.UTC)
 
     @InjectMocks private lateinit var playerService: PlayerService
 
@@ -119,8 +126,7 @@ class PlayerServiceTest {
             assertEquals("13.5", player.salary)
             assertEquals(4, player.currentScrimPoints)
             assertEquals("15 Oct 2026", player.eligibleThrough)
-            assertEquals(1, context.teamMatchCount)
-            assertTrue(context.seenUserIds.contains(user.userId))
+            assertEquals(now, player.importedAt)
         }
 
         @Test
@@ -138,6 +144,7 @@ class PlayerServiceTest {
             assertEquals(sharksAcademy, existing.team)
             assertEquals("PLAYERA", existing.slot)
             assertEquals("15 Oct 2026", existing.eligibleThrough)
+            assertEquals(now, existing.importedAt)
         }
 
         @Test
@@ -212,16 +219,18 @@ class PlayerServiceTest {
             stubUserLookup()
             val existing = existingPlayer()
             stubPlayerLookup(existing)
-            val context = context(listOf(existing))
 
             runBlocking {
-                playerService.import(context, mutableListOf(), row("franchise" to "Unknown"))
+                playerService.import(
+                    context(listOf(existing)),
+                    mutableListOf(),
+                    row("franchise" to "Unknown"),
+                )
             }
 
             assertNull(existing.team)
             assertNull(existing.teamRole)
             assertNull(existing.slot)
-            assertEquals(0, context.teamMatchCount)
         }
 
         @Test
@@ -244,17 +253,6 @@ class PlayerServiceTest {
         }
 
         @Test
-        fun `marks the user as seen even when the row is missing other fields`() {
-            stubUserLookup()
-            val context = context()
-
-            assertThrows<ImportException> {
-                runBlocking { playerService.import(context, mutableListOf(), row("name" to "")) }
-            }
-            assertTrue(context.seenUserIds.contains(user.userId))
-        }
-
-        @Test
         fun `throws ImportException when skill group is unknown`() {
             stubUserLookup()
 
@@ -271,118 +269,62 @@ class PlayerServiceTest {
     }
 
     @Nested
-    @DisplayName("findPlayersMissingFromImport")
-    inner class FindPlayersMissingFromImport {
-        private val missingUser = user.copy(userId = UUID.randomUUID(), discordId = "2")
+    @DisplayName("findStalePlayers")
+    inner class FindStalePlayers {
+        private val lastImportedAt = now.minusSeconds(3600)
 
-        private fun missingPlayer(team: Team? = sharksAcademy) =
+        private fun stubStalePlayers(staleIds: List<Long>, totalCount: Long) {
+            whenever(playerRepositoryMock.findStalePlayerIds(org, lastImportedAt))
+                .thenReturn(staleIds)
+            whenever(playerRepositoryMock.countByOrganization(org)).thenReturn(totalCount)
+        }
+
+        @Test
+        fun `returns players not imported since the last import`() {
+            stubStalePlayers(listOf(101L), totalCount = 20)
+
+            assertEquals(listOf(101L), playerService.findStalePlayers(org, lastImportedAt))
+        }
+
+        @Test
+        fun `returns nothing when too many players are stale`() {
+            // 3 of 20 is 15%, above the 10% maximum
+            stubStalePlayers(listOf(101L, 102L, 103L), totalCount = 20)
+
+            assertTrue(playerService.findStalePlayers(org, lastImportedAt).isEmpty())
+        }
+
+        @Test
+        fun `returns nothing when no players are stale`() {
+            whenever(playerRepositoryMock.findStalePlayerIds(org, lastImportedAt))
+                .thenReturn(emptyList())
+
+            assertTrue(playerService.findStalePlayers(org, lastImportedAt).isEmpty())
+            verify(playerRepositoryMock, never()).countByOrganization(org)
+        }
+    }
+
+    @Nested
+    @DisplayName("saveBatch")
+    inner class SaveBatch {
+        private fun newPlayer() =
             Player(
-                    name = "missing",
-                    organization = org,
-                    skillGroup = academy,
-                    team = team,
-                    user = missingUser,
-                    teamRole = "Captain",
-                    slot = "PLAYERA",
-                )
-                .withId(101)
-
-        // Builds a context with `totalSeenPlayers` existing players that were in the CSV, plus the
-        // given player that was not
-        private fun contextWith(
-            missing: Player,
-            totalSeenPlayers: Int = 20,
-            teamMatchCount: Int = 1,
-        ): PlayerImportContext {
-            val seenPlayers =
-                (1..totalSeenPlayers).map { i ->
-                    Player(
-                            name = "seen $i",
-                            organization = org,
-                            skillGroup = academy,
-                            team = null,
-                            user = user.copy(userId = UUID.randomUUID(), discordId = "seen$i"),
-                            teamRole = null,
-                        )
-                        .withId(i.toLong())
-                }
-            val context = context(seenPlayers + missing)
-            seenPlayers.forEach { context.seenUserIds.add(it.user.userId!!) }
-            context.teamMatchCount = teamMatchCount
-            return context
-        }
+                name = "new",
+                organization = org,
+                skillGroup = academy,
+                team = null,
+                user = user,
+                teamRole = null,
+            )
 
         @Test
-        fun `returns players that were not in the import`() {
-            val missing = missingPlayer()
+        fun `saves the batch`() {
+            val batch = listOf(existingPlayer(), newPlayer())
 
-            val missingPlayers =
-                playerService.findPlayersMissingFromImport(
-                    contextWith(missing),
-                    CsvParsingResult(rowsProcessed = 20, errorCount = 0),
-                )
+            runBlocking { playerService.saveBatch(batch) }
 
-            assertEquals(listOf(101L), missingPlayers)
-        }
-
-        @Test
-        fun `returns missing players that have no team`() {
-            val missing = missingPlayer(team = null)
-
-            val missingPlayers =
-                playerService.findPlayersMissingFromImport(
-                    contextWith(missing),
-                    CsvParsingResult(rowsProcessed = 20, errorCount = 0),
-                )
-
-            assertEquals(listOf(101L), missingPlayers)
-        }
-
-        @Test
-        fun `returns nothing when too few existing players were in the import`() {
-            // 5 of 6 existing players seen is ~83% coverage, below the 90% minimum
-            val context = contextWith(missingPlayer(), totalSeenPlayers = 5)
-
-            val missingPlayers =
-                playerService.findPlayersMissingFromImport(
-                    context,
-                    CsvParsingResult(rowsProcessed = 5, errorCount = 0),
-                )
-
-            assertTrue(missingPlayers.isEmpty())
-        }
-
-        @Test
-        fun `returns nothing when the error rate is too high`() {
-            val missingPlayers =
-                playerService.findPlayersMissingFromImport(
-                    contextWith(missingPlayer()),
-                    CsvParsingResult(rowsProcessed = 20, errorCount = 3),
-                )
-
-            assertTrue(missingPlayers.isEmpty())
-        }
-
-        @Test
-        fun `returns nothing when no rows matched a team`() {
-            val missingPlayers =
-                playerService.findPlayersMissingFromImport(
-                    contextWith(missingPlayer(), teamMatchCount = 0),
-                    CsvParsingResult(rowsProcessed = 20, errorCount = 0),
-                )
-
-            assertTrue(missingPlayers.isEmpty())
-        }
-
-        @Test
-        fun `returns nothing when no rows were processed`() {
-            val missingPlayers =
-                playerService.findPlayersMissingFromImport(
-                    contextWith(missingPlayer()),
-                    CsvParsingResult(rowsProcessed = 0, errorCount = 0),
-                )
-
-            assertTrue(missingPlayers.isEmpty())
+            verify(playerRepositoryMock).saveAll(batch)
+            verifyNoMoreInteractions(playerRepositoryMock)
         }
     }
 
