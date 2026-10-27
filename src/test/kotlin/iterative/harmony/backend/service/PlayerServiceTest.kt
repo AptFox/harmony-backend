@@ -10,6 +10,7 @@ import iterative.harmony.backend.model.User
 import iterative.harmony.backend.model.base.LongEntity
 import iterative.harmony.backend.repository.PlayerIdByUser
 import iterative.harmony.backend.repository.PlayerRepository
+import iterative.harmony.backend.repository.UserIdByDiscordId
 import iterative.harmony.backend.repository.UserRepository
 import java.time.Clock
 import java.time.Instant
@@ -62,13 +63,17 @@ class PlayerServiceTest {
             roles = emptySet(),
         )
 
-    private fun context(existingPlayers: List<Player> = emptyList()) =
+    private fun context(
+        existingPlayers: List<Player> = emptyList(),
+        userIdsByDiscordId: Map<String, List<UUID>> = mapOf(user.discordId to listOf(user.userId!!)),
+    ) =
         PlayerImportContext(
             org,
             listOf(sharksAcademy),
             listOf(academy, champion),
             listOf(sharks),
             existingPlayers.associate { it.user.userId!! to it.id!! },
+            userIdsByDiscordId,
         )
 
     private fun row(vararg overrides: Pair<String, String>): Map<String, String> =
@@ -97,8 +102,8 @@ class PlayerServiceTest {
             )
             .withId(100)
 
-    private fun stubUserLookup() {
-        whenever(userRepositoryMock.findByDiscordId(user.discordId)).thenReturn(Optional.of(user))
+    private fun stubUserReference() {
+        whenever(userRepositoryMock.getReferenceById(user.userId!!)).thenReturn(user)
     }
 
     private fun stubPlayerLookup(player: Player) {
@@ -111,7 +116,7 @@ class PlayerServiceTest {
 
         @Test
         fun `creates a player with team and roster fields when franchise matches a team`() {
-            stubUserLookup()
+            stubUserReference()
             val context = context()
             val batch = mutableListOf<Player>()
 
@@ -130,7 +135,6 @@ class PlayerServiceTest {
 
         @Test
         fun `overwrites an existing player's fields`() {
-            stubUserLookup()
             val existing = existingPlayer(team = null)
             stubPlayerLookup(existing)
             val batch = mutableListOf<Player>()
@@ -148,7 +152,7 @@ class PlayerServiceTest {
 
         @Test
         fun `creates only one player when the same user appears twice in a run`() {
-            stubUserLookup()
+            stubUserReference()
             val context = context()
             val batch = mutableListOf<Player>()
 
@@ -162,7 +166,6 @@ class PlayerServiceTest {
 
         @Test
         fun `loads an existing player once when the user appears twice in a batch`() {
-            stubUserLookup()
             val existing = existingPlayer()
             stubPlayerLookup(existing)
             val context = context(listOf(existing))
@@ -189,7 +192,6 @@ class PlayerServiceTest {
 
         @Test
         fun `removes player from team when franchise is FP`() {
-            stubUserLookup()
             val existing = existingPlayer()
             stubPlayerLookup(existing)
             val batch = mutableListOf<Player>()
@@ -207,7 +209,6 @@ class PlayerServiceTest {
 
         @Test
         fun `removes player from team when franchise is unknown`() {
-            stubUserLookup()
             val existing = existingPlayer()
             stubPlayerLookup(existing)
 
@@ -224,7 +225,7 @@ class PlayerServiceTest {
 
         @Test
         fun `stores a NONE slot as null`() {
-            stubUserLookup()
+            stubUserReference()
             val batch = mutableListOf<Player>()
 
             playerService.import(context(), batch, row("slot" to "NONE"))
@@ -242,8 +243,31 @@ class PlayerServiceTest {
         }
 
         @Test
+        fun `throws ImportException when no user has the discord_id`() {
+            assertThrows<ImportException> {
+                playerService.import(
+                    context(userIdsByDiscordId = emptyMap()),
+                    mutableListOf(),
+                    row(),
+                )
+            }
+        }
+
+        @Test
+        fun `throws ImportException when the discord_id belongs to more than one user`() {
+            val duplicates = mapOf(user.discordId to listOf(user.userId!!, UUID.randomUUID()))
+
+            assertThrows<ImportException> {
+                playerService.import(
+                    context(userIdsByDiscordId = duplicates),
+                    mutableListOf(),
+                    row(),
+                )
+            }
+        }
+
+        @Test
         fun `throws ImportException when skill group is unknown`() {
-            stubUserLookup()
 
             assertThrows<ImportException> {
                 playerService.import(
@@ -348,6 +372,35 @@ class PlayerServiceTest {
                 )
 
             assertEquals(mapOf(user.userId to 100L), context.playerIdsByUserId)
+        }
+
+        @Test
+        fun `groups user ids by discord id so duplicates are kept`() {
+            val otherUserId = UUID.randomUUID()
+            fun idPair(discordId: String, userId: UUID) =
+                object : UserIdByDiscordId {
+                    override val discordId = discordId
+                    override val userId = userId
+                }
+            whenever(userRepositoryMock.findAllUserIdsByDiscordId())
+                .thenReturn(
+                    listOf(
+                        idPair(user.discordId, user.userId!!),
+                        idPair("222", otherUserId),
+                        idPair("222", user.userId!!),
+                    )
+                )
+
+            val context =
+                playerService.buildImportContext(org, emptyList(), emptyList(), emptyList())
+
+            assertEquals(
+                mapOf(
+                    user.discordId to listOf(user.userId),
+                    "222" to listOf(otherUserId, user.userId),
+                ),
+                context.userIdsByDiscordId,
+            )
         }
     }
 }

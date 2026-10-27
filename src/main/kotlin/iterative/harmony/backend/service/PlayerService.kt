@@ -11,17 +11,15 @@ import iterative.harmony.backend.model.Organization
 import iterative.harmony.backend.model.Player
 import iterative.harmony.backend.model.SkillGroup
 import iterative.harmony.backend.model.Team
-import iterative.harmony.backend.model.User
+import iterative.harmony.backend.repository.FranchiseRepository
 import iterative.harmony.backend.repository.OrganizationRepository
 import iterative.harmony.backend.repository.PlayerRepository
 import iterative.harmony.backend.repository.UserRepository
 import iterative.harmony.backend.util.getLogger
 import java.time.Clock
 import java.time.Instant
-import java.util.Optional
 import java.util.UUID
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.dao.IncorrectResultSizeDataAccessException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -31,6 +29,7 @@ class PlayerImportContext(
     val skillGroups: List<SkillGroup>,
     val franchises: List<Franchise>,
     val playerIdsByUserId: Map<UUID, Long>,
+    val userIdsByDiscordId: Map<String, List<UUID>>,
 ) {
     val newPlayersByUserId: MutableMap<UUID, Player> = mutableMapOf()
 }
@@ -41,6 +40,9 @@ class PlayerService {
     @Autowired private lateinit var userRepository: UserRepository
     @Autowired private lateinit var organizationRepository: OrganizationRepository
     @Autowired private lateinit var playerRepository: PlayerRepository
+    @Autowired private lateinit var skillGroupService: SkillGroupService
+    @Autowired private lateinit var teamService: TeamService
+    @Autowired private lateinit var franchiseRepository: FranchiseRepository
     @Autowired private lateinit var playerMapper: PlayerMapper
     @Autowired private lateinit var clock: Clock
 
@@ -68,20 +70,21 @@ class PlayerService {
         return playerMapper.toPlayerResponse(player.get())
     }
 
-    fun buildImportContext(
-        org: Organization,
-        preExistingTeams: List<Team>,
-        preExistingSkillGroups: List<SkillGroup>,
-        preExistingFranchises: List<Franchise>,
-    ): PlayerImportContext {
+    fun buildImportContext(org: Organization): PlayerImportContext {
         val playerIdsByUserId =
             playerRepository.findPlayerIdsByOrganization(org).associate { it.userId to it.playerId }
+        val userIdsByDiscordId =
+            userRepository.findAllUserIdsByDiscordId().groupBy({ it.discordId }, { it.userId })
+        val preExistingTeams = teamService.getPreExistingTeamsByOrg(org)
+        val preExistingSkillGroups = skillGroupService.getPreExistingSkillGroupsByOrg(org)
+        val preExistingFranchises = franchiseRepository.findAllByOrganization(org)
         return PlayerImportContext(
             org,
             preExistingTeams,
             preExistingSkillGroups,
             preExistingFranchises,
             playerIdsByUserId,
+            userIdsByDiscordId,
         )
     }
 
@@ -91,18 +94,14 @@ class PlayerService {
         val discordId = row.valueOf("discord_id")
         if (discordId.isEmpty()) throw ImportException("Required field is missing")
 
-        var user: Optional<User>
-        try {
-            user = userRepository.findByDiscordId(discordId)
-        } catch (ex: IncorrectResultSizeDataAccessException) {
-            throw ImportException("Duplicated discordId found. Skipping.", ex)
-        }
-        if (!user.isPresent) {
+        val userIds = context.userIdsByDiscordId[discordId]
+        if (userIds == null) {
             val errorMsg = "Could not find user with discord_id to link player to. Skipping..."
             log.error("$errorMsg[discord_id: $discordId]")
             throw ImportException(errorMsg)
         }
-        val userId = user.get().userId!!
+        if (userIds.size > 1) throw ImportException("Duplicated discordId found. Skipping.")
+        val userId = userIds.single()
 
         val name = row.valueOf("name")
         val skillGroupName = row.valueOf("skill_group")
@@ -134,7 +133,7 @@ class PlayerService {
                         organization = context.org,
                         skillGroup = skillGroup,
                         team = team,
-                        user = user.get(),
+                        user = userRepository.getReferenceById(userId),
                         teamRole = teamRole,
                     )
                 }

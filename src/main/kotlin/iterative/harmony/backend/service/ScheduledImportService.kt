@@ -8,7 +8,6 @@ import iterative.harmony.backend.model.SkillGroup
 import iterative.harmony.backend.model.Team
 import iterative.harmony.backend.model.User
 import iterative.harmony.backend.repository.DataSourceRepository
-import iterative.harmony.backend.repository.FranchiseRepository
 import iterative.harmony.backend.repository.OrganizationRepository
 import iterative.harmony.backend.repository.RoleRepository
 import iterative.harmony.backend.util.RoleConstants
@@ -40,7 +39,6 @@ class ScheduledImportService {
     @Autowired private lateinit var orgRepository: OrganizationRepository
     @Autowired private lateinit var dataSourceRepository: DataSourceRepository
     @Autowired private lateinit var roleRepository: RoleRepository
-    @Autowired private lateinit var franchiseRepository: FranchiseRepository
     @Autowired private lateinit var csvParsingService: CsvParsingService
     @Autowired private lateinit var skillGroupService: SkillGroupService
     @Autowired private lateinit var teamService: TeamService
@@ -282,9 +280,7 @@ class ScheduledImportService {
         val saveBatch: (batch: List<Team>) -> Unit = { batch -> teamService.saveBatch(batch) }
         orgRepository.findAll().forEach { org ->
             try {
-                val preExistingSkillGroups = skillGroupService.getPreExistingSkillGroupsByOrg(org)
-                val preExistingTeams = teamService.getPreExistingTeamsByOrg(org)
-
+                val context = teamService.buildImportContext(org)
                 downloadAndImport(
                     org,
                     "teams",
@@ -292,7 +288,7 @@ class ScheduledImportService {
                     saveBatch,
                     DAILY_IMPORT_INTERVAL,
                 ) { batch, csvRow ->
-                    teamService.import(org, batch, csvRow, preExistingSkillGroups, preExistingTeams)
+                    teamService.import(context, batch, csvRow)
                 }
             } catch (ex: Exception) {
                 log.error("${org.acronym} Team import failed", ex)
@@ -320,16 +316,7 @@ class ScheduledImportService {
         val saveBatch: (batch: List<Player>) -> Unit = { batch -> playerService.saveBatch(batch) }
         orgRepository.findAll().forEach { org ->
             try {
-                val preExistingTeams = teamService.getPreExistingTeamsByOrg(org)
-                val preExistingSkillGroups = skillGroupService.getPreExistingSkillGroupsByOrg(org)
-                val preExistingFranchises = franchiseRepository.findAllByOrganization(org)
-                val context =
-                    playerService.buildImportContext(
-                        org,
-                        preExistingTeams,
-                        preExistingSkillGroups,
-                        preExistingFranchises,
-                    )
+                val context = playerService.buildImportContext(org)
                 downloadAndImport(org, "players", MLE_PLAYERS_HEADERS, saveBatch) { batch, csvRow ->
                     playerService.import(context, batch, csvRow)
                 }

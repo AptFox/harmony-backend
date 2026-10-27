@@ -8,8 +8,16 @@ import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.stereotype.Repository
 
+interface UserIdByDiscordId {
+    val discordId: String
+    val userId: UUID
+}
+
 @Repository
 interface UserRepository : JpaRepository<User, UUID> {
+    @Query("SELECT u.discordId AS discordId, u.userId AS userId FROM User u")
+    fun findAllUserIdsByDiscordId(): List<UserIdByDiscordId>
+
     @Query(
         "SELECT u FROM User u LEFT JOIN FETCH u.players p LEFT JOIN FETCH p.organization o WHERE u.userId = :id"
     )

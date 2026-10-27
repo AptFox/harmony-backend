@@ -15,11 +15,19 @@ import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
+class TeamImportContext(
+    val org: Organization,
+    val preExistingTeams: List<Team>,
+    val preExistingSkillGroups: List<SkillGroup>,
+)
+
 @Service
 class TeamService {
     @Autowired private lateinit var teamRepository: TeamRepository
     @Autowired private lateinit var franchiseRepository: FranchiseRepository
     @Autowired private lateinit var teamMapper: TeamMapper
+    @Autowired private lateinit var skillGroupService: SkillGroupService
+    @Autowired private lateinit var teamService: TeamService
 
     @Cacheable(value = [FRANCHISE_TEAMS], key = "#franchiseId")
     fun getTeamsForFranchise(franchiseId: Long): List<TeamResponse> {
@@ -28,27 +36,28 @@ class TeamService {
         return teamMapper.toTeamResponseList(teams)
     }
 
-    fun import(
-        org: Organization,
-        batch: MutableList<Team>,
-        row: Map<String, String>,
-        preExistingSkillGroups: List<SkillGroup>,
-        preExistingTeams: List<Team>,
-    ) {
+    fun buildImportContext(org: Organization): TeamImportContext {
+        val preExistingTeams = teamService.getPreExistingTeamsByOrg(org)
+        val preExistingSkillGroups = skillGroupService.getPreExistingSkillGroupsByOrg(org)
+        return TeamImportContext(org, preExistingTeams, preExistingSkillGroups)
+    }
+
+    fun import(context: TeamImportContext, batch: MutableList<Team>, row: Map<String, String>) {
         val importedName = row["Franchise"].toString()
         val importedAcronym = row["Code"].toString()
         val importedImageUrl = row["Photo URL"].toString()
         if (importedName.isEmpty() || importedAcronym.isEmpty() || importedImageUrl.isEmpty())
             throw ImportException("Required field is missing")
 
-        val franchiseFromDb = franchiseRepository.findByOrganizationAndName(org, importedName)
+        val franchiseFromDb =
+            franchiseRepository.findByOrganizationAndName(context.org, importedName)
         val franchise =
             if (!franchiseFromDb.isEmpty) {
                 franchiseFromDb.get()
             } else {
                 franchiseRepository.save(
                     Franchise(
-                        organization = org,
+                        organization = context.org,
                         name = importedName,
                         acronym = importedAcronym,
                         imageUrl = importedImageUrl,
@@ -56,19 +65,19 @@ class TeamService {
                 )
             }
 
-        preExistingSkillGroups.forEach { skillGroup ->
+        context.preExistingSkillGroups.forEach { skillGroup ->
             val acronymAndName = "${skillGroup.acronym} $importedName"
             val preExistingTeam =
-                preExistingTeams.find { team ->
+                context.preExistingTeams.find { team ->
                     team.name == acronymAndName &&
-                        team.organization.id == org.id &&
+                        team.organization.id == context.org.id &&
                         team.skillGroup.id == skillGroup.id &&
                         team.franchise.id == franchise.id
                 }
             if (preExistingTeam == null) {
                 batch.add(
                     Team(
-                        organization = org,
+                        organization = context.org,
                         skillGroup = skillGroup,
                         franchise = franchise,
                         name = acronymAndName,
