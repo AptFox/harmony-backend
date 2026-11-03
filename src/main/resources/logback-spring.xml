@@ -5,7 +5,7 @@
     <springProfile name="local,dev">
         <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
             <encoder>
-                <pattern>%d{HH:mm:ss.SSS} %-5level %logger{1}: requestId=%X{requestId} user=%X{userId} - %msg%n%rEx{10}</pattern>
+                <pattern>%d{HH:mm:ss.SSS} %-5level %logger{1} (%file:%line): requestId=%X{requestId} user=%X{userId} name=%X{displayName} - %msg%n%rEx{10}</pattern>
             </encoder>
         </appender>
     </springProfile>
@@ -14,6 +14,7 @@
         <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
             <encoder class="net.logstash.logback.encoder.LogstashEncoder">
                 <includeMdc>true</includeMdc>
+                <includeCallerData>true</includeCallerData>
                 <timeZone>UTC</timeZone>
             </encoder>
         </appender>

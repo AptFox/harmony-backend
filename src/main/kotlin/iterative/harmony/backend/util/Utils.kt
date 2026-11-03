@@ -25,6 +25,11 @@ class Utils {
         return authentication?.name ?: ANON_USER_ID
     }
 
+    fun getDisplayNameFromSecurityContext(): String? {
+        val details = SecurityContextHolder.getContext()?.authentication?.details as? Map<*, *>
+        return details?.get("displayName") as? String
+    }
+
     /**
      * Creates a unique user agent string from the supplied request.
      *
@@ -32,7 +37,7 @@ class Utils {
      * @return "userAgent|ipPrefix"
      */
     fun getUserAgentFromRequest(request: HttpServletRequest): String {
-        val userAgent = request.getHeader("User-Agent")?.trim() ?: ANON_USER_AGENT
+        val userAgent = getUserAgentHeader(request)
         val rawIp =
             request.getHeader("X-Forwarded-For")?.split(",")?.firstOrNull()
                 ?: request.remoteAddr
@@ -55,15 +60,17 @@ class Utils {
     }
 
     /**
-     * Returns a user agent fingerprint string based on the request's User-Agent header and the
-     * client's IP address.
+     * Returns a user agent fingerprint string based on the request's User-Agent header.
      *
      * @param request The HttpServletRequest object containing the request information.
      * @return A hashed fingerprint representing the user agent.
      */
     fun generateUserAgentFingerprint(request: HttpServletRequest): String {
-        val uniqueUserAgent = getUserAgentFromRequest(request)
-        return generateFingerprint(uniqueUserAgent)
+        return generateFingerprint(getUserAgentHeader(request))
+    }
+
+    private fun getUserAgentHeader(request: HttpServletRequest): String {
+        return request.getHeader("User-Agent")?.trim() ?: ANON_USER_AGENT
     }
 
     fun verifyTimeZone(timeZone: String) {

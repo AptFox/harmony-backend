@@ -3,8 +3,10 @@ package iterative.harmony.backend.config
 import io.jsonwebtoken.JwtException
 import io.sentry.Sentry
 import iterative.harmony.backend.exception.AccessTokenMissingOrMalformedInRequestException
+import iterative.harmony.backend.exception.TokenFingerprintMismatchException
 import iterative.harmony.backend.service.JwtTokenService
 import iterative.harmony.backend.util.Utils
+import iterative.harmony.backend.util.getLogger
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -17,6 +19,7 @@ import org.springframework.web.filter.OncePerRequestFilter
 class JwtAuthenticationFilter : OncePerRequestFilter() {
 
     @Autowired private lateinit var tokenService: JwtTokenService
+    private val log = getLogger()
 
     override fun shouldNotFilter(request: HttpServletRequest): Boolean {
         try {
@@ -40,6 +43,11 @@ class JwtAuthenticationFilter : OncePerRequestFilter() {
             SecurityContextHolder.getContext().authentication = auth
             filterChain.doFilter(request, response)
         } catch (ex: Exception) {
+            if (ex is TokenFingerprintMismatchException) {
+                val msg =
+                    "Access token fingerprint mismatch: tokenFingerprint=${ex.tokenFingerprint}, requestFingerprint=${ex.requestFingerprint}"
+                log.error(msg, ex)
+            }
             if (ex !is JwtException && ex !is AccessTokenMissingOrMalformedInRequestException) {
                 Sentry.captureException(ex)
             }

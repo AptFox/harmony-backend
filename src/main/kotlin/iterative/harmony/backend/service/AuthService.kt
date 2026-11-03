@@ -5,6 +5,7 @@ import iterative.harmony.backend.util.SecurityConstants.AUTH_PATH
 import iterative.harmony.backend.util.SecurityConstants.COOKIE_EXPIRATION_IN_SECONDS
 import iterative.harmony.backend.util.SecurityConstants.REFRESH_TOKEN_NAME
 import iterative.harmony.backend.util.getLogger
+import iterative.harmony.backend.util.setDisplayNameInLogs
 import iterative.harmony.backend.util.setUserIdInLogs
 import java.util.UUID
 import org.springframework.beans.factory.annotation.Autowired
@@ -55,10 +56,18 @@ class AuthService {
         tokenService.deleteExpiredRefreshTokensForUser(userId)
         tokenService.deleteExcessRefreshTokensForUser(userId)
 
+        val user = userService.getUserById(userId)
+        setDisplayNameInLogs(user.displayName)
+
         log.debug("Issuing new access and refresh tokens")
-        val roles = userService.getCurrentUserRoles(userId)
+        val roles = user.roles.map { it.name }
         val newAccessToken =
-            tokenService.generateAccessToken(userId.toString(), userAgentFingerprint, roles)
+            tokenService.generateAccessToken(
+                userId.toString(),
+                userAgentFingerprint,
+                roles,
+                user.displayName,
+            )
         val newRefreshToken =
             tokenService.generateRefreshToken(userId.toString(), userAgentFingerprint)
         val newRefreshTokenCookie =

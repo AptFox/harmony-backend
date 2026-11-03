@@ -83,6 +83,35 @@ class UtilsTest {
         }
     }
 
+    @Nested
+    @DisplayName("generateUserAgentFingerprint")
+    inner class GenerateUserAgentFingerprint() {
+        @Test
+        fun `returns a hash of only the User-Agent header`() {
+            val request = mock(HttpServletRequest::class.java)
+            val userAgent = "MySuperCoolComputer"
+
+            whenever(request.getHeader("User-Agent")).thenReturn(userAgent)
+
+            val expected = Utils().generateFingerprint(userAgent)
+            val actual = Utils().generateUserAgentFingerprint(request)
+
+            assertEquals(expected, actual)
+        }
+
+        @Test
+        fun `when User-Agent request header is missing, returns a hash of the anonymous user agent`() {
+            val request = mock(HttpServletRequest::class.java)
+
+            whenever(request.getHeader("User-Agent")).thenReturn(null)
+
+            val expected = Utils().generateFingerprint(ANON_USER_AGENT)
+            val actual = Utils().generateUserAgentFingerprint(request)
+
+            assertEquals(expected, actual)
+        }
+    }
+
     @Test
     fun `generateFingerprint should return a hash of whatever string it's supplied`() {
         val str = "test|127"

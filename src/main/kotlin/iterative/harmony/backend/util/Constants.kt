@@ -44,6 +44,7 @@ object AvailabilityConstants {
 
 object LogConstants {
     const val USER_ID = "userId"
+    const val DISPLAY_NAME = "displayName"
     const val REQUEST_ID = "requestId"
     const val SCHEDULED_TASK = "scheduledTask"
     const val REQUEST_METHOD = "requestMethod"

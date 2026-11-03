@@ -65,7 +65,7 @@ class SecurityConfigTest {
         val authorities = listOf(SimpleGrantedAuthority(USER_ROLE))
         val auth = UsernamePasswordAuthenticationToken(userId, null, authorities)
         val userAgent = "SomeUserAgent"
-        val userAgentFingerprint = Utils().generateFingerprint("${userAgent}|127")
+        val userAgentFingerprint = Utils().generateFingerprint(userAgent)
 
         whenever(
                 jwtTokenService.getAuthenticationFromAccessToken(

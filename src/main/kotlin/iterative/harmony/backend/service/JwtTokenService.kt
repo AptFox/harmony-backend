@@ -43,11 +43,13 @@ class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
         userId: String,
         fingerprint: String,
         roles: List<String>,
+        displayName: String,
         utils: Utils = Utils(),
     ): String {
         val claims = Jwts.claims().setSubject(userId)
         claims["roles"] = roles
         claims["fp"] = fingerprint
+        claims["name"] = displayName
         val tokenIssuedAt = utils.getCurrentTimeInMillisRounded()
         val tokenExpiration = tokenIssuedAt + ACCESS_TOKEN_DURATION_IN_MILLIS
 
@@ -134,7 +136,10 @@ class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
             setUserIdInLogs(tokenFromClaims.userId)
 
             if (tokenFromClaims.fingerprint != userAgentFingerprint)
-                throw TokenFingerprintMismatchException()
+                throw TokenFingerprintMismatchException(
+                    tokenFromClaims.fingerprint,
+                    userAgentFingerprint,
+                )
 
             val tokenFromDb = refreshTokenRepository.findByJti(tokenFromClaims.jti!!).get()
             val tokenIsExpired = Date(tokenFromDb.expiresAt).before(Date())
@@ -148,6 +153,9 @@ class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
         } catch (ex: NoSuchElementException) {
             throw RefreshTokenNotInDBException(ex)
         } catch (ex: TokenFingerprintMismatchException) {
+            val msg =
+                "Refresh token fingerprint mismatch: tokenFingerprint=${ex.tokenFingerprint}, requestFingerprint=${ex.requestFingerprint}"
+            log.error(msg, ex)
             throw ex
         } catch (ex: RefreshTokenFieldMismatchException) {
             throw ex
@@ -189,14 +197,15 @@ class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
         val accessTokenFingerprint = accessTokenClaims.get("fp", String::class.java)
 
         if (accessTokenFingerprint != userAgentFingerprint)
-            throw TokenFingerprintMismatchException()
+            throw TokenFingerprintMismatchException(accessTokenFingerprint, userAgentFingerprint)
 
         val userId = accessTokenClaims.subject
         val roles = accessTokenClaims.get("roles", List::class.java).filterIsInstance<String>()
+        val displayName = accessTokenClaims.get("name", String::class.java)
 
         val authorities = roles.map { role -> SimpleGrantedAuthority(role) }
         val auth = UsernamePasswordAuthenticationToken(userId, null, authorities)
-        auth.details = mapOf("userId" to userId) // I can probably put more info here
+        auth.details = mapOf("userId" to userId, "displayName" to displayName)
         return auth
     }
 

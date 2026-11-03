@@ -2,6 +2,8 @@ package iterative.harmony.backend.service
 
 import iterative.harmony.backend.exception.RefreshTokenNotInRequestException
 import iterative.harmony.backend.model.RefreshToken
+import iterative.harmony.backend.model.Role
+import iterative.harmony.backend.model.User
 import iterative.harmony.backend.util.SecurityConstants.AUTH_PATH
 import iterative.harmony.backend.util.SecurityConstants.COOKIE_EXPIRATION_IN_SECONDS
 import iterative.harmony.backend.util.SecurityConstants.REFRESH_TOKEN_NAME
@@ -89,20 +91,24 @@ class AuthServiceTest {
         @Test
         fun `should return new access and refresh tokens`() {
             val userId = UUID.randomUUID()
-            val userRoles = listOf("ROLE_USER")
+            val userRole = Role("ROLE_USER", "The default role for a user")
+            val userRoles = listOf(userRole.name)
+            val displayName = "someDisplayName"
+            val user = User(userId, "username", displayName, true, "1", null, null, setOf(userRole))
             val refreshTokenFromRequest = "validRefreshToken"
-            val userAgent = "SomeUserAgent|127"
+            val userAgent = "SomeUserAgent"
             val refreshTokenMock =
                 mock(RefreshToken::class.java).apply { whenever(this.userId).thenReturn(userId) }
 
             whenever(tokenService.verifyRefreshToken(refreshTokenFromRequest, userAgent))
                 .thenReturn(refreshTokenMock)
-            whenever(userService.getCurrentUserRoles(userId)).thenReturn(userRoles)
+            whenever(userService.getUserById(userId)).thenReturn(user)
             whenever(
                     tokenService.generateAccessToken(
                         eq(userId.toString()),
                         eq(userAgent),
                         eq(userRoles),
+                        eq(displayName),
                         any(),
                     )
                 )
@@ -126,6 +132,7 @@ class AuthServiceTest {
             val actual = authService.rotateTokens(refreshTokenFromRequest, userAgent)
 
             assertEquals(expected, actual)
+            assertEquals(displayName, MDC.get("displayName"))
         }
     }
 }
