@@ -2,9 +2,11 @@ package iterative.harmony.backend.service
 
 import io.github.bucket4j.Bandwidth
 import io.github.bucket4j.Bucket
+import iterative.harmony.backend.exception.UnparseableTokenException
 import iterative.harmony.backend.util.SecurityConstants.ANON_USER_ID
 import iterative.harmony.backend.util.SecurityConstants.AUTH_PREFIX
 import iterative.harmony.backend.util.SecurityConstants.NON_AUTH_PREFIX
+import iterative.harmony.backend.util.SecurityConstants.REFRESH_TOKEN_NAME
 import iterative.harmony.backend.util.Utils
 import iterative.harmony.backend.util.setUserIdInLogs
 import jakarta.servlet.http.HttpServletRequest
@@ -12,21 +14,30 @@ import java.net.Inet6Address
 import java.net.InetAddress
 import java.net.UnknownHostException
 import java.time.Duration
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
+import org.springframework.web.util.WebUtils
 
 @Service
 class RateLimiterService() {
+    @Autowired private lateinit var tokenService: JwtTokenService
     private val AUTH_REQUEST_LIMIT: Long = 5L
     private val ALL_REQUEST_LIMIT: Long = 100L
 
-    /** Returns the rate limit key: the user ID if authenticated, otherwise the client's network. */
+    /**
+     * Returns the rate limit key: the user ID if authenticated or if an auth request has a valid
+     * refresh token, otherwise the client's network.
+     */
     fun getRequestId(request: HttpServletRequest): String {
         val userId = Utils().getUserIdFromSecurityContext()
         setUserIdInLogs(userId)
-        val authPrefix =
-            if (request.requestURI.startsWith("/$AUTH_PREFIX/")) AUTH_PREFIX else NON_AUTH_PREFIX
+        val isAuthRequest = request.requestURI.startsWith("/$AUTH_PREFIX/")
+        val authPrefix = if (isAuthRequest) AUTH_PREFIX else NON_AUTH_PREFIX
 
         if (userId != ANON_USER_ID) return "$authPrefix|$userId"
+
+        val refreshTokenUserId = if (isAuthRequest) getUserIdFromRefreshToken(request) else null
+        if (refreshTokenUserId != null) return "$authPrefix|$refreshTokenUserId"
 
         val clientNetwork = getClientNetwork(Utils().getClientIp(request))
         return "$authPrefix|$ANON_USER_ID|$clientNetwork"
@@ -36,6 +47,16 @@ class RateLimiterService() {
         val isAuthEndpoint = requestId.startsWith(AUTH_PREFIX)
         val bucket = requestBuckets.computeIfAbsent(requestId) { createBucket(isAuthEndpoint) }
         return bucket.tryConsume(1)
+    }
+
+    /** Returns the user ID from the request's refresh token, or null if it's missing or invalid. */
+    private fun getUserIdFromRefreshToken(request: HttpServletRequest): String? {
+        val refreshToken = WebUtils.getCookie(request, REFRESH_TOKEN_NAME)?.value ?: return null
+        return try {
+            tokenService.getClaims(refreshToken).subject
+        } catch (ex: UnparseableTokenException) {
+            null
+        }
     }
 
     /**

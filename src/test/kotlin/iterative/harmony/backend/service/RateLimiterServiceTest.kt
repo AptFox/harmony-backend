@@ -1,24 +1,35 @@
 package iterative.harmony.backend.service
 
 import io.github.bucket4j.Bucket
+import io.jsonwebtoken.Jwts
+import iterative.harmony.backend.exception.UnparseableTokenException
 import iterative.harmony.backend.util.SecurityConstants.ANON_REQUEST_IP
 import iterative.harmony.backend.util.SecurityConstants.ANON_USER_ID
 import iterative.harmony.backend.util.SecurityConstants.AUTH_PREFIX
 import iterative.harmony.backend.util.SecurityConstants.NON_AUTH_PREFIX
+import iterative.harmony.backend.util.SecurityConstants.REFRESH_TOKEN_NAME
+import jakarta.servlet.http.Cookie
 import jakarta.servlet.http.HttpServletRequest
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
+import org.mockito.InjectMocks
+import org.mockito.Mock
+import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.*
+import org.springframework.mock.web.MockHttpServletRequest
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.context.SecurityContext
 import org.springframework.security.core.context.SecurityContextHolder
 
+@ExtendWith(MockitoExtension::class)
 class RateLimiterServiceTest {
 
-    private val rateLimiterService = RateLimiterService()
+    @Mock private lateinit var tokenService: JwtTokenService
+    @InjectMocks private lateinit var rateLimiterService: RateLimiterService
     private val requestBuckets = mutableMapOf<String, Bucket>()
 
     @BeforeEach
@@ -36,13 +47,15 @@ class RateLimiterServiceTest {
     @DisplayName("getRequestId")
     inner class GetRequestId() {
         fun setupRequestMock(
-            requestIp: String? = testIp,
-            uri: String? = userEndpoint,
+            requestIp: String = testIp,
+            uri: String = userEndpoint,
+            refreshToken: String? = null,
         ): HttpServletRequest {
-            return mock<HttpServletRequest> {
-                on { remoteAddr } doReturn requestIp
-                on { requestURI } doReturn uri
-            }
+            val request = MockHttpServletRequest()
+            request.remoteAddr = requestIp
+            request.requestURI = uri
+            if (refreshToken != null) request.setCookies(Cookie(REFRESH_TOKEN_NAME, refreshToken))
+            return request
         }
 
         @Test
@@ -67,7 +80,11 @@ class RateLimiterServiceTest {
 
         @Test
         fun `returns the anonymous IP if no IP and unauthenticated`() {
-            val request = setupRequestMock(null)
+            val request =
+                mock<HttpServletRequest> {
+                    on { remoteAddr } doReturn null
+                    on { requestURI } doReturn userEndpoint
+                }
             val actual = rateLimiterService.getRequestId(request)
             val expected = "$NON_AUTH_PREFIX|$ANON_USER_ID|$ANON_REQUEST_IP"
             assertEquals(expected, actual)
@@ -79,6 +96,37 @@ class RateLimiterServiceTest {
             val actual = rateLimiterService.getRequestId(request)
             val expected = "$AUTH_PREFIX|$ANON_USER_ID|$testIp"
             assertEquals(expected, actual)
+        }
+
+        @Test
+        fun `returns the refresh token user ID if auth request has a valid refresh token`() {
+            val refreshToken = "validRefreshToken"
+            val claims = Jwts.claims().setSubject(testUserId)
+            whenever(tokenService.getClaims(refreshToken)).thenReturn(claims)
+            val request = setupRequestMock(uri = refreshTokenEndpoint, refreshToken = refreshToken)
+            val actual = rateLimiterService.getRequestId(request)
+            val expected = "$AUTH_PREFIX|$testUserId"
+            assertEquals(expected, actual)
+        }
+
+        @Test
+        fun `returns the client IP if auth request has an invalid refresh token`() {
+            val refreshToken = "invalidRefreshToken"
+            whenever(tokenService.getClaims(refreshToken))
+                .thenThrow(UnparseableTokenException(Exception("invalid")))
+            val request = setupRequestMock(uri = refreshTokenEndpoint, refreshToken = refreshToken)
+            val actual = rateLimiterService.getRequestId(request)
+            val expected = "$AUTH_PREFIX|$ANON_USER_ID|$testIp"
+            assertEquals(expected, actual)
+        }
+
+        @Test
+        fun `ignores the refresh token on non-auth requests`() {
+            val request = setupRequestMock(refreshToken = "validRefreshToken")
+            val actual = rateLimiterService.getRequestId(request)
+            val expected = "$NON_AUTH_PREFIX|$ANON_USER_ID|$testIp"
+            assertEquals(expected, actual)
+            verify(tokenService, never()).getClaims(any())
         }
 
         @Test
