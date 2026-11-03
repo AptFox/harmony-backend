@@ -60,8 +60,7 @@ class LoggingFilter : OncePerRequestFilter() {
         val requestUri = request.requestURI
         val query = request.queryString?.let { "?$it" } ?: ""
         val requestPath = "$requestUri$query"
-        val clientIp =
-            request.getHeader("X-Forwarded-For")?.split(",")?.first() ?: request.remoteAddr
+        val clientIp = Utils().getClientIp(request)
         val userId = Utils().getUserIdFromSecurityContext()
         val userIdPrefix = userId.take(8)
         MDC.put(USER_ID, userIdPrefix)

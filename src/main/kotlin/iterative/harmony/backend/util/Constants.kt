@@ -28,8 +28,8 @@ object SecurityConstants {
     const val AUTH_PREFIX: String = "auth"
     const val NON_AUTH_PREFIX: String = "nonAuth"
     const val ANON_USER_ID: String = "ANON"
-    const val ANON_USER_AGENT: String = "ANON_BROWSER"
     const val ANON_REQUEST_IP: String = "0.0.0.0"
+    const val CF_CONNECTING_IP_HEADER: String = "CF-Connecting-IP"
 }
 
 object AvailabilityConstants {

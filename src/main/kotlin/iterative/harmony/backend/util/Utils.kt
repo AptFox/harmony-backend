@@ -2,8 +2,8 @@ package iterative.harmony.backend.util
 
 import iterative.harmony.backend.exception.FingerprintNotInRequestException
 import iterative.harmony.backend.util.SecurityConstants.ANON_REQUEST_IP
-import iterative.harmony.backend.util.SecurityConstants.ANON_USER_AGENT
 import iterative.harmony.backend.util.SecurityConstants.ANON_USER_ID
+import iterative.harmony.backend.util.SecurityConstants.CF_CONNECTING_IP_HEADER
 import iterative.harmony.backend.util.SecurityConstants.FINGERPRINT_COOKIE_NAME
 import jakarta.servlet.http.HttpServletRequest
 import java.nio.charset.StandardCharsets
@@ -34,20 +34,9 @@ class Utils {
         return details?.get("displayName") as? String
     }
 
-    /**
-     * Creates a unique user agent string from the supplied request.
-     *
-     * @param request the HttpServletRequest
-     * @return "userAgent|ipPrefix"
-     */
-    fun getUserAgentFromRequest(request: HttpServletRequest): String {
-        val userAgent = getUserAgentHeader(request)
-        val rawIp =
-            request.getHeader("X-Forwarded-For")?.split(",")?.firstOrNull()
-                ?: request.remoteAddr
-                ?: ANON_REQUEST_IP
-        val ipPrefix = rawIp.substringBefore('.')
-        return "${userAgent}|${ipPrefix}"
+    /** Returns the client IP from Cloudflare's CF-Connecting-IP header, or remoteAddr locally. */
+    fun getClientIp(request: HttpServletRequest): String {
+        return request.getHeader(CF_CONNECTING_IP_HEADER) ?: request.remoteAddr ?: ANON_REQUEST_IP
     }
 
     /** Generates a random fingerprint that binds tokens to the browser they were issued to. */
@@ -82,10 +71,6 @@ class Utils {
             WebUtils.getCookie(request, FINGERPRINT_COOKIE_NAME)
                 ?: throw FingerprintNotInRequestException()
         return fingerprintCookie.value
-    }
-
-    private fun getUserAgentHeader(request: HttpServletRequest): String {
-        return request.getHeader("User-Agent")?.trim() ?: ANON_USER_AGENT
     }
 
     fun verifyTimeZone(timeZone: String) {
