@@ -6,6 +6,7 @@ import iterative.harmony.backend.service.JwtTokenService
 import iterative.harmony.backend.service.UserService
 import iterative.harmony.backend.util.RoleConstants.USER_ROLE
 import iterative.harmony.backend.util.SecurityConstants.ACCESS_TOKEN_NAME
+import iterative.harmony.backend.util.SecurityConstants.FINGERPRINT_COOKIE_NAME
 import iterative.harmony.backend.util.SecurityConstants.REFRESH_TOKEN_NAME
 import iterative.harmony.backend.util.Utils
 import jakarta.servlet.http.Cookie
@@ -64,26 +65,23 @@ class SecurityConfigTest {
         whenever(userService.getCurrentUser(any())).thenReturn(expectedUser)
         val authorities = listOf(SimpleGrantedAuthority(USER_ROLE))
         val auth = UsernamePasswordAuthenticationToken(userId, null, authorities)
-        val userAgent = "SomeUserAgent"
-        val userAgentFingerprint = Utils().generateFingerprint(userAgent)
+        val fingerprint = "someFingerprint"
+        val fingerprintHash = Utils().hashFingerprint(fingerprint)
 
         whenever(
-                jwtTokenService.getAuthenticationFromAccessToken(
-                    accessTokenString,
-                    userAgentFingerprint,
-                )
+                jwtTokenService.getAuthenticationFromAccessToken(accessTokenString, fingerprintHash)
             )
             .thenReturn(auth)
 
         val multiValueMap = LinkedMultiValueMap<String, String>()
         multiValueMap.add("Authorization", "Bearer $accessTokenString")
-        multiValueMap.add("User-Agent", userAgent)
 
         mockMvc
             .perform(
                 MockMvcRequestBuilders.get("/api/user/@me")
                     .contentType("application/json")
                     .headers(HttpHeaders(multiValueMap))
+                    .cookie(Cookie(FINGERPRINT_COOKIE_NAME, fingerprint))
             )
             .andExpect(
                 MockMvcResultMatchers.content()
@@ -105,6 +103,10 @@ class SecurityConfigTest {
     @Nested
     @DisplayName("anonymousUser")
     inner class AnonymousUser() {
+        private val fingerprint = "someFingerprint"
+        private val fingerprintCookieString: String =
+            ResponseCookie.from(FINGERPRINT_COOKIE_NAME, fingerprint).build().toString()
+
         @Test
         @WithAnonymousUser
         fun `anonymous user can access public endpoints`() {
@@ -148,16 +150,19 @@ class SecurityConfigTest {
                 .thenReturn(refreshTokenCookie)
             whenever(authService.generateEmptyRefreshTokenCookie())
                 .thenReturn(refreshTokenCookieString)
+            whenever(authService.generateEmptyFingerprintCookie())
+                .thenReturn(fingerprintCookieString)
 
             mockMvc
                 .perform(
                     MockMvcRequestBuilders.post("/auth/logout")
                         .cookie(Cookie(REFRESH_TOKEN_NAME, refreshTokenCookie))
+                        .cookie(Cookie(FINGERPRINT_COOKIE_NAME, fingerprint))
                 )
                 .andExpect(MockMvcResultMatchers.status().isOk)
                 .andExpect(
                     MockMvcResultMatchers.header()
-                        .stringValues(SET_COOKIE, refreshTokenCookieString)
+                        .stringValues(SET_COOKIE, refreshTokenCookieString, fingerprintCookieString)
                 )
         }
 
@@ -172,13 +177,20 @@ class SecurityConfigTest {
                 .thenReturn(refreshTokenCookie)
             whenever(authService.rotateTokens(eq(refreshTokenCookie), any()))
                 .thenReturn(Pair("someNewAccessToken", refreshTokenCookieString))
+            whenever(authService.generateFingerprintCookie(fingerprint))
+                .thenReturn(fingerprintCookieString)
 
             mockMvc
                 .perform(
                     MockMvcRequestBuilders.post("/auth/refresh_token")
                         .cookie(Cookie(REFRESH_TOKEN_NAME, refreshTokenCookie))
+                        .cookie(Cookie(FINGERPRINT_COOKIE_NAME, fingerprint))
                 )
                 .andExpect(MockMvcResultMatchers.status().isOk)
+                .andExpect(
+                    MockMvcResultMatchers.header()
+                        .stringValues(SET_COOKIE, refreshTokenCookieString, fingerprintCookieString)
+                )
                 .andExpect(
                     MockMvcResultMatchers.content()
                         .string("{\"$ACCESS_TOKEN_NAME\":\"someNewAccessToken\"}")

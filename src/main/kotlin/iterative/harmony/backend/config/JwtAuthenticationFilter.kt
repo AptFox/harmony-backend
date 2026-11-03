@@ -37,9 +37,9 @@ class JwtAuthenticationFilter : OncePerRequestFilter() {
     ) {
         try {
             val accessToken = getAccessTokenFromRequest(request)
-            val userAgentFingerprint = Utils().generateUserAgentFingerprint(request)
-            val auth =
-                tokenService.getAuthenticationFromAccessToken(accessToken, userAgentFingerprint)
+            val fingerprint = Utils().getFingerprintFromRequest(request)
+            val fingerprintHash = Utils().hashFingerprint(fingerprint)
+            val auth = tokenService.getAuthenticationFromAccessToken(accessToken, fingerprintHash)
             SecurityContextHolder.getContext().authentication = auth
             filterChain.doFilter(request, response)
         } catch (ex: Exception) {

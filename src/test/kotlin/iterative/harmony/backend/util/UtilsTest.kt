@@ -1,6 +1,9 @@
 package iterative.harmony.backend.util
 
+import iterative.harmony.backend.exception.FingerprintNotInRequestException
 import iterative.harmony.backend.util.SecurityConstants.ANON_USER_AGENT
+import iterative.harmony.backend.util.SecurityConstants.FINGERPRINT_COOKIE_NAME
+import jakarta.servlet.http.Cookie
 import jakarta.servlet.http.HttpServletRequest
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
@@ -10,6 +13,7 @@ import org.junit.jupiter.api.extension.ExtendWith
 import org.mockito.Mockito.mock
 import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.whenever
+import org.springframework.mock.web.MockHttpServletRequest
 
 @ExtendWith(MockitoExtension::class)
 class UtilsTest {
@@ -84,40 +88,42 @@ class UtilsTest {
     }
 
     @Nested
-    @DisplayName("generateUserAgentFingerprint")
-    inner class GenerateUserAgentFingerprint() {
+    @DisplayName("getFingerprintFromRequest")
+    inner class GetFingerprintFromRequest() {
         @Test
-        fun `returns a hash of only the User-Agent header`() {
-            val request = mock(HttpServletRequest::class.java)
-            val userAgent = "MySuperCoolComputer"
+        fun `returns the value of the fingerprint cookie`() {
+            val request = MockHttpServletRequest()
+            request.setCookies(Cookie(FINGERPRINT_COOKIE_NAME, "someFingerprint"))
 
-            whenever(request.getHeader("User-Agent")).thenReturn(userAgent)
+            val actual = Utils().getFingerprintFromRequest(request)
 
-            val expected = Utils().generateFingerprint(userAgent)
-            val actual = Utils().generateUserAgentFingerprint(request)
-
-            assertEquals(expected, actual)
+            assertEquals("someFingerprint", actual)
         }
 
         @Test
-        fun `when User-Agent request header is missing, returns a hash of the anonymous user agent`() {
-            val request = mock(HttpServletRequest::class.java)
+        fun `when the fingerprint cookie is missing, throws FingerprintNotInRequestException`() {
+            val request = MockHttpServletRequest()
 
-            whenever(request.getHeader("User-Agent")).thenReturn(null)
-
-            val expected = Utils().generateFingerprint(ANON_USER_AGENT)
-            val actual = Utils().generateUserAgentFingerprint(request)
-
-            assertEquals(expected, actual)
+            assertThrows(FingerprintNotInRequestException::class.java) {
+                Utils().getFingerprintFromRequest(request)
+            }
         }
     }
 
     @Test
-    fun `generateFingerprint should return a hash of whatever string it's supplied`() {
+    fun `generateRandomFingerprint should return a different value each time`() {
+        val first = Utils().generateRandomFingerprint()
+        val second = Utils().generateRandomFingerprint()
+
+        assertNotEquals(first, second)
+    }
+
+    @Test
+    fun `hashFingerprint should return a hash of whatever string it's supplied`() {
         val str = "test|127"
 
         val expected = "vEY_qaH5tmgiQ3p8i-2N2Y4YulOEFhDZbPU-j4v69cI"
-        val actual = Utils().generateFingerprint(str)
+        val actual = Utils().hashFingerprint(str)
 
         assertEquals(expected, actual)
     }

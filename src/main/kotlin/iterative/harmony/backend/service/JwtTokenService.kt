@@ -129,16 +129,16 @@ class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
         )
     }
 
-    fun verifyRefreshToken(refreshToken: String, userAgentFingerprint: String): RefreshToken {
+    fun verifyRefreshToken(refreshToken: String, fingerprintHash: String): RefreshToken {
         try {
             val tokenClaims = getClaims(refreshToken)
             val tokenFromClaims = getRefreshTokenFromClaims(tokenClaims)
             setUserIdInLogs(tokenFromClaims.userId)
 
-            if (tokenFromClaims.fingerprint != userAgentFingerprint)
+            if (tokenFromClaims.fingerprint != fingerprintHash)
                 throw TokenFingerprintMismatchException(
                     tokenFromClaims.fingerprint,
-                    userAgentFingerprint,
+                    fingerprintHash,
                 )
 
             val tokenFromDb = refreshTokenRepository.findByJti(tokenFromClaims.jti!!).get()
@@ -191,13 +191,13 @@ class JwtTokenService(@Value("\${jwt.secret}") private val secretKey: String) {
 
     fun getAuthenticationFromAccessToken(
         accessToken: String,
-        userAgentFingerprint: String,
+        fingerprintHash: String,
     ): Authentication {
         val accessTokenClaims = getClaims(accessToken)
         val accessTokenFingerprint = accessTokenClaims.get("fp", String::class.java)
 
-        if (accessTokenFingerprint != userAgentFingerprint)
-            throw TokenFingerprintMismatchException(accessTokenFingerprint, userAgentFingerprint)
+        if (accessTokenFingerprint != fingerprintHash)
+            throw TokenFingerprintMismatchException(accessTokenFingerprint, fingerprintHash)
 
         val userId = accessTokenClaims.subject
         val roles = accessTokenClaims.get("roles", List::class.java).filterIsInstance<String>()
