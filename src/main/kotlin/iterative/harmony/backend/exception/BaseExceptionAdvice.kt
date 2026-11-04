@@ -23,6 +23,7 @@ class BaseExceptionAdvice {
             AccessTokenMissingOrMalformedInRequestException::class,
             RefreshTokenNotInRequestException::class,
             RefreshTokenExpiredException::class,
+            TokenFingerprintMismatchException::class,
         )
     @Autowired private lateinit var environment: Environment
 

@@ -1,5 +1,6 @@
 package iterative.harmony.backend.util
 
+import iterative.harmony.backend.util.LogConstants.DISPLAY_NAME
 import iterative.harmony.backend.util.LogConstants.SCHEDULED_TASK
 import iterative.harmony.backend.util.LogConstants.USER_ID
 import java.util.UUID
@@ -21,6 +22,10 @@ fun setUserIdInLogs(userId: UUID) {
 fun setUserIdInLogs(userId: String) {
     val userIdPrefix = userId.take(8)
     MDC.put(USER_ID, userIdPrefix)
+}
+
+fun setDisplayNameInLogs(displayName: String?) {
+    if (displayName != null) MDC.put(DISPLAY_NAME, displayName)
 }
 
 fun setScheduledTaskInLogs(task: String) {

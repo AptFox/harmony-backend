@@ -2,14 +2,18 @@ package iterative.harmony.backend.service
 
 import iterative.harmony.backend.exception.RefreshTokenNotInRequestException
 import iterative.harmony.backend.model.RefreshToken
+import iterative.harmony.backend.model.Role
+import iterative.harmony.backend.model.User
 import iterative.harmony.backend.util.SecurityConstants.AUTH_PATH
 import iterative.harmony.backend.util.SecurityConstants.COOKIE_EXPIRATION_IN_SECONDS
+import iterative.harmony.backend.util.SecurityConstants.FINGERPRINT_COOKIE_NAME
 import iterative.harmony.backend.util.SecurityConstants.REFRESH_TOKEN_NAME
 import java.text.SimpleDateFormat
 import java.util.*
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -49,6 +53,26 @@ class AuthServiceTest {
     }
 
     @Test
+    fun `generateFingerprintCookie should return an HttpOnly cookie sent on every path`() {
+        whenever(environment.activeProfiles).thenReturn(arrayOf("test"))
+        val actual = authService.generateFingerprintCookie("someFingerprint")
+
+        assertTrue(actual.startsWith("${FINGERPRINT_COOKIE_NAME}=someFingerprint; Path=/; "))
+        assertTrue(actual.contains("Max-Age=${COOKIE_EXPIRATION_IN_SECONDS}"))
+        assertTrue(actual.endsWith("Secure; HttpOnly; SameSite=None"))
+    }
+
+    @Test
+    fun `generateEmptyFingerprintCookie should return an empty, expired cookie`() {
+        val expected =
+            "${FINGERPRINT_COOKIE_NAME}=; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Secure; HttpOnly; SameSite=None"
+        whenever(environment.activeProfiles).thenReturn(arrayOf("test"))
+        val actual = authService.generateEmptyFingerprintCookie()
+
+        assertEquals(expected, actual)
+    }
+
+    @Test
     fun `throwIfNoRefreshToken should throw if refreshToken is null or empty`() {
         assertThrows(RefreshTokenNotInRequestException::class.java) {
             authService.throwIfNoRefreshToken(null)
@@ -67,17 +91,17 @@ class AuthServiceTest {
     @Test
     fun `deleteRefreshToken should verify and delete refresh token`() {
         val refreshToken = "refreshToken"
-        val userAgentFingerprint = "userAgent"
+        val fingerprintHash = "someFingerprintHash"
         val userId = UUID.randomUUID()
         val refreshTokenMock =
             mock(RefreshToken::class.java).apply { whenever(this.userId).thenReturn(userId) }
 
-        whenever(tokenService.verifyRefreshToken(refreshToken, userAgentFingerprint))
+        whenever(tokenService.verifyRefreshToken(refreshToken, fingerprintHash))
             .thenReturn(refreshTokenMock)
 
-        authService.deleteRefreshToken(refreshToken, userAgentFingerprint)
+        authService.deleteRefreshToken(refreshToken, fingerprintHash)
 
-        verify(tokenService).verifyRefreshToken(refreshToken, userAgentFingerprint)
+        verify(tokenService).verifyRefreshToken(refreshToken, fingerprintHash)
         verify(tokenService).deleteRefreshToken(refreshTokenMock)
         assertEquals(userId.toString().take(8), MDC.get("userId"))
     }
@@ -89,25 +113,35 @@ class AuthServiceTest {
         @Test
         fun `should return new access and refresh tokens`() {
             val userId = UUID.randomUUID()
-            val userRoles = listOf("ROLE_USER")
+            val userRole = Role("ROLE_USER", "The default role for a user")
+            val userRoles = listOf(userRole.name)
+            val displayName = "someDisplayName"
+            val user = User(userId, "username", displayName, true, "1", null, null, setOf(userRole))
             val refreshTokenFromRequest = "validRefreshToken"
-            val userAgent = "SomeUserAgent|127"
+            val fingerprintHash = "someFingerprintHash"
             val refreshTokenMock =
                 mock(RefreshToken::class.java).apply { whenever(this.userId).thenReturn(userId) }
 
-            whenever(tokenService.verifyRefreshToken(refreshTokenFromRequest, userAgent))
+            whenever(tokenService.verifyRefreshToken(refreshTokenFromRequest, fingerprintHash))
                 .thenReturn(refreshTokenMock)
-            whenever(userService.getCurrentUserRoles(userId)).thenReturn(userRoles)
+            whenever(userService.getUserById(userId)).thenReturn(user)
             whenever(
                     tokenService.generateAccessToken(
                         eq(userId.toString()),
-                        eq(userAgent),
+                        eq(fingerprintHash),
                         eq(userRoles),
+                        eq(displayName),
                         any(),
                     )
                 )
                 .thenReturn("newAccessToken")
-            whenever(tokenService.generateRefreshToken(eq(userId.toString()), eq(userAgent), any()))
+            whenever(
+                    tokenService.generateRefreshToken(
+                        eq(userId.toString()),
+                        eq(fingerprintHash),
+                        any(),
+                    )
+                )
                 .thenReturn("newRefreshToken")
             whenever(environment.activeProfiles).thenReturn(arrayOf("test"))
 
@@ -123,9 +157,10 @@ class AuthServiceTest {
                     "newAccessToken",
                     "${REFRESH_TOKEN_NAME}=newRefreshToken; Path=${AUTH_PATH}; Max-Age=${COOKIE_EXPIRATION_IN_SECONDS.toLong()}; Expires=${expirationString}; Secure; HttpOnly; SameSite=None",
                 )
-            val actual = authService.rotateTokens(refreshTokenFromRequest, userAgent)
+            val actual = authService.rotateTokens(refreshTokenFromRequest, fingerprintHash)
 
             assertEquals(expected, actual)
+            assertEquals(displayName, MDC.get("displayName"))
         }
     }
 }

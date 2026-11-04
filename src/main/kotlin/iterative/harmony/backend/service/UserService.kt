@@ -54,12 +54,10 @@ class UserService {
         return userRepository.save(updatedUser)
     }
 
-    fun getCurrentUserRoles(userId: UUID): List<String> {
-        val user = userRepository.findById(userId)
-        if (!user.isPresent) {
-            throw UserNotFoundException(userId.toString())
+    fun getUserById(userId: UUID): User {
+        return userRepository.findById(userId).orElseThrow {
+            UserNotFoundException(userId.toString())
         }
-        return user.get().roles.map { it.name }
     }
 
     @Cacheable(value = [USER_BY_ID], key = "#userId")

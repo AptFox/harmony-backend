@@ -3,6 +3,8 @@ package iterative.harmony.backend.config
 import iterative.harmony.backend.service.JwtTokenService
 import iterative.harmony.backend.util.SecurityConstants.AUTH_PATH
 import iterative.harmony.backend.util.SecurityConstants.COOKIE_EXPIRATION_IN_SECONDS
+import iterative.harmony.backend.util.SecurityConstants.FINGERPRINT_COOKIE_NAME
+import iterative.harmony.backend.util.SecurityConstants.FINGERPRINT_COOKIE_PATH
 import iterative.harmony.backend.util.SecurityConstants.REFRESH_TOKEN_NAME
 import iterative.harmony.backend.util.Utils
 import jakarta.servlet.http.Cookie
@@ -24,14 +26,14 @@ class OAuth2LoginSuccessHandler : AuthenticationSuccessHandler {
 
     @Autowired private lateinit var jwtTokenService: JwtTokenService
 
-    private fun createRefreshTokenCookie(refreshToken: String): Cookie {
+    private fun createCookie(name: String, value: String, cookiePath: String): Cookie {
         val isDevEnv = environment.activeProfiles.contains("dev")
         val secureCookie = !isDevEnv
         val sameSite = if (isDevEnv) "Lax" else "None"
-        return Cookie(REFRESH_TOKEN_NAME, refreshToken).apply {
+        return Cookie(name, value).apply {
             isHttpOnly = true
             secure = secureCookie
-            path = AUTH_PATH
+            path = cookiePath
             maxAge = COOKIE_EXPIRATION_IN_SECONDS
             setAttribute("SameSite", sameSite)
         }
@@ -45,11 +47,14 @@ class OAuth2LoginSuccessHandler : AuthenticationSuccessHandler {
         val principal = authentication.principal as DefaultOAuth2User
         val userId = principal.name
 
-        val userAgentFingerprint = Utils().generateUserAgentFingerprint(request)
-        val refreshToken = jwtTokenService.generateRefreshToken(userId, userAgentFingerprint)
-        val refreshTokenCookie = createRefreshTokenCookie(refreshToken)
+        val fingerprint = Utils().generateRandomFingerprint()
+        val fingerprintHash = Utils().hashFingerprint(fingerprint)
+        val refreshToken = jwtTokenService.generateRefreshToken(userId, fingerprintHash)
 
-        response.addCookie(refreshTokenCookie)
+        response.addCookie(createCookie(REFRESH_TOKEN_NAME, refreshToken, AUTH_PATH))
+        response.addCookie(
+            createCookie(FINGERPRINT_COOKIE_NAME, fingerprint, FINGERPRINT_COOKIE_PATH)
+        )
 
         response.contentType = "application/json"
         response.characterEncoding = "UTF-8"

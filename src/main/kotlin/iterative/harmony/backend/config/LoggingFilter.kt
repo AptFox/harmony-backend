@@ -10,6 +10,7 @@ import iterative.harmony.backend.util.LogConstants.USER_ID
 import iterative.harmony.backend.util.Utils
 import iterative.harmony.backend.util.clearLoggingContext
 import iterative.harmony.backend.util.getLogger
+import iterative.harmony.backend.util.setDisplayNameInLogs
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -59,11 +60,11 @@ class LoggingFilter : OncePerRequestFilter() {
         val requestUri = request.requestURI
         val query = request.queryString?.let { "?$it" } ?: ""
         val requestPath = "$requestUri$query"
-        val clientIp =
-            request.getHeader("X-Forwarded-For")?.split(",")?.first() ?: request.remoteAddr
+        val clientIp = Utils().getClientIp(request)
         val userId = Utils().getUserIdFromSecurityContext()
         val userIdPrefix = userId.take(8)
         MDC.put(USER_ID, userIdPrefix)
+        setDisplayNameInLogs(Utils().getDisplayNameFromSecurityContext())
         MDC.put(REQUEST_ID, requestId)
         MDC.put(REQUEST_METHOD, request.method)
         MDC.put(REQUEST_PATH, requestPath)
