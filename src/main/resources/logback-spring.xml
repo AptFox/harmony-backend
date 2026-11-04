@@ -3,9 +3,10 @@
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
 
     <springProfile name="local,dev">
+        <evaluator name="ON_ERROR" class="ch.qos.logback.classic.boolex.OnErrorEvaluator"/>
         <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
             <encoder>
-                <pattern>%d{HH:mm:ss.SSS} %-5level %logger{1}: requestId=%X{requestId} user=%X{userId} - %msg%n%rEx{10}</pattern>
+                <pattern>%d{HH:mm:ss.SSS} %-5level %logger{1}: requestId=%X{requestId} user=%X{userId} name=%X{displayName} - %msg%n%caller{1, ON_ERROR}%rEx{10}</pattern>
             </encoder>
         </appender>
     </springProfile>

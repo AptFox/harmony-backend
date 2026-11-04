@@ -5,6 +5,8 @@ import io.sentry.Sentry
 import iterative.harmony.backend.exception.AccessTokenMissingOrMalformedInRequestException
 import iterative.harmony.backend.service.JwtTokenService
 import iterative.harmony.backend.util.Utils
+import iterative.harmony.backend.util.getLogger
+import iterative.harmony.backend.util.setDisplayNameInLogs
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -17,6 +19,7 @@ import org.springframework.web.filter.OncePerRequestFilter
 class JwtAuthenticationFilter : OncePerRequestFilter() {
 
     @Autowired private lateinit var tokenService: JwtTokenService
+    private val log = getLogger()
 
     override fun shouldNotFilter(request: HttpServletRequest): Boolean {
         try {
@@ -34,12 +37,14 @@ class JwtAuthenticationFilter : OncePerRequestFilter() {
     ) {
         try {
             val accessToken = getAccessTokenFromRequest(request)
-            val userAgentFingerprint = Utils().generateUserAgentFingerprint(request)
-            val auth =
-                tokenService.getAuthenticationFromAccessToken(accessToken, userAgentFingerprint)
+            val fingerprint = Utils().getFingerprintFromRequest(request)
+            val fingerprintHash = Utils().hashFingerprint(fingerprint)
+            val auth = tokenService.getAuthenticationFromAccessToken(accessToken, fingerprintHash)
             SecurityContextHolder.getContext().authentication = auth
+            setDisplayNameInLogs(Utils().getDisplayNameFromSecurityContext())
             filterChain.doFilter(request, response)
         } catch (ex: Exception) {
+            log.error(ex.message, ex)
             if (ex !is JwtException && ex !is AccessTokenMissingOrMalformedInRequestException) {
                 Sentry.captureException(ex)
             }

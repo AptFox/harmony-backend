@@ -94,24 +94,22 @@ class UserServiceTest {
     }
 
     @Nested
-    @DisplayName("getCurrentUserRoles")
-    inner class GetCurrentUserRoles {
+    @DisplayName("getUserById")
+    inner class GetUserById {
         @Test
-        fun `should return the current user roles`() {
+        fun `should return the user`() {
             whenever(userRepositoryMock.findById(uuid)).thenReturn(Optional.of(expectedUser))
 
-            val actualRoles = userService.getCurrentUserRoles(uuid)
+            val actualUser = userService.getUserById(uuid)
 
-            assertEquals(userRoles, actualRoles)
+            assertEquals(expectedUser, actualUser)
         }
 
         @Test
         fun `should throw UserNotFoundException when user does not exist`() {
             whenever(userRepositoryMock.findById(uuid)).thenReturn(Optional.empty())
 
-            assertThrows(UserNotFoundException::class.java) {
-                userService.getCurrentUserRoles(uuid)
-            }
+            assertThrows(UserNotFoundException::class.java) { userService.getUserById(uuid) }
         }
     }
 

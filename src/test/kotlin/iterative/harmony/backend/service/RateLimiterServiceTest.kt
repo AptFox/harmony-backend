@@ -1,24 +1,35 @@
 package iterative.harmony.backend.service
 
 import io.github.bucket4j.Bucket
-import iterative.harmony.backend.util.SecurityConstants.ANON_USER_AGENT
+import io.jsonwebtoken.Jwts
+import iterative.harmony.backend.exception.UnparseableTokenException
+import iterative.harmony.backend.util.SecurityConstants.ANON_REQUEST_IP
 import iterative.harmony.backend.util.SecurityConstants.ANON_USER_ID
 import iterative.harmony.backend.util.SecurityConstants.AUTH_PREFIX
 import iterative.harmony.backend.util.SecurityConstants.NON_AUTH_PREFIX
+import iterative.harmony.backend.util.SecurityConstants.REFRESH_TOKEN_NAME
+import jakarta.servlet.http.Cookie
 import jakarta.servlet.http.HttpServletRequest
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
+import org.mockito.InjectMocks
+import org.mockito.Mock
+import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.*
+import org.springframework.mock.web.MockHttpServletRequest
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.context.SecurityContext
 import org.springframework.security.core.context.SecurityContextHolder
 
+@ExtendWith(MockitoExtension::class)
 class RateLimiterServiceTest {
 
-    private val rateLimiterService = RateLimiterService()
+    @Mock private lateinit var tokenService: JwtTokenService
+    @InjectMocks private lateinit var rateLimiterService: RateLimiterService
     private val requestBuckets = mutableMapOf<String, Bucket>()
 
     @BeforeEach
@@ -29,7 +40,6 @@ class RateLimiterServiceTest {
 
     val testUserId = "testUser"
     val testIp = "1.2.3.4"
-    val ipBlock = testIp.substringBefore(".")
     val userEndpoint = "/api/user/@me"
     val refreshTokenEndpoint = "/auth/refresh_token"
 
@@ -37,40 +47,46 @@ class RateLimiterServiceTest {
     @DisplayName("getRequestId")
     inner class GetRequestId() {
         fun setupRequestMock(
-            requestIp: String? = testIp,
-            uri: String? = userEndpoint,
+            requestIp: String = testIp,
+            uri: String = userEndpoint,
+            refreshToken: String? = null,
         ): HttpServletRequest {
-            return mock<HttpServletRequest> {
-                on { remoteAddr } doReturn requestIp
-                on { requestURI } doReturn uri
-            }
+            val request = MockHttpServletRequest()
+            request.remoteAddr = requestIp
+            request.requestURI = uri
+            if (refreshToken != null) request.setCookies(Cookie(REFRESH_TOKEN_NAME, refreshToken))
+            return request
         }
 
         @Test
-        fun `returns user name if authenticated`() {
+        fun `returns only the user ID if authenticated`() {
             val authenticationMock = mock<Authentication> { on { name } doReturn testUserId }
             val securityContextMock =
                 mock<SecurityContext> { on { authentication } doReturn authenticationMock }
             SecurityContextHolder.setContext(securityContextMock)
             val request = setupRequestMock()
             val actual = rateLimiterService.getRequestId(request)
-            val expected = "$NON_AUTH_PREFIX|$testUserId|$ANON_USER_AGENT|$ipBlock"
+            val expected = "$NON_AUTH_PREFIX|$testUserId"
             assertEquals(expected, actual)
         }
 
         @Test
-        fun `returns IP if unauthenticated`() {
+        fun `returns the full IPv4 address if unauthenticated`() {
             val request = setupRequestMock()
             val actual = rateLimiterService.getRequestId(request)
-            val expected = "$NON_AUTH_PREFIX|$ANON_USER_ID|$ANON_USER_AGENT|$ipBlock"
+            val expected = "$NON_AUTH_PREFIX|$ANON_USER_ID|$testIp"
             assertEquals(expected, actual)
         }
 
         @Test
-        fun `returns unknown if no IP and unauthenticated`() {
-            val request = setupRequestMock(null)
+        fun `returns the anonymous IP if no IP and unauthenticated`() {
+            val request =
+                mock<HttpServletRequest> {
+                    on { remoteAddr } doReturn null
+                    on { requestURI } doReturn userEndpoint
+                }
             val actual = rateLimiterService.getRequestId(request)
-            val expected = "$NON_AUTH_PREFIX|$ANON_USER_ID|$ANON_USER_AGENT|0"
+            val expected = "$NON_AUTH_PREFIX|$ANON_USER_ID|$ANON_REQUEST_IP"
             assertEquals(expected, actual)
         }
 
@@ -78,7 +94,72 @@ class RateLimiterServiceTest {
         fun `returns with auth prefix if auth request`() {
             val request = setupRequestMock(uri = refreshTokenEndpoint)
             val actual = rateLimiterService.getRequestId(request)
-            val expected = "$AUTH_PREFIX|$ANON_USER_ID|$ANON_USER_AGENT|$ipBlock"
+            val expected = "$AUTH_PREFIX|$ANON_USER_ID|$testIp"
+            assertEquals(expected, actual)
+        }
+
+        @Test
+        fun `returns the refresh token user ID if auth request has a valid refresh token`() {
+            val refreshToken = "validRefreshToken"
+            val claims = Jwts.claims().setSubject(testUserId)
+            whenever(tokenService.getClaims(refreshToken)).thenReturn(claims)
+            val request = setupRequestMock(uri = refreshTokenEndpoint, refreshToken = refreshToken)
+            val actual = rateLimiterService.getRequestId(request)
+            val expected = "$AUTH_PREFIX|$testUserId"
+            assertEquals(expected, actual)
+        }
+
+        @Test
+        fun `returns the client IP if auth request has an invalid refresh token`() {
+            val refreshToken = "invalidRefreshToken"
+            whenever(tokenService.getClaims(refreshToken))
+                .thenThrow(UnparseableTokenException(Exception("invalid")))
+            val request = setupRequestMock(uri = refreshTokenEndpoint, refreshToken = refreshToken)
+            val actual = rateLimiterService.getRequestId(request)
+            val expected = "$AUTH_PREFIX|$ANON_USER_ID|$testIp"
+            assertEquals(expected, actual)
+        }
+
+        @Test
+        fun `ignores the refresh token on non-auth requests`() {
+            val request = setupRequestMock(refreshToken = "validRefreshToken")
+            val actual = rateLimiterService.getRequestId(request)
+            val expected = "$NON_AUTH_PREFIX|$ANON_USER_ID|$testIp"
+            assertEquals(expected, actual)
+            verify(tokenService, never()).getClaims(any())
+        }
+
+        @Test
+        fun `returns the 64 bit network prefix for an IPv6 address`() {
+            val request = setupRequestMock("2001:db8:85a3:1234:5678:8a2e:370:7334")
+            val actual = rateLimiterService.getRequestId(request)
+            val expected = "$NON_AUTH_PREFIX|$ANON_USER_ID|2001:db8:85a3:1234:0:0:0:0/64"
+            assertEquals(expected, actual)
+        }
+
+        @Test
+        fun `IPv6 addresses in the same 64 bit network share a key`() {
+            val first = setupRequestMock("2001:db8:85a3:1234::1")
+            val second = setupRequestMock("2001:db8:85a3:1234:ffff:ffff:ffff:ffff")
+            assertEquals(
+                rateLimiterService.getRequestId(first),
+                rateLimiterService.getRequestId(second),
+            )
+        }
+
+        @Test
+        fun `returns the IPv4 address for an IPv4-mapped IPv6 address`() {
+            val request = setupRequestMock("::ffff:1.2.3.4")
+            val actual = rateLimiterService.getRequestId(request)
+            val expected = "$NON_AUTH_PREFIX|$ANON_USER_ID|1.2.3.4"
+            assertEquals(expected, actual)
+        }
+
+        @Test
+        fun `returns the raw value if the IP is not an IP literal`() {
+            val request = setupRequestMock("not:an-ip")
+            val actual = rateLimiterService.getRequestId(request)
+            val expected = "$NON_AUTH_PREFIX|$ANON_USER_ID|not:an-ip"
             assertEquals(expected, actual)
         }
     }

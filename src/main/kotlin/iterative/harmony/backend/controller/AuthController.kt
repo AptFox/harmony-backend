@@ -27,14 +27,17 @@ class AuthController {
         request: HttpServletRequest,
     ): ResponseEntity<String> {
         val nonNullRefreshToken = authService.throwIfNoRefreshToken(refreshToken)
-        val userAgentFingerprint = Utils().generateUserAgentFingerprint(request)
-        authService.deleteRefreshToken(nonNullRefreshToken, userAgentFingerprint)
+        val fingerprint = Utils().getFingerprintFromRequest(request)
+        val fingerprintHash = Utils().hashFingerprint(fingerprint)
+        authService.deleteRefreshToken(nonNullRefreshToken, fingerprintHash)
 
         val emptyRefreshTokenCookie = authService.generateEmptyRefreshTokenCookie()
+        val emptyFingerprintCookie = authService.generateEmptyFingerprintCookie()
 
         return ResponseEntity.status(200)
             .headers { headers ->
-                headers.set(SET_COOKIE, emptyRefreshTokenCookie)
+                headers.add(SET_COOKIE, emptyRefreshTokenCookie)
+                headers.add(SET_COOKIE, emptyFingerprintCookie)
                 headers.set(CONTENT_TYPE, "application/json")
             }
             .build()
@@ -46,12 +49,15 @@ class AuthController {
         request: HttpServletRequest,
     ): ResponseEntity<String> {
         val nonNullRefreshToken = authService.throwIfNoRefreshToken(refreshTokenFromRequest)
-        val userAgentFingerprint = Utils().generateUserAgentFingerprint(request)
+        val fingerprint = Utils().getFingerprintFromRequest(request)
+        val fingerprintHash = Utils().hashFingerprint(fingerprint)
         val (newAccessToken, newRefreshTokenCookie) =
-            authService.rotateTokens(nonNullRefreshToken, userAgentFingerprint)
+            authService.rotateTokens(nonNullRefreshToken, fingerprintHash)
+
+        val renewedFingerprintCookie = authService.generateFingerprintCookie(fingerprint)
 
         return ResponseEntity.ok()
-            .header(SET_COOKIE, newRefreshTokenCookie)
+            .header(SET_COOKIE, newRefreshTokenCookie, renewedFingerprintCookie)
             .body(ObjectMapper().writeValueAsString(mapOf(ACCESS_TOKEN_NAME to newAccessToken)))
     }
 }

@@ -3,8 +3,11 @@ package iterative.harmony.backend.service
 import iterative.harmony.backend.exception.RefreshTokenNotInRequestException
 import iterative.harmony.backend.util.SecurityConstants.AUTH_PATH
 import iterative.harmony.backend.util.SecurityConstants.COOKIE_EXPIRATION_IN_SECONDS
+import iterative.harmony.backend.util.SecurityConstants.FINGERPRINT_COOKIE_NAME
+import iterative.harmony.backend.util.SecurityConstants.FINGERPRINT_COOKIE_PATH
 import iterative.harmony.backend.util.SecurityConstants.REFRESH_TOKEN_NAME
 import iterative.harmony.backend.util.getLogger
+import iterative.harmony.backend.util.setDisplayNameInLogs
 import iterative.harmony.backend.util.setUserIdInLogs
 import java.util.UUID
 import org.springframework.beans.factory.annotation.Autowired
@@ -21,7 +24,20 @@ class AuthService {
     private val log = getLogger()
 
     fun generateEmptyRefreshTokenCookie(): String {
-        return generateRefreshTokenCookie("", 0)
+        return generateCookie(REFRESH_TOKEN_NAME, "", AUTH_PATH, 0)
+    }
+
+    fun generateFingerprintCookie(fingerprint: String): String {
+        return generateCookie(
+            FINGERPRINT_COOKIE_NAME,
+            fingerprint,
+            FINGERPRINT_COOKIE_PATH,
+            COOKIE_EXPIRATION_IN_SECONDS,
+        )
+    }
+
+    fun generateEmptyFingerprintCookie(): String {
+        return generateCookie(FINGERPRINT_COOKIE_NAME, "", FINGERPRINT_COOKIE_PATH, 0)
     }
 
     fun throwIfNoRefreshToken(refreshToken: String?): String {
@@ -29,8 +45,8 @@ class AuthService {
         return refreshToken
     }
 
-    fun deleteRefreshToken(refreshToken: String, userAgentFingerprint: String) {
-        val refreshTokenFromDb = tokenService.verifyRefreshToken(refreshToken, userAgentFingerprint)
+    fun deleteRefreshToken(refreshToken: String, fingerprintHash: String) {
+        val refreshTokenFromDb = tokenService.verifyRefreshToken(refreshToken, fingerprintHash)
         setUserIdInLogs(refreshTokenFromDb.userId)
         log.debug("Logging out")
         tokenService.deleteRefreshToken(refreshTokenFromDb)
@@ -40,14 +56,15 @@ class AuthService {
      * Rotates the refresh token and issues a new access token.
      *
      * @param refreshTokenFromRequest The string value of the refresh token from the request.
+     * @param fingerprintHash The hash of the fingerprint cookie from the request.
      * @return A pair containing the new access token and the new refresh token cookie respectively.
      */
     fun rotateTokens(
         refreshTokenFromRequest: String,
-        userAgentFingerprint: String,
+        fingerprintHash: String,
     ): Pair<String, String> {
         val refreshTokenFromDb =
-            tokenService.verifyRefreshToken(refreshTokenFromRequest, userAgentFingerprint)
+            tokenService.verifyRefreshToken(refreshTokenFromRequest, fingerprintHash)
         val userId: UUID = refreshTokenFromDb.userId
         setUserIdInLogs(userId)
 
@@ -55,29 +72,43 @@ class AuthService {
         tokenService.deleteExpiredRefreshTokensForUser(userId)
         tokenService.deleteExcessRefreshTokensForUser(userId)
 
+        val user = userService.getUserById(userId)
+        setDisplayNameInLogs(user.displayName)
+
         log.debug("Issuing new access and refresh tokens")
-        val roles = userService.getCurrentUserRoles(userId)
+        val roles = user.roles.map { it.name }
         val newAccessToken =
-            tokenService.generateAccessToken(userId.toString(), userAgentFingerprint, roles)
-        val newRefreshToken =
-            tokenService.generateRefreshToken(userId.toString(), userAgentFingerprint)
+            tokenService.generateAccessToken(
+                userId.toString(),
+                fingerprintHash,
+                roles,
+                user.displayName,
+            )
+        val newRefreshToken = tokenService.generateRefreshToken(userId.toString(), fingerprintHash)
         val newRefreshTokenCookie =
-            generateRefreshTokenCookie(newRefreshToken, COOKIE_EXPIRATION_IN_SECONDS)
+            generateCookie(
+                REFRESH_TOKEN_NAME,
+                newRefreshToken,
+                AUTH_PATH,
+                COOKIE_EXPIRATION_IN_SECONDS,
+            )
 
         return Pair(newAccessToken, newRefreshTokenCookie)
     }
 
-    private fun generateRefreshTokenCookie(
-        refreshToken: String,
+    private fun generateCookie(
+        name: String,
+        value: String,
+        path: String,
         cookieExpirationInSeconds: Int,
     ): String {
         val isDevEnv = environment.activeProfiles.contains("dev")
         val secureCookie = !isDevEnv
         val sameSite = if (isDevEnv) "Lax" else "None"
-        return ResponseCookie.from(REFRESH_TOKEN_NAME, refreshToken)
+        return ResponseCookie.from(name, value)
             .httpOnly(true)
             .secure(secureCookie)
-            .path(AUTH_PATH)
+            .path(path)
             .maxAge(cookieExpirationInSeconds.toLong())
             .sameSite(sameSite)
             .build()

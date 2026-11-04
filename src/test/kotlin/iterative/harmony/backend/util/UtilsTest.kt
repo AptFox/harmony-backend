@@ -1,6 +1,10 @@
 package iterative.harmony.backend.util
 
-import iterative.harmony.backend.util.SecurityConstants.ANON_USER_AGENT
+import iterative.harmony.backend.exception.FingerprintNotInRequestException
+import iterative.harmony.backend.util.SecurityConstants.ANON_REQUEST_IP
+import iterative.harmony.backend.util.SecurityConstants.CF_CONNECTING_IP_HEADER
+import iterative.harmony.backend.util.SecurityConstants.FINGERPRINT_COOKIE_NAME
+import jakarta.servlet.http.Cookie
 import jakarta.servlet.http.HttpServletRequest
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
@@ -10,6 +14,7 @@ import org.junit.jupiter.api.extension.ExtendWith
 import org.mockito.Mockito.mock
 import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.whenever
+import org.springframework.mock.web.MockHttpServletRequest
 
 @ExtendWith(MockitoExtension::class)
 class UtilsTest {
@@ -27,68 +32,72 @@ class UtilsTest {
     }
 
     @Nested
-    @DisplayName("getUserAgentFromRequest")
-    inner class GetUserAgentFromRequest() {
-
+    @DisplayName("getClientIp")
+    inner class GetClientIp() {
         @Test
-        fun `when User-Agent request header is missing, returns unknown for userAgent`() {
-            val request = mock(HttpServletRequest::class.java)
-            val ipAddress = "198.168.1.1"
+        fun `returns the CF-Connecting-IP header when present`() {
+            val request = MockHttpServletRequest()
+            request.addHeader(CF_CONNECTING_IP_HEADER, "198.168.1.1")
+            request.addHeader("X-Forwarded-For", "6.6.6.6")
+            request.remoteAddr = "10.0.0.1"
 
-            whenever(request.getHeader("User-Agent")).thenReturn(null)
-            whenever(request.getHeader("X-Forwarded-For")).thenReturn(ipAddress)
-
-            val expected = "$ANON_USER_AGENT|198"
-            val actual = Utils().getUserAgentFromRequest(request)
-
-            assertEquals(expected, actual)
+            assertEquals("198.168.1.1", Utils().getClientIp(request))
         }
 
-        @Nested
-        @DisplayName("when X-Forwarded-For header is missing")
-        inner class whenForwardedForHeaderIsMissing() {
-            @Test
-            fun `returns request remoteAddr`() {
-                val request = mock(HttpServletRequest::class.java)
-                val ipAddress = null
-                val remoteAddr = "178.168.1.1"
-                val userAgent = "MySuperCoolComputer"
+        @Test
+        fun `when CF-Connecting-IP header is missing, returns request remoteAddr`() {
+            val request = MockHttpServletRequest()
+            request.remoteAddr = "178.168.1.1"
 
-                whenever(request.getHeader("User-Agent")).thenReturn(userAgent)
-                whenever(request.getHeader("X-Forwarded-For")).thenReturn(ipAddress)
-                whenever(request.remoteAddr).thenReturn(remoteAddr)
+            assertEquals("178.168.1.1", Utils().getClientIp(request))
+        }
 
-                val expected = "$userAgent|178"
-                val actual = Utils().getUserAgentFromRequest(request)
+        @Test
+        fun `when request remoteAddr is missing, returns the anonymous IP`() {
+            val request = mock(HttpServletRequest::class.java)
+            whenever(request.remoteAddr).thenReturn(null)
 
-                assertEquals(expected, actual)
-            }
+            assertEquals(ANON_REQUEST_IP, Utils().getClientIp(request))
+        }
+    }
 
-            @Test
-            fun `when request remoteAddr is missing, returns zeros as IP`() {
-                val request = mock(HttpServletRequest::class.java)
-                val ipAddress = null
-                val remoteAddr = null
-                val userAgent = "MySuperCoolComputer"
+    @Nested
+    @DisplayName("getFingerprintFromRequest")
+    inner class GetFingerprintFromRequest() {
+        @Test
+        fun `returns the value of the fingerprint cookie`() {
+            val request = MockHttpServletRequest()
+            request.setCookies(Cookie(FINGERPRINT_COOKIE_NAME, "someFingerprint"))
 
-                whenever(request.getHeader("User-Agent")).thenReturn(userAgent)
-                whenever(request.getHeader("X-Forwarded-For")).thenReturn(ipAddress)
-                whenever(request.remoteAddr).thenReturn(remoteAddr)
+            val actual = Utils().getFingerprintFromRequest(request)
 
-                val expected = "$userAgent|0"
-                val actual = Utils().getUserAgentFromRequest(request)
+            assertEquals("someFingerprint", actual)
+        }
 
-                assertEquals(expected, actual)
+        @Test
+        fun `when the fingerprint cookie is missing, throws FingerprintNotInRequestException`() {
+            val request = MockHttpServletRequest()
+
+            assertThrows(FingerprintNotInRequestException::class.java) {
+                Utils().getFingerprintFromRequest(request)
             }
         }
     }
 
     @Test
-    fun `generateFingerprint should return a hash of whatever string it's supplied`() {
+    fun `generateRandomFingerprint should return a different value each time`() {
+        val first = Utils().generateRandomFingerprint()
+        val second = Utils().generateRandomFingerprint()
+
+        assertNotEquals(first, second)
+    }
+
+    @Test
+    fun `hashFingerprint should return a hash of whatever string it's supplied`() {
         val str = "test|127"
 
         val expected = "vEY_qaH5tmgiQ3p8i-2N2Y4YulOEFhDZbPU-j4v69cI"
-        val actual = Utils().generateFingerprint(str)
+        val actual = Utils().hashFingerprint(str)
 
         assertEquals(expected, actual)
     }
